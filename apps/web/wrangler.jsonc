@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "customer-web",
+  "main": "src/backend/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "vars": {
+    "BETTER_AUTH_URL": "http://localhost:5173",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "customer",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "src/backend/db/migrations",
+    },
+  ],
+  "secrets": {
+    "required": ["BETTER_AUTH_SECRET"],
+  },
+}

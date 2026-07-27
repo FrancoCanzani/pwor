@@ -7,8 +7,11 @@ import { secureHeaders } from "hono/secure-headers";
 
 import { createDb } from "./db";
 import { vaultItem } from "./db/schema";
+import {
+  markVaultItemFailed,
+  processVaultItem,
+} from "./features/vault/pipeline";
 import { createAuth } from "./lib/auth";
-import { markVaultItemFailed, processVaultItem } from "./lib/vault/pipeline";
 import { authMiddleware, requireAuth } from "./middleware/auth";
 import protectedRoutes from "./routes/protected";
 import publicRoutes from "./routes/public";

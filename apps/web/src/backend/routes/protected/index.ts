@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
+import vaultRoutes from "../../features/vault/routes";
 import type { AppEnv } from "../../types";
-import vaultRoutes from "./vault";
 
 const app = new Hono<AppEnv>()
   .get("/me", (c) => c.json(c.get("user")!))

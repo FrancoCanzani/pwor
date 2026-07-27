@@ -21,6 +21,34 @@
       "migrations_dir": "src/backend/db/migrations",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "VAULT_BUCKET",
+      "bucket_name": "customer-vault",
+    },
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "VAULT_QUEUE",
+        "queue": "vault-processing",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "vault-processing",
+        "max_batch_size": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "vault-processing-dlq",
+      },
+    ],
+  },
+  "ai": {
+    "binding": "AI",
+  },
+  "triggers": {
+    "crons": ["0 6 * * *"],
+  },
   "secrets": {
     "required": ["BETTER_AUTH_SECRET"],
   },

@@ -13,7 +13,8 @@
 
 ## UI
 
-- Font: Geist Sans + Geist Mono.
+- Font: Geist Mono everywhere. Geist Pixel (`font-pixel`) for brand / display accents only.
+- All squared: `--radius: 0` — no rounded corners.
 - Style with **Tailwind utilities** in components. Keep `index.css` to theme tokens + base only — no hand-rolled layout/component CSS classes.
 - Prefer shadcn primitives (`Button`, `Input`, `Empty`, `DropdownMenu`, …) over custom markup.
 - White background.
@@ -22,7 +23,8 @@
 - Never use all-caps text (`text-transform: uppercase` or hand-typed caps for labels).
 - Never use semibold / medium weights (no 500–600). Use regular (400) by default; bold (700) only when emphasis is needed. When using shadcn components that ship `font-medium`, override with `font-normal`.
 - Monochrome first. Hierarchy via size, color (muted), and weight (400/700 only) — not surfaces.
-- Geist Mono **only for numbers** (counts, amounts, numeric IDs) via `font-mono tabular-nums`. Never mono for emails, names, labels, or key prefixes.
+- Numbers use `tabular-nums` (already mono).
 - Empty states use shadcn `Empty`.
-- Header has no bottom border.
+- App chrome uses shadcn `Sidebar` (brand, nav, user footer dropdown). Keep it minimal — no inset/floating chrome.
+- New users are gated to `/onboarding` until they set a full name. Avatar is optional; missing avatars use squared [Hashvatar](https://www.hashvatar.com/) from email.
 - Homepage is search-first, not a task feed.

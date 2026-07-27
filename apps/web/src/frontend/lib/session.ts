@@ -1,12 +1,19 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 
 import { authClient } from "@lib/auth-client";
 
 export const sessionQueryOptions = queryOptions({
-  queryKey: ["session"],
+  queryKey: ["session"] as const,
   queryFn: async () => {
     const { data } = await authClient.getSession();
     return data;
   },
   staleTime: 60_000,
 });
+
+/** Replace the cached session with a forced network read. */
+export async function refreshSession(queryClient: QueryClient) {
+  await queryClient.cancelQueries({ queryKey: sessionQueryOptions.queryKey });
+  queryClient.removeQueries({ queryKey: sessionQueryOptions.queryKey });
+  return queryClient.fetchQuery(sessionQueryOptions);
+}

@@ -1,13 +1,30 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
 import {
-  UserMenu,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  NavUser,
   type ShellUser,
-} from "@features/navigation/components/user-menu";
+} from "@features/navigation/components/nav-user";
 
-const shellWidth = "mx-auto w-full max-w-3xl px-5";
+const navItems = [
+  { to: "/", label: "Home", exact: true },
+  { to: "/settings", label: "Settings", exact: false },
+] as const;
 
 export function AppShell({
   user,
@@ -16,22 +33,69 @@ export function AppShell({
   user: ShellUser;
   children: ReactNode;
 }) {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+
   return (
-    <>
-      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm">
-        <div className={cn(shellWidth, "flex items-center gap-6 py-5")}>
-          <Link
-            to="/"
-            className="shrink-0 text-[13px] font-normal tracking-tight text-foreground no-underline"
-          >
-            Odiseum
-          </Link>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <UserMenu user={user} />
+    <TooltipProvider>
+      <SidebarProvider>
+        <Sidebar collapsible="icon">
+          <SidebarHeader className="gap-3 px-3 py-4">
+            <Link
+              to="/"
+              className="px-1 font-pixel text-[13px] font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
+            >
+              Odiseum
+            </Link>
+          </SidebarHeader>
+
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {navItems.map((item) => {
+                    const isActive = item.exact
+                      ? pathname === item.to
+                      : pathname === item.to ||
+                        pathname.startsWith(`${item.to}/`);
+
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={item.label}
+                          size="sm"
+                          className="font-normal"
+                        >
+                          <Link to={item.to}>{item.label}</Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+
+          <SidebarFooter>
+            <NavUser user={user} />
+          </SidebarFooter>
+        </Sidebar>
+
+        <SidebarInset>
+          <div className="flex items-center gap-2 px-4 pt-3 md:hidden">
+            <SidebarTrigger />
+            <span className="font-pixel text-[13px] tracking-tight">
+              Odiseum
+            </span>
           </div>
-        </div>
-      </header>
-      <div className={cn(shellWidth, "pt-10 pb-20")}>{children}</div>
-    </>
+          <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
+            {children}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }

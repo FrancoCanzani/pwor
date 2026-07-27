@@ -7,9 +7,8 @@ import { z } from "zod";
 import { createDb } from "../../../db";
 import { vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
+import { REMINDER_WINDOW_MS } from "./constants";
 import { vaultDocumentTypeSchema } from "./schema";
-
-const REMINDER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 const listQuerySchema = z.object({
   type: vaultDocumentTypeSchema.optional(),
@@ -79,6 +78,34 @@ const app = new Hono<AppEnv>()
     );
 
     return c.json({ items: needsAttention });
+  })
+
+  .post("/:id/retry", async (c) => {
+    const user = c.get("user")!;
+    const id = c.req.param("id");
+    const db = createDb(c.env.DB);
+
+    const [item] = await db
+      .select()
+      .from(vaultItem)
+      .where(and(eq(vaultItem.id, id), eq(vaultItem.userId, user.id)))
+      .limit(1);
+
+    if (!item) throw new HTTPException(404, { message: "Not found" });
+    if (item.status !== "failed") {
+      throw new HTTPException(400, {
+        message: "Only failed items can be retried",
+      });
+    }
+
+    await db
+      .update(vaultItem)
+      .set({ status: "uploaded", error: null })
+      .where(eq(vaultItem.id, id));
+
+    await c.env.VAULT_QUEUE.send({ itemId: id });
+
+    return c.json({ id, status: "uploaded" as const });
   })
 
   .get("/:id", async (c) => {

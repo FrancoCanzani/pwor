@@ -8,12 +8,14 @@ import { secureHeaders } from "hono/secure-headers";
 import { createDb } from "./db";
 import { vaultItem } from "./db/schema";
 import { createAuth } from "./lib/auth";
+import { authMiddleware, requireAuth } from "./middleware/auth";
+import protectedRoutes from "./routes/protected";
+import { cleanupOrphanNoteImages } from "./routes/protected/notes/cleanup";
 import {
   markVaultItemFailed,
   processVaultItem,
-} from "./routes/protected/vault/pipeline";
-import { authMiddleware, requireAuth } from "./middleware/auth";
-import protectedRoutes from "./routes/protected";
+  toHumanErrorMessage,
+} from "./routes/protected/vault/utils";
 import publicRoutes from "./routes/public";
 import type { AppEnv } from "./types";
 
@@ -64,7 +66,11 @@ export default {
           `vault item ${msg.body.itemId} processing failed (attempt ${msg.attempts})`,
           message,
         );
-        await markVaultItemFailed(db, msg.body.itemId, message);
+        await markVaultItemFailed(
+          db,
+          msg.body.itemId,
+          toHumanErrorMessage(message),
+        );
 
         if (msg.attempts >= MAX_QUEUE_ATTEMPTS) {
           msg.ack();
@@ -100,5 +106,7 @@ export default {
         .set({ remindedAt: new Date() })
         .where(eq(vaultItem.id, item.id));
     }
+
+    await cleanupOrphanNoteImages(env);
   },
 };

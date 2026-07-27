@@ -1,5 +1,5 @@
+import { CaretSortIcon } from "@radix-ui/react-icons";
 import { Link } from "@tanstack/react-router";
-import { ChevronsUpDownIcon } from "lucide-react";
 
 import { UserAvatar } from "@/components/user-avatar";
 import {
@@ -50,7 +50,7 @@ export function NavUser({ user }: { user: ShellUser }) {
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDownIcon className="ml-auto" />
+              <CaretSortIcon className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

@@ -17,7 +17,7 @@
     {
       "binding": "DB",
       "database_name": "customer",
-      "database_id": "00000000-0000-0000-0000-000000000001",
+      "database_id": "71dcc450-2425-485c-a119-eca723180cc6",
       "migrations_dir": "src/backend/db/migrations",
     },
   ],

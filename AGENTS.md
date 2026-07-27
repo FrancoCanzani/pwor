@@ -1,10 +1,19 @@
 # Agent notes
 
+## Git
+
+- Never run `git commit` unless the user explicitly asks for it in that turn. Staging/inspecting changes is fine; committing is not.
+
 ## Dev server
 
 - Never kill, restart, or replace a running dev server unless the user explicitly asks.
 - Do not start a second `bun run dev` / Vite process if one is already running — reuse the existing one.
 - Prefer HMR / file edits over process restarts.
+
+## Database
+
+- Never run DB commands (`db:generate`, `db:migrate`, `db:migrate:dev`, `db:studio`, `wrangler d1 …`, drizzle-kit apply/push, etc.) unless the user explicitly asks.
+- You may still edit schema files and write migration SQL when building features; leave generating/applying migrations to the user.
 
 ## Product
 
@@ -27,4 +36,5 @@
 - Empty states use shadcn `Empty`.
 - App chrome uses shadcn `Sidebar` (brand, nav, user footer dropdown). Keep it minimal — no inset/floating chrome.
 - New users are gated to `/onboarding` until they set a full name. Avatar is optional; missing avatars use squared [Hashvatar](https://www.hashvatar.com/) from email.
+- Notes use a source markdown editor (CodeMirror) — marks stay visible, autosave, no toolbar.
 - Homepage is search-first, not a task feed.

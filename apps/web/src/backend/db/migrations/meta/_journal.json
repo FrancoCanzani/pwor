@@ -15,6 +15,27 @@
       "when": 1785175374505,
       "tag": "0001_vengeful_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785177466025,
+      "tag": "0002_quiet_deathbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785179834355,
+      "tag": "0003_free_donald_blake",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1785180552256,
+      "tag": "0004_married_iron_monger",
+      "breakpoints": true
     }
   ]
 }

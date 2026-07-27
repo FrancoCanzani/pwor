@@ -5,8 +5,10 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 
+import { Toaster } from "@/components/ui/sonner";
 import { Loading } from "@components/loading";
 import { AppShell } from "@features/navigation/components/app-shell";
+import { VaultDropZone } from "@features/vault/components/vault-drop-zone";
 import { sessionQueryOptions } from "@lib/session";
 
 function isProfileIncomplete(user: { name: string }) {
@@ -54,6 +56,8 @@ function AppLayout() {
 
   return (
     <AppShell user={user}>
+      <VaultDropZone />
+      <Toaster />
       <Outlet />
     </AppShell>
   );

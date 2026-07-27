@@ -16,6 +16,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import {
   NavUser,
   type ShellUser,
@@ -23,7 +24,9 @@ import {
 
 const navItems = [
   { to: "/", label: "Home", exact: true },
-  { to: "/settings", label: "Settings", exact: false },
+  { to: "/tasks", label: "Tasks", exact: false },
+  { to: "/notes", label: "Notes", exact: false },
+  { to: "/vault", label: "Vault", exact: false },
 ] as const;
 
 export function AppShell({
@@ -36,15 +39,18 @@ export function AppShell({
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
+  const isNotes = pathname === "/notes" || pathname.startsWith("/notes/");
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <SidebarProvider
+        className={cn(isNotes && "h-svh min-h-0 overflow-hidden")}
+      >
         <Sidebar collapsible="icon">
-          <SidebarHeader className="gap-3 px-3 py-4">
+          <SidebarHeader className="h-12 flex-row items-center gap-0 p-0 px-3">
             <Link
               to="/"
-              className="px-1 font-pixel text-[13px] font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
+              className="font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
             >
               Odiseum
             </Link>
@@ -53,7 +59,7 @@ export function AppShell({
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupContent>
-                <SidebarMenu>
+                <SidebarMenu className="gap-0.5">
                   {navItems.map((item) => {
                     const isActive = item.exact
                       ? pathname === item.to
@@ -84,16 +90,22 @@ export function AppShell({
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset>
-          <div className="flex items-center gap-2 px-4 pt-3 md:hidden">
+        <SidebarInset
+          className={cn(isNotes && "h-full min-h-0 overflow-hidden")}
+        >
+          <div className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1 md:hidden">
             <SidebarTrigger />
-            <span className="font-pixel text-[13px] tracking-tight">
+            <span className="font-pixel text-base leading-none tracking-tight">
               Odiseum
             </span>
           </div>
-          <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
-            {children}
-          </div>
+          {isNotes ? (
+            <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+          ) : (
+            <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
+              {children}
+            </div>
+          )}
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

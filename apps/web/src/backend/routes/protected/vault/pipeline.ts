@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import type { Db } from "../../db";
-import { vaultItem } from "../../db/schema";
+import type { Db } from "../../../db";
+import { vaultItem } from "../../../db/schema";
 import { vaultExtractionSchema, type VaultExtraction } from "./schema";
 
 const OCR_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";

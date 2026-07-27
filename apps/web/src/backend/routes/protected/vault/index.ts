@@ -4,9 +4,9 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
-import { createDb } from "../../db";
-import { vaultItem } from "../../db/schema";
-import type { AppEnv } from "../../types";
+import { createDb } from "../../../db";
+import { vaultItem } from "../../../db/schema";
+import type { AppEnv } from "../../../types";
 import { vaultDocumentTypeSchema } from "./schema";
 
 const REMINDER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;

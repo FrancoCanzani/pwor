@@ -69,13 +69,13 @@ export function AppShell({
                     return (
                       <SidebarMenuItem key={item.to}>
                         <SidebarMenuButton
-                          asChild
+                          render={<Link to={item.to} />}
                           isActive={isActive}
                           tooltip={item.label}
                           size="sm"
                           className="font-normal"
                         >
-                          <Link to={item.to}>{item.label}</Link>
+                          {item.label}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );

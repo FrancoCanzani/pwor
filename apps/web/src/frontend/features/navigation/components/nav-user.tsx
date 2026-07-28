@@ -33,25 +33,27 @@ export function NavUser({ user }: { user: ShellUser }) {
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="font-normal data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
-            >
-              <UserAvatar
-                name={user.name}
-                email={user.email}
-                image={user.image}
-                size="sm"
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                className="font-normal data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
               />
-              <div className="grid flex-1 text-left text-xs leading-tight">
-                <span className="truncate font-normal">{label}</span>
-                <span className="truncate text-muted-foreground">
-                  {user.email}
-                </span>
-              </div>
-              <CaretSortIcon className="ml-auto" />
-            </SidebarMenuButton>
+            }
+          >
+            <UserAvatar
+              name={user.name}
+              email={user.email}
+              image={user.image}
+              size="sm"
+            />
+            <div className="grid flex-1 text-left text-xs leading-tight">
+              <span className="truncate font-normal">{label}</span>
+              <span className="truncate text-muted-foreground">
+                {user.email}
+              </span>
+            </div>
+            <CaretSortIcon className="ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-48 rounded-none"
@@ -77,8 +79,11 @@ export function NavUser({ user }: { user: ShellUser }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem asChild className="font-normal text-xs">
-                <Link to="/settings">Settings</Link>
+              <DropdownMenuItem
+                className="font-normal text-xs"
+                render={<Link to="/settings" />}
+              >
+                Settings
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"

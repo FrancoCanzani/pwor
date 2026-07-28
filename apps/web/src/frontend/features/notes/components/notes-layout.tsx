@@ -37,7 +37,7 @@ export function NotesLayout() {
     shouldThrow: false,
   });
   const selectedId = noteMatch?.params.noteId;
-  const { data: notes = [], isLoading } = useQuery(notesQueryOptions);
+  const { data: notes = [] } = useQuery(notesQueryOptions);
   const [pendingDelete, setPendingDelete] = useState<NoteListItem | null>(null);
 
   const createMutation = useMutation({
@@ -85,7 +85,6 @@ export function NotesLayout() {
     <NotesList
       notes={notes}
       selectedId={selectedId}
-      isLoading={isLoading}
       createPending={createMutation.isPending}
       onCreate={() => createMutation.mutate()}
       onDelete={setPendingDelete}
@@ -94,7 +93,7 @@ export function NotesLayout() {
 
   const editor = (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      {!isLoading && notes.length === 0 ? (
+      {notes.length === 0 ? (
         <div className="mx-auto w-full max-w-3xl px-8 pt-12">
           <PageEmpty
             title="No notes yet"

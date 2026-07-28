@@ -10,6 +10,11 @@
 - Do not start a second `bun run dev` / Vite process if one is already running — reuse the existing one.
 - Prefer HMR / file edits over process restarts.
 
+## Routing
+
+- Never hand-edit `apps/web/src/frontend/route-tree.gen.ts`. The TanStack Router Vite plugin regenerates it from `apps/web/src/frontend/routes/` during `bun run dev` / build. Add or change route files only — do not patch the generated tree, and do not add a separate generate script.
+- Loading UI belongs only on routes via `pendingComponent` (e.g. the shared `Loading` on `/_app`). Do not add component-level spinners, skeleton loaders, or `isLoading ? null` / `isLoading ? <Spinner />` branches in feature pages. While data is pending, render the empty/default UI or `null` for missing entities — never a local loader.
+
 ## Database
 
 - Never run DB commands (`db:generate`, `db:migrate`, `db:migrate:dev`, `db:studio`, `wrangler d1 …`, drizzle-kit apply/push, etc.) unless the user explicitly asks.

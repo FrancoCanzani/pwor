@@ -1,4 +1,3 @@
-import { UpdateIcon } from "@radix-ui/react-icons";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ function formatUpdatedAt(value: string | Date) {
 export function NotesList({
   notes,
   selectedId,
-  isLoading,
   createPending,
   onCreate,
   onDelete,
@@ -28,7 +26,6 @@ export function NotesList({
 }: {
   notes: NoteListItem[];
   selectedId?: string;
-  isLoading: boolean;
   createPending: boolean;
   onCreate: () => void;
   onDelete: (note: NoteListItem) => void;
@@ -57,12 +54,7 @@ export function NotesList({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin px-2 pb-3">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <UpdateIcon className="size-[15px] animate-spin" />
-            <span className="sr-only">Loading</span>
-          </div>
-        ) : notes.length === 0 ? (
+        {notes.length === 0 ? (
           <p className="px-2 text-xs text-muted-foreground">No notes yet</p>
         ) : (
           <ul className="flex flex-col gap-0.5">

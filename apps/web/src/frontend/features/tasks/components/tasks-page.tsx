@@ -77,7 +77,7 @@ export function TasksPage() {
   const [title, setTitle] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
   const queryClient = useQueryClient();
-  const { data: tasks = [], isLoading } = useQuery(
+  const { data: tasks = [] } = useQuery(
     tasksQueryOptions(showCompleted ? "all" : "open"),
   );
 
@@ -145,7 +145,7 @@ export function TasksPage() {
         </Button>
       </form>
 
-      {isLoading ? null : open.length === 0 && completed.length === 0 ? (
+      {open.length === 0 && completed.length === 0 ? (
         <PageEmpty
           title="Nothing to do"
           description="Add a task, or wait for one to show up from something you capture."

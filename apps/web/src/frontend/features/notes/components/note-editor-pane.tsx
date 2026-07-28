@@ -3,7 +3,6 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { UpdateIcon } from "@radix-ui/react-icons";
 import { useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
@@ -20,7 +19,7 @@ const SAVE_DEBOUNCE_MS = 500;
 
 export function NoteEditorPane({ noteId }: { noteId: string }) {
   const queryClient = useQueryClient();
-  const { data: note, isLoading, error } = useQuery(noteQueryOptions(noteId));
+  const { data: note, error } = useQuery(noteQueryOptions(noteId));
 
   const [title, setTitle] = useState("");
   const [saveState, setSaveState] = useState<
@@ -147,17 +146,11 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
     scheduleSave();
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <UpdateIcon className="size-[15px] animate-spin" />
-        <span className="sr-only">Loading</span>
-      </div>
-    );
-  }
-
-  if (error || !note) {
-    return <p className="text-xs text-destructive">Note not found.</p>;
+  if (!note) {
+    if (error) {
+      return <p className="text-xs text-destructive">Note not found.</p>;
+    }
+    return null;
   }
 
   return (

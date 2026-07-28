@@ -4,11 +4,13 @@ import type { AppEnv } from "../../types";
 import notesRoutes from "./notes";
 import tasksRoutes from "./tasks";
 import vaultRoutes from "./vault";
+import workLogRoutes from "./work-log";
 
 const app = new Hono<AppEnv>()
   .get("/me", (c) => c.json(c.get("user")!))
   .route("/notes", notesRoutes)
   .route("/tasks", tasksRoutes)
-  .route("/vault", vaultRoutes);
+  .route("/vault", vaultRoutes)
+  .route("/work-log", workLogRoutes);
 
 export default app;

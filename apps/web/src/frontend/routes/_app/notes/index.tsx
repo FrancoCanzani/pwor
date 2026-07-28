@@ -12,10 +12,10 @@ export const Route = createFileRoute("/_app/notes/")({
 function NotesIndex() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { data: notes = [], isLoading } = useQuery(notesQueryOptions);
+  const { data: notes } = useQuery(notesQueryOptions);
 
   useEffect(() => {
-    if (isMobile || isLoading) return;
+    if (isMobile || notes === undefined) return;
     const latest = notes[0];
     if (!latest) return;
     void navigate({
@@ -23,7 +23,7 @@ function NotesIndex() {
       params: { noteId: latest.id },
       replace: true,
     });
-  }, [isMobile, isLoading, notes, navigate]);
+  }, [isMobile, notes, navigate]);
 
   return null;
 }

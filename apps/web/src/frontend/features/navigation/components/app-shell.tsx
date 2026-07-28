@@ -27,6 +27,7 @@ const navItems = [
   { to: "/tasks", label: "Tasks", exact: false },
   { to: "/notes", label: "Notes", exact: false },
   { to: "/vault", label: "Vault", exact: false },
+  { to: "/log", label: "Log", exact: false },
 ] as const;
 
 export function AppShell({
@@ -40,11 +41,13 @@ export function AppShell({
     select: (state) => state.location.pathname,
   });
   const isNotes = pathname === "/notes" || pathname.startsWith("/notes/");
+  const isLogFeed = pathname === "/log" || pathname === "/log/";
+  const isFlush = isNotes || isLogFeed;
 
   return (
     <TooltipProvider>
       <SidebarProvider
-        className={cn(isNotes && "h-svh min-h-0 overflow-hidden")}
+        className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
       >
         <Sidebar collapsible="icon">
           <SidebarHeader className="h-12 flex-row items-center gap-0 p-0 px-3">
@@ -91,7 +94,7 @@ export function AppShell({
         </Sidebar>
 
         <SidebarInset
-          className={cn(isNotes && "h-full min-h-0 overflow-hidden")}
+          className={cn(isFlush && "h-full min-h-0 overflow-hidden")}
         >
           <div className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1 md:hidden">
             <SidebarTrigger />
@@ -101,6 +104,10 @@ export function AppShell({
           </div>
           {isNotes ? (
             <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+          ) : isLogFeed ? (
+            <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-8 pt-10">
+              {children}
+            </div>
           ) : (
             <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
               {children}

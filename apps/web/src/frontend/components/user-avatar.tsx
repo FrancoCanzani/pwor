@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 const sizeMap = {
+  xs: 16,
   sm: 24,
   default: 32,
   lg: 40,
@@ -25,9 +26,13 @@ export function UserAvatar({
   const label = name.trim() || email;
   const hash = email.trim() || name.trim() || "odiseum";
   const px = sizeMap[size];
+  const avatarSize = size === "xs" ? "sm" : size;
 
   return (
-    <Avatar size={size} className={cn("rounded-none", className)}>
+    <Avatar
+      size={avatarSize}
+      className={cn("rounded-none", size === "xs" && "!size-4", className)}
+    >
       {image ? <AvatarImage src={image} alt={label} /> : null}
       <AvatarFallback className="rounded-none overflow-hidden p-0">
         <Hashvatar

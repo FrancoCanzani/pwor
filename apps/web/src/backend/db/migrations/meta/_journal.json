@@ -36,6 +36,20 @@
       "when": 1785180552256,
       "tag": "0004_married_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1785260000000,
+      "tag": "0005_work_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785261000000,
+      "tag": "0006_work_log_daily",
+      "breakpoints": true
     }
   ]
 }

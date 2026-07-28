@@ -1,10 +1,11 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { createDb } from "../../../db";
+import { ownedBy } from "../../../db/helpers";
 import { note, noteImage } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 import { deleteNoteImagesFromR2 } from "./cleanup";
@@ -71,7 +72,7 @@ const app = new Hono<AppEnv>()
     const [created] = await db
       .select()
       .from(note)
-      .where(and(eq(note.id, id), eq(note.userId, user.id)))
+      .where(ownedBy(note.id, id, note.userId, user.id))
       .limit(1);
 
     return c.json(created, 201);
@@ -85,7 +86,7 @@ const app = new Hono<AppEnv>()
     const [image] = await db
       .select()
       .from(noteImage)
-      .where(and(eq(noteImage.id, imageId), eq(noteImage.userId, user.id)))
+      .where(ownedBy(noteImage.id, imageId, noteImage.userId, user.id))
       .limit(1);
 
     if (!image) throw new HTTPException(404, { message: "Not found" });
@@ -109,7 +110,7 @@ const app = new Hono<AppEnv>()
     const [existing] = await db
       .select({ id: note.id })
       .from(note)
-      .where(and(eq(note.id, noteId), eq(note.userId, user.id)))
+      .where(ownedBy(note.id, noteId, note.userId, user.id))
       .limit(1);
 
     if (!existing) throw new HTTPException(404, { message: "Not found" });
@@ -165,7 +166,7 @@ const app = new Hono<AppEnv>()
     const [item] = await db
       .select()
       .from(note)
-      .where(and(eq(note.id, id), eq(note.userId, user.id)))
+      .where(ownedBy(note.id, id, note.userId, user.id))
       .limit(1);
 
     if (!item) throw new HTTPException(404, { message: "Not found" });
@@ -182,7 +183,7 @@ const app = new Hono<AppEnv>()
     const [existing] = await db
       .select({ id: note.id })
       .from(note)
-      .where(and(eq(note.id, id), eq(note.userId, user.id)))
+      .where(ownedBy(note.id, id, note.userId, user.id))
       .limit(1);
 
     if (!existing) throw new HTTPException(404, { message: "Not found" });
@@ -196,12 +197,12 @@ const app = new Hono<AppEnv>()
         ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
         updatedAt: new Date(),
       })
-      .where(and(eq(note.id, id), eq(note.userId, user.id)));
+      .where(ownedBy(note.id, id, note.userId, user.id));
 
     const [updated] = await db
       .select()
       .from(note)
-      .where(and(eq(note.id, id), eq(note.userId, user.id)))
+      .where(ownedBy(note.id, id, note.userId, user.id))
       .limit(1);
 
     return c.json(updated);
@@ -215,7 +216,7 @@ const app = new Hono<AppEnv>()
     const [existing] = await db
       .select({ id: note.id })
       .from(note)
-      .where(and(eq(note.id, id), eq(note.userId, user.id)))
+      .where(ownedBy(note.id, id, note.userId, user.id))
       .limit(1);
 
     if (!existing) throw new HTTPException(404, { message: "Not found" });
@@ -223,13 +224,13 @@ const app = new Hono<AppEnv>()
     const images = await db
       .select({ r2Key: noteImage.r2Key })
       .from(noteImage)
-      .where(and(eq(noteImage.noteId, id), eq(noteImage.userId, user.id)));
+      .where(ownedBy(noteImage.noteId, id, noteImage.userId, user.id));
 
     await deleteNoteImagesFromR2(c.env.VAULT_BUCKET, images);
 
     await db
       .delete(note)
-      .where(and(eq(note.id, id), eq(note.userId, user.id)));
+      .where(ownedBy(note.id, id, note.userId, user.id));
 
     return c.json({ ok: true });
   });

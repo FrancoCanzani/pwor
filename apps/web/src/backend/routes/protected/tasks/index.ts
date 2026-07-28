@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { createDb } from "../../../db";
+import { ownedBy } from "../../../db/helpers";
 import { task } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 
@@ -65,7 +66,7 @@ const app = new Hono<AppEnv>()
     const [created] = await db
       .select()
       .from(task)
-      .where(and(eq(task.id, id), eq(task.userId, user.id)))
+      .where(ownedBy(task.id, id, task.userId, user.id))
       .limit(1);
 
     return c.json(created, 201);
@@ -80,7 +81,7 @@ const app = new Hono<AppEnv>()
     const [existing] = await db
       .select({ id: task.id })
       .from(task)
-      .where(and(eq(task.id, id), eq(task.userId, user.id)))
+      .where(ownedBy(task.id, id, task.userId, user.id))
       .limit(1);
 
     if (!existing) throw new HTTPException(404, { message: "Not found" });
@@ -94,12 +95,12 @@ const app = new Hono<AppEnv>()
           : {}),
         ...(status !== undefined ? { status } : {}),
       })
-      .where(and(eq(task.id, id), eq(task.userId, user.id)));
+      .where(ownedBy(task.id, id, task.userId, user.id));
 
     const [updated] = await db
       .select()
       .from(task)
-      .where(and(eq(task.id, id), eq(task.userId, user.id)))
+      .where(ownedBy(task.id, id, task.userId, user.id))
       .limit(1);
 
     return c.json(updated);
@@ -112,7 +113,7 @@ const app = new Hono<AppEnv>()
 
     const result = await db
       .delete(task)
-      .where(and(eq(task.id, id), eq(task.userId, user.id)))
+      .where(ownedBy(task.id, id, task.userId, user.id))
       .returning({ id: task.id });
 
     if (result.length === 0) {

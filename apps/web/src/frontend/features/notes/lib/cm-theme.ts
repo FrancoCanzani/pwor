@@ -108,6 +108,23 @@ function insertMarkdown(view: EditorView, markdown: string) {
   });
 }
 
+function uploadAndInsertFiles(
+  view: EditorView,
+  files: File[],
+  uploadImage: (file: File) => Promise<{ url: string }>,
+) {
+  void (async () => {
+    for (const file of files) {
+      try {
+        const { url } = await uploadImage(file);
+        insertMarkdown(view, `![${altFromFilename(file.name)}](${url})`);
+      } catch {
+        insertMarkdown(view, `<!-- failed to upload ${file.name} -->`);
+      }
+    }
+  })();
+}
+
 function createImageUploadHandler(
   uploadImage: (file: File) => Promise<{ url: string }>,
 ) {
@@ -116,16 +133,7 @@ function createImageUploadHandler(
       const files = imageFilesFromDataTransfer(event.clipboardData);
       if (files.length === 0) return false;
       event.preventDefault();
-      void (async () => {
-        for (const file of files) {
-          try {
-            const { url } = await uploadImage(file);
-            insertMarkdown(view, `![${altFromFilename(file.name)}](${url})`);
-          } catch {
-            insertMarkdown(view, `<!-- failed to upload ${file.name} -->`);
-          }
-        }
-      })();
+      uploadAndInsertFiles(view, files, uploadImage);
       return true;
     },
     drop(event, view) {
@@ -137,16 +145,7 @@ function createImageUploadHandler(
       if (pos != null) {
         view.dispatch({ selection: { anchor: pos } });
       }
-      void (async () => {
-        for (const file of files) {
-          try {
-            const { url } = await uploadImage(file);
-            insertMarkdown(view, `![${altFromFilename(file.name)}](${url})`);
-          } catch {
-            insertMarkdown(view, `<!-- failed to upload ${file.name} -->`);
-          }
-        }
-      })();
+      uploadAndInsertFiles(view, files, uploadImage);
       return true;
     },
     dragover(event) {

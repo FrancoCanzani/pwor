@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import { parseJson } from "@lib/api";
+
 export type NoteListItem = {
   id: string;
   title: string | null;
@@ -11,13 +13,6 @@ export type Note = NoteListItem & {
   body: string;
   userId: string;
 };
-
-async function parseJson<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    throw new Error(await res.text().catch(() => "Request failed"));
-  }
-  return (await res.json()) as T;
-}
 
 async function fetchNotes(): Promise<NoteListItem[]> {
   const data = await parseJson<{ items: NoteListItem[] }>(

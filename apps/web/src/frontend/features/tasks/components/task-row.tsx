@@ -3,20 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { Task } from "@features/tasks/api";
-
-function formatDue(dueAt: string | null): { label: string; overdue: boolean } | null {
-  if (!dueAt) return null;
-
-  const due = new Date(dueAt);
-  const diffDays = Math.round(
-    (due.getTime() - Date.now()) / (24 * 60 * 60 * 1000),
-  );
-
-  if (diffDays < 0) return { label: "overdue", overdue: true };
-  if (diffDays === 0) return { label: "today", overdue: false };
-  if (diffDays === 1) return { label: "tomorrow", overdue: false };
-  return { label: `in ${diffDays} days`, overdue: false };
-}
+import { dueDateInfo } from "@features/tasks/lib/due-date";
 
 function TaskTitle({ task }: { task: Task }) {
   const className = cn(
@@ -54,7 +41,7 @@ export function TaskRow({
   task: Task;
   onToggle: (done: boolean) => void;
 }) {
-  const due = formatDue(task.dueAt);
+  const due = dueDateInfo(task.dueAt);
 
   return (
     <li className="flex items-center justify-between gap-4 py-3">
@@ -67,7 +54,7 @@ export function TaskRow({
         <TaskTitle task={task} />
       </div>
 
-      {due ? (
+      {due.group !== "no-date" ? (
         <span
           className={cn(
             "text-xs tabular-nums text-muted-foreground",

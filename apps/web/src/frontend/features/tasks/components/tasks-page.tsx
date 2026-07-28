@@ -12,8 +12,7 @@ import {
   type Task,
 } from "@features/tasks/api";
 import { TaskRow } from "@features/tasks/components/task-row";
-
-type DateGroup = "overdue" | "today" | "tomorrow" | "upcoming" | "no-date";
+import { dueDateInfo, type DateGroup } from "@features/tasks/lib/due-date";
 
 const GROUP_ORDER: DateGroup[] = [
   "overdue",
@@ -31,17 +30,47 @@ const GROUP_LABEL: Record<DateGroup, string> = {
   "no-date": "No date",
 };
 
-function dateGroupFor(task: Task): DateGroup {
-  if (!task.dueAt) return "no-date";
+function groupOpenTasks(tasks: Task[]): Record<DateGroup, Task[]> {
+  const groups: Record<DateGroup, Task[]> = {
+    overdue: [],
+    today: [],
+    tomorrow: [],
+    upcoming: [],
+    "no-date": [],
+  };
 
-  const diffDays = Math.round(
-    (new Date(task.dueAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+  for (const task of tasks) {
+    groups[dueDateInfo(task.dueAt).group].push(task);
+  }
+
+  return groups;
+}
+
+function TaskGroup({
+  label,
+  tasks,
+  onToggle,
+}: {
+  label: string;
+  tasks: Task[];
+  onToggle: (task: Task, done: boolean) => void;
+}) {
+  if (tasks.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-xs font-normal text-muted-foreground">{label}</h2>
+      <ul className="flex flex-col divide-y divide-dashed divide-border">
+        {tasks.map((task) => (
+          <TaskRow
+            key={task.id}
+            task={task}
+            onToggle={(done) => onToggle(task, done)}
+          />
+        ))}
+      </ul>
+    </section>
   );
-
-  if (diffDays < 0) return "overdue";
-  if (diffDays === 0) return "today";
-  if (diffDays === 1) return "tomorrow";
-  return "upcoming";
 }
 
 export function TasksPage() {
@@ -75,8 +104,13 @@ export function TasksPage() {
     create.mutate();
   }
 
+  function handleToggle(task: Task, done: boolean) {
+    toggle.mutate({ id: task.id, done });
+  }
+
   const open = tasks.filter((task) => task.status === "open");
   const completed = tasks.filter((task) => task.status === "done");
+  const grouped = groupOpenTasks(open);
 
   return (
     <div className="flex flex-col gap-8">
@@ -118,45 +152,21 @@ export function TasksPage() {
         />
       ) : (
         <div className="flex flex-col gap-6">
-          {GROUP_ORDER.map((group) => {
-            const groupTasks = open.filter(
-              (task) => dateGroupFor(task) === group,
-            );
-            if (groupTasks.length === 0) return null;
+          {GROUP_ORDER.map((group) => (
+            <TaskGroup
+              key={group}
+              label={GROUP_LABEL[group]}
+              tasks={grouped[group]}
+              onToggle={handleToggle}
+            />
+          ))}
 
-            return (
-              <section key={group} className="flex flex-col gap-2">
-                <h2 className="text-xs font-normal text-muted-foreground">
-                  {GROUP_LABEL[group]}
-                </h2>
-                <ul className="flex flex-col divide-y divide-dashed divide-border">
-                  {groupTasks.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      onToggle={(done) => toggle.mutate({ id: task.id, done })}
-                    />
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
-
-          {showCompleted && completed.length > 0 ? (
-            <section className="flex flex-col gap-2">
-              <h2 className="text-xs font-normal text-muted-foreground">
-                Completed
-              </h2>
-              <ul className="flex flex-col divide-y divide-dashed divide-border">
-                {completed.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    onToggle={(done) => toggle.mutate({ id: task.id, done })}
-                  />
-                ))}
-              </ul>
-            </section>
+          {showCompleted ? (
+            <TaskGroup
+              label="Completed"
+              tasks={completed}
+              onToggle={handleToggle}
+            />
           ) : null}
         </div>
       )}

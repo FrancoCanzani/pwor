@@ -11,6 +11,23 @@ import {
 } from "./constants";
 import { vaultExtractionSchema, type VaultExtraction } from "./schema";
 
+export type VaultErrorCode =
+  | "no_ocr_text"
+  | "scanned_pdf"
+  | "unsupported_type"
+  | "bad_json"
+  | "malformed_json"
+  | "invalid_shape";
+
+export class VaultProcessingError extends Error {
+  code: VaultErrorCode;
+
+  constructor(code: VaultErrorCode, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 function extractResponseText(result: unknown): string {
   if (result && typeof result === "object" && "response" in result) {
     const value = (result as { response?: unknown }).response;
@@ -29,7 +46,10 @@ async function ocrImage(env: Env, bytes: ArrayBuffer): Promise<string> {
 
   const text = extractResponseText(result).trim();
   if (!text) {
-    throw new Error("Could not find any legible text in this image");
+    throw new VaultProcessingError(
+      "no_ocr_text",
+      "Could not find any legible text in this image",
+    );
   }
   return text;
 }
@@ -40,7 +60,8 @@ async function extractPdfText(bytes: ArrayBuffer): Promise<string> {
   const trimmed = text.trim();
 
   if (trimmed.length < MIN_PDF_TEXT_LENGTH) {
-    throw new Error(
+    throw new VaultProcessingError(
+      "scanned_pdf",
       "This PDF has no extractable text layer (likely a scan) — scanned PDFs aren't supported yet",
     );
   }
@@ -56,7 +77,10 @@ export async function extractContent(
   if (mimeType.startsWith("image/")) return ocrImage(env, bytes);
   if (mimeType === "application/pdf") return extractPdfText(bytes);
 
-  throw new Error(`Unsupported file type: ${mimeType}`);
+  throw new VaultProcessingError(
+    "unsupported_type",
+    `Unsupported file type: ${mimeType}`,
+  );
 }
 
 function stripCodeFence(text: string): string {
@@ -90,12 +114,16 @@ export async function classifyAndExtract(
   } catch {
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error(`Extraction model did not return JSON: "${preview}"`);
+      throw new VaultProcessingError(
+        "bad_json",
+        `Extraction model did not return JSON: "${preview}"`,
+      );
     }
     try {
       parsed = JSON.parse(jsonMatch[0]);
     } catch {
-      throw new Error(
+      throw new VaultProcessingError(
+        "malformed_json",
         `Extraction model returned malformed JSON: "${preview}"`,
       );
     }
@@ -103,7 +131,8 @@ export async function classifyAndExtract(
 
   const validation = vaultExtractionSchema.safeParse(parsed);
   if (!validation.success) {
-    throw new Error(
+    throw new VaultProcessingError(
+      "invalid_shape",
       `Extraction model's JSON didn't match the expected shape: ${validation.error.issues.map((issue) => issue.message).join(", ")}`,
     );
   }
@@ -126,12 +155,13 @@ export async function processVaultItem(
     throw new Error(`vault item ${itemId} not found`);
   }
 
-  await db
-    .update(vaultItem)
-    .set({ status: "processing" })
-    .where(eq(vaultItem.id, itemId));
-
-  const object = await env.VAULT_BUCKET.get(item.r2Key);
+  const [, object] = await Promise.all([
+    db
+      .update(vaultItem)
+      .set({ status: "processing" })
+      .where(eq(vaultItem.id, itemId)),
+    env.VAULT_BUCKET.get(item.r2Key),
+  ]);
   if (!object) {
     throw new Error(`r2 object missing for key ${item.r2Key}`);
   }
@@ -154,22 +184,18 @@ export async function processVaultItem(
     .where(eq(vaultItem.id, itemId));
 }
 
-export function toHumanErrorMessage(technicalMessage: string): string {
-  if (
-    technicalMessage.startsWith("Extraction model did not return JSON") ||
-    technicalMessage.startsWith("Extraction model returned malformed JSON") ||
-    technicalMessage.startsWith("Extraction model's JSON didn't match")
-  ) {
-    return "Couldn't read this document. Try again in a moment.";
-  }
-  if (technicalMessage.includes("no extractable text layer")) {
-    return "This PDF looks scanned — we can't read scanned PDFs yet.";
-  }
-  if (technicalMessage.includes("Could not find any legible text")) {
-    return "Couldn't find any readable text in this image.";
-  }
-  if (technicalMessage.startsWith("Unsupported file type")) {
-    return "This file type isn't supported yet.";
+const HUMAN_ERROR_MESSAGE: Record<VaultErrorCode, string> = {
+  no_ocr_text: "Couldn't find any readable text in this image.",
+  scanned_pdf: "This PDF looks scanned — we can't read scanned PDFs yet.",
+  unsupported_type: "This file type isn't supported yet.",
+  bad_json: "Couldn't read this document. Try again in a moment.",
+  malformed_json: "Couldn't read this document. Try again in a moment.",
+  invalid_shape: "Couldn't read this document. Try again in a moment.",
+};
+
+export function toHumanErrorMessage(error: unknown): string {
+  if (error instanceof VaultProcessingError) {
+    return HUMAN_ERROR_MESSAGE[error.code];
   }
   return "Something went wrong processing this file.";
 }

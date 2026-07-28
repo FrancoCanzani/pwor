@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { createDb } from "../../../db";
+import { ownedBy } from "../../../db/helpers";
 import { vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 import { REMINDER_WINDOW_MS } from "./constants";
@@ -88,7 +89,7 @@ const app = new Hono<AppEnv>()
     const [item] = await db
       .select()
       .from(vaultItem)
-      .where(and(eq(vaultItem.id, id), eq(vaultItem.userId, user.id)))
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
     if (!item) throw new HTTPException(404, { message: "Not found" });
@@ -116,7 +117,7 @@ const app = new Hono<AppEnv>()
     const [item] = await db
       .select()
       .from(vaultItem)
-      .where(and(eq(vaultItem.id, id), eq(vaultItem.userId, user.id)))
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
     if (!item) throw new HTTPException(404, { message: "Not found" });
@@ -132,7 +133,7 @@ const app = new Hono<AppEnv>()
     const [item] = await db
       .select()
       .from(vaultItem)
-      .where(and(eq(vaultItem.id, id), eq(vaultItem.userId, user.id)))
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
     if (!item) throw new HTTPException(404, { message: "Not found" });

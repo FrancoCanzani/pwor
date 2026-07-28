@@ -56,57 +56,64 @@ export default {
   ): Promise<void> {
     const db = createDb(env.DB);
 
-    for (const msg of batch.messages) {
-      try {
-        await processVaultItem(env, db, msg.body.itemId);
-        msg.ack();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(
-          `vault item ${msg.body.itemId} processing failed (attempt ${msg.attempts})`,
-          message,
-        );
-        await markVaultItemFailed(
-          db,
-          msg.body.itemId,
-          toHumanErrorMessage(message),
-        );
-
-        if (msg.attempts >= MAX_QUEUE_ATTEMPTS) {
+    await Promise.allSettled(
+      batch.messages.map(async (msg) => {
+        try {
+          await processVaultItem(env, db, msg.body.itemId);
           msg.ack();
-        } else {
-          msg.retry({ delaySeconds: 30 * 2 ** msg.attempts });
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            `vault item ${msg.body.itemId} processing failed (attempt ${msg.attempts})`,
+            message,
+          );
+          await markVaultItemFailed(
+            db,
+            msg.body.itemId,
+            toHumanErrorMessage(error),
+          );
+
+          if (msg.attempts >= MAX_QUEUE_ATTEMPTS) {
+            msg.ack();
+          } else {
+            msg.retry({ delaySeconds: 30 * 2 ** msg.attempts });
+          }
         }
-      }
-    }
+      }),
+    );
   },
 
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
     const db = createDb(env.DB);
     const cutoff = new Date(Date.now() + REMINDER_WINDOW_MS);
 
-    const items = await db
-      .select()
-      .from(vaultItem)
-      .where(
-        and(
-          eq(vaultItem.status, "ready"),
-          isNotNull(vaultItem.expiresAt),
-          lte(vaultItem.expiresAt, cutoff),
-          isNull(vaultItem.remindedAt),
-        ),
-      );
+    const runReminderScan = async () => {
+      const items = await db
+        .select()
+        .from(vaultItem)
+        .where(
+          and(
+            eq(vaultItem.status, "ready"),
+            isNotNull(vaultItem.expiresAt),
+            lte(vaultItem.expiresAt, cutoff),
+            isNull(vaultItem.remindedAt),
+          ),
+        );
 
-    for (const item of items) {
-      console.log(
-        `[reminder] vault item ${item.id} (${item.title}) expires ${item.expiresAt?.toISOString()}`,
+      await Promise.all(
+        items.map((item) => {
+          console.log(
+            `[reminder] vault item ${item.id} (${item.title}) expires ${item.expiresAt?.toISOString()}`,
+          );
+          return db
+            .update(vaultItem)
+            .set({ remindedAt: new Date() })
+            .where(eq(vaultItem.id, item.id));
+        }),
       );
-      await db
-        .update(vaultItem)
-        .set({ remindedAt: new Date() })
-        .where(eq(vaultItem.id, item.id));
-    }
+    };
 
-    await cleanupOrphanNoteImages(env);
+    await Promise.all([runReminderScan(), cleanupOrphanNoteImages(env)]);
   },
 };

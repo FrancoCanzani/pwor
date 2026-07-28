@@ -10,13 +10,6 @@ import {
   type VaultItem,
 } from "@features/vault/api";
 
-const STATUS_LABEL = {
-  uploaded: "uploaded",
-  processing: "processing",
-  ready: "ready",
-  failed: "failed",
-} as const;
-
 function fileKindLabel(mimeType: string): string {
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType === "application/pdf") return "pdf";
@@ -55,7 +48,7 @@ function VaultRow({ item }: { item: VaultItem }) {
 
       <div className="flex items-center gap-3">
         <span className="text-xs tabular-nums text-muted-foreground">
-          {STATUS_LABEL[item.status]}
+          {item.status}
         </span>
         {item.status === "failed" ? (
           <Button

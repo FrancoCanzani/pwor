@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import { parseJson } from "@lib/api";
+
 export type VaultItemStatus = "uploaded" | "processing" | "ready" | "failed";
 
 export type VaultDocumentType =
@@ -20,9 +22,9 @@ export type VaultItem = {
 };
 
 async function fetchVaultItems(): Promise<VaultItem[]> {
-  const res = await fetch("/api/vault");
-  if (!res.ok) throw new Error("Failed to load vault items");
-  const data = (await res.json()) as { items: VaultItem[] };
+  const data = await parseJson<{ items: VaultItem[] }>(
+    await fetch("/api/vault"),
+  );
   return data.items;
 }
 
@@ -35,17 +37,13 @@ export async function uploadVaultItem(file: File): Promise<{ id: string }> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch("/api/vault", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) throw new Error(`Upload failed for ${file.name}`);
-  return (await res.json()) as { id: string };
+  return parseJson<{ id: string }>(
+    await fetch("/api/vault", { method: "POST", body: formData }),
+  );
 }
 
 export async function retryVaultItem(id: string): Promise<{ id: string }> {
-  const res = await fetch(`/api/vault/${id}/retry`, { method: "POST" });
-  if (!res.ok) throw new Error("Retry failed");
-  return (await res.json()) as { id: string };
+  return parseJson<{ id: string }>(
+    await fetch(`/api/vault/${id}/retry`, { method: "POST" }),
+  );
 }

@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import { parseJson } from "@lib/api";
+
 export type TaskStatus = "open" | "done" | "dismissed";
 export type TaskSourceType = "vault_item" | "note";
 
@@ -12,13 +14,6 @@ export type Task = {
   sourceId: string | null;
   createdAt: string;
 };
-
-async function parseJson<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    throw new Error(await res.text().catch(() => "Request failed"));
-  }
-  return (await res.json()) as T;
-}
 
 export type TaskListFilter = "open" | "all";
 

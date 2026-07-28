@@ -1,4 +1,4 @@
-import { and, eq, lte } from "drizzle-orm";
+import { inArray, lte } from "drizzle-orm";
 
 import { createDb } from "../../../db";
 import { note, noteImage } from "../../../db/schema";
@@ -32,28 +32,32 @@ export async function cleanupOrphanNoteImages(env: Env): Promise<number> {
     .from(noteImage)
     .where(lte(noteImage.createdAt, cutoff));
 
-  let deleted = 0;
+  if (candidates.length === 0) return 0;
 
-  for (const image of candidates) {
-    const [parent] = await db
-      .select({ body: note.body })
-      .from(note)
-      .where(eq(note.id, image.noteId))
-      .limit(1);
+  const noteIds = [...new Set(candidates.map((image) => image.noteId))];
+  const parents = await db
+    .select({ id: note.id, body: note.body })
+    .from(note)
+    .where(inArray(note.id, noteIds));
+  const bodyByNoteId = new Map(
+    parents.map((parent) => [parent.id, parent.body]),
+  );
 
-    const marker = noteImageMarkdownUrl(image.id);
-    if (parent?.body.includes(marker)) continue;
+  const orphans = candidates.filter((image) => {
+    const body = bodyByNoteId.get(image.noteId);
+    return !body?.includes(noteImageMarkdownUrl(image.id));
+  });
 
-    await env.VAULT_BUCKET.delete(image.r2Key);
-    await db
-      .delete(noteImage)
-      .where(and(eq(noteImage.id, image.id)));
-    deleted += 1;
+  if (orphans.length > 0) {
+    await deleteNoteImagesFromR2(env.VAULT_BUCKET, orphans);
+    await db.delete(noteImage).where(
+      inArray(
+        noteImage.id,
+        orphans.map((image) => image.id),
+      ),
+    );
+    console.log(`[notes] cleaned ${orphans.length} orphan note image(s)`);
   }
 
-  if (deleted > 0) {
-    console.log(`[notes] cleaned ${deleted} orphan note image(s)`);
-  }
-
-  return deleted;
+  return orphans.length;
 }

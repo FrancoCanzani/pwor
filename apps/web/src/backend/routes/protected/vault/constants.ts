@@ -5,6 +5,12 @@ export const REMINDER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const MIN_PDF_TEXT_LENGTH = 20;
 
+/** Cap on how many pages of a scanned PDF get OCR'd, to bound cost/time per item. */
+export const MAX_OCR_PDF_PAGES = 12;
+
+/** How many pages to OCR concurrently within a single item. */
+export const PDF_OCR_CONCURRENCY = 3;
+
 export const EXTRACTION_SYSTEM_PROMPT = `You classify and extract structured data from personal documents (passports, IDs, contracts, insurance policies, and other paperwork).
 Respond with valid JSON only, matching exactly this shape, no markdown, no commentary:
 {

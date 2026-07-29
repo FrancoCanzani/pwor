@@ -9,10 +9,19 @@ import { ownedBy } from "../../../db/helpers";
 import { vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 import { REMINDER_WINDOW_MS } from "./constants";
+import { domainOf, fetchLinkMetadata } from "./links";
 import { vaultDocumentTypeSchema } from "./schema";
 
 const listQuerySchema = z.object({
   type: vaultDocumentTypeSchema.optional(),
+});
+
+const createLinkSchema = z.object({
+  url: z.string().trim().url(),
+});
+
+const createTextSchema = z.object({
+  content: z.string().trim().min(1),
 });
 
 const app = new Hono<AppEnv>()
@@ -45,6 +54,60 @@ const app = new Hono<AppEnv>()
     await c.env.VAULT_QUEUE.send({ itemId: id });
 
     return c.json({ id, status: "uploaded" as const }, 201);
+  })
+
+  .post("/links", zValidator("json", createLinkSchema), async (c) => {
+    const user = c.get("user")!;
+    const { url } = c.req.valid("json");
+    const db = createDb(c.env.DB);
+    const id = crypto.randomUUID();
+
+    const { title } = await fetchLinkMetadata(url);
+
+    await db.insert(vaultItem).values({
+      id,
+      userId: user.id,
+      kind: "link",
+      status: "ready",
+      title: title ?? domainOf(url),
+      url,
+      siteName: title,
+    });
+
+    const [created] = await db
+      .select()
+      .from(vaultItem)
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+      .limit(1);
+
+    return c.json(created, 201);
+  })
+
+  .post("/text", zValidator("json", createTextSchema), async (c) => {
+    const user = c.get("user")!;
+    const { content } = c.req.valid("json");
+    const db = createDb(c.env.DB);
+    const id = crypto.randomUUID();
+
+    const title =
+      content.length > 60 ? `${content.slice(0, 60).trim()}…` : content;
+
+    await db.insert(vaultItem).values({
+      id,
+      userId: user.id,
+      kind: "text",
+      status: "ready",
+      title,
+      ocrText: content,
+    });
+
+    const [created] = await db
+      .select()
+      .from(vaultItem)
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+      .limit(1);
+
+    return c.json(created, 201);
   })
 
   .get("/", zValidator("query", listQuerySchema), async (c) => {
@@ -109,6 +172,25 @@ const app = new Hono<AppEnv>()
     return c.json({ id, status: "uploaded" as const });
   })
 
+  .delete("/:id", async (c) => {
+    const user = c.get("user")!;
+    const id = c.req.param("id");
+    const db = createDb(c.env.DB);
+
+    const [item] = await db
+      .select()
+      .from(vaultItem)
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+      .limit(1);
+
+    if (!item) throw new HTTPException(404, { message: "Not found" });
+
+    await db.delete(vaultItem).where(eq(vaultItem.id, id));
+    if (item.r2Key) await c.env.VAULT_BUCKET.delete(item.r2Key);
+
+    return c.json({ id });
+  })
+
   .get("/:id", async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
@@ -136,7 +218,9 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    if (!item) throw new HTTPException(404, { message: "Not found" });
+    if (!item || !item.r2Key || !item.mimeType) {
+      throw new HTTPException(404, { message: "Not found" });
+    }
 
     const object = await c.env.VAULT_BUCKET.get(item.r2Key);
     if (!object) throw new HTTPException(404, { message: "File not found" });

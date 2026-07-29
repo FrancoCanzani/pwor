@@ -13,12 +13,17 @@ export const vaultItem = sqliteTable("vault_item", {
   })
     .notNull()
     .default("uploaded"),
+  kind: text("kind", { enum: ["file", "link", "text"] })
+    .notNull()
+    .default("file"),
   type: text("type", {
     enum: ["passport", "id", "contract", "insurance", "other"],
   }),
   title: text("title"),
-  r2Key: text("r2_key").notNull(),
-  mimeType: text("mime_type").notNull(),
+  r2Key: text("r2_key"),
+  mimeType: text("mime_type"),
+  url: text("url"),
+  siteName: text("site_name"),
   ocrText: text("ocr_text"),
   extracted: text("extracted", { mode: "json" }).$type<
     Record<string, unknown>

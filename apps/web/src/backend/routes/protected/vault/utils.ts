@@ -1,13 +1,19 @@
+import encodePng, { init as initPngEncoder } from "@jsquash/png/encode";
+import { generateObject, NoObjectGeneratedError } from "ai";
 import { eq } from "drizzle-orm";
-import { extractText, getDocumentProxy } from "unpdf";
+import { extractImages, extractText, getDocumentProxy } from "unpdf";
+import { createWorkersAI } from "workers-ai-provider";
 
 import type { Db } from "../../../db";
 import { vaultItem } from "../../../db/schema";
+import PNG_ENCODER_WASM from "@jsquash/png/codec/pkg/squoosh_png_bg.wasm";
 import {
   EXTRACTION_MODEL,
   EXTRACTION_SYSTEM_PROMPT,
+  MAX_OCR_PDF_PAGES,
   MIN_PDF_TEXT_LENGTH,
   OCR_MODEL,
+  PDF_OCR_CONCURRENCY,
 } from "./constants";
 import { vaultExtractionSchema, type VaultExtraction } from "./schema";
 
@@ -15,9 +21,7 @@ export type VaultErrorCode =
   | "no_ocr_text"
   | "scanned_pdf"
   | "unsupported_type"
-  | "bad_json"
-  | "malformed_json"
-  | "invalid_shape";
+  | "bad_json";
 
 export class VaultProcessingError extends Error {
   code: VaultErrorCode;
@@ -54,19 +58,125 @@ async function ocrImage(env: Env, bytes: ArrayBuffer): Promise<string> {
   return text;
 }
 
-async function extractPdfText(bytes: ArrayBuffer): Promise<string> {
+let pngEncoderReady: Promise<unknown> | undefined;
+
+function ensurePngEncoderReady(): Promise<unknown> {
+  pngEncoderReady ??= initPngEncoder(PNG_ENCODER_WASM);
+  return pngEncoderReady;
+}
+
+/** Expands 1/3/4-channel raw pixel data into the flat RGBA buffer the PNG encoder expects. */
+function toRgba(image: {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+  channels: 1 | 3 | 4;
+}): Uint8ClampedArray<ArrayBuffer> {
+  const { data, width, height, channels } = image;
+  const rgba = new Uint8ClampedArray(new ArrayBuffer(width * height * 4));
+
+  for (let i = 0; i < width * height; i++) {
+    if (channels === 4) {
+      rgba[i * 4] = data[i * 4] ?? 0;
+      rgba[i * 4 + 1] = data[i * 4 + 1] ?? 0;
+      rgba[i * 4 + 2] = data[i * 4 + 2] ?? 0;
+      rgba[i * 4 + 3] = data[i * 4 + 3] ?? 0;
+    } else if (channels === 3) {
+      rgba[i * 4] = data[i * 3] ?? 0;
+      rgba[i * 4 + 1] = data[i * 3 + 1] ?? 0;
+      rgba[i * 4 + 2] = data[i * 3 + 2] ?? 0;
+      rgba[i * 4 + 3] = 255;
+    } else {
+      const value = data[i] ?? 0;
+      rgba[i * 4] = value;
+      rgba[i * 4 + 1] = value;
+      rgba[i * 4 + 2] = value;
+      rgba[i * 4 + 3] = 255;
+    }
+  }
+
+  return rgba;
+}
+
+/**
+ * Scanned PDF pages are almost always a single full-page photo embedded as an
+ * image XObject, so pulling the embedded image out is a cheap stand-in for
+ * actually rendering the page (which needs a canvas backend unavailable in
+ * Workers).
+ */
+async function extractPageImagePng(
+  pdf: Awaited<ReturnType<typeof getDocumentProxy>>,
+  pageNumber: number,
+): Promise<ArrayBuffer | null> {
+  const images = await extractImages(pdf, pageNumber);
+  if (images.length === 0) return null;
+
+  const largest = images.reduce((a, b) =>
+    a.width * a.height >= b.width * b.height ? a : b,
+  );
+
+  await ensurePngEncoderReady();
+  return encodePng({
+    data: toRgba(largest),
+    width: largest.width,
+    height: largest.height,
+    colorSpace: "srgb",
+  });
+}
+
+async function ocrScannedPdfPages(
+  env: Env,
+  pdf: Awaited<ReturnType<typeof getDocumentProxy>>,
+): Promise<string> {
+  const pageCount = Math.min(pdf.numPages, MAX_OCR_PDF_PAGES);
+  const pageTexts: string[] = new Array(pageCount).fill("");
+
+  let nextPage = 1;
+  async function worker() {
+    for (;;) {
+      const pageNumber = nextPage++;
+      if (pageNumber > pageCount) return;
+
+      const png = await extractPageImagePng(pdf, pageNumber);
+      if (!png) continue;
+
+      try {
+        pageTexts[pageNumber - 1] = await ocrImage(env, png);
+      } catch {
+        // No legible text on this page — leave it blank and move on.
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: PDF_OCR_CONCURRENCY }, () => worker()),
+  );
+
+  const combined = pageTexts
+    .filter(Boolean)
+    .join("\n\n---\n\n")
+    .trim();
+
+  if (!combined) {
+    throw new VaultProcessingError(
+      "scanned_pdf",
+      "This PDF looks scanned and no legible text could be found on any page",
+    );
+  }
+
+  return combined;
+}
+
+async function extractPdfText(env: Env, bytes: ArrayBuffer): Promise<string> {
   const pdf = await getDocumentProxy(new Uint8Array(bytes));
   const { text } = await extractText(pdf, { mergePages: true });
   const trimmed = text.trim();
 
-  if (trimmed.length < MIN_PDF_TEXT_LENGTH) {
-    throw new VaultProcessingError(
-      "scanned_pdf",
-      "This PDF has no extractable text layer (likely a scan) — scanned PDFs aren't supported yet",
-    );
+  if (trimmed.length >= MIN_PDF_TEXT_LENGTH) {
+    return trimmed;
   }
 
-  return trimmed;
+  return ocrScannedPdfPages(env, pdf);
 }
 
 export async function extractContent(
@@ -75,7 +185,7 @@ export async function extractContent(
   mimeType: string,
 ): Promise<string> {
   if (mimeType.startsWith("image/")) return ocrImage(env, bytes);
-  if (mimeType === "application/pdf") return extractPdfText(bytes);
+  if (mimeType === "application/pdf") return extractPdfText(env, bytes);
 
   throw new VaultProcessingError(
     "unsupported_type",
@@ -83,61 +193,40 @@ export async function extractContent(
   );
 }
 
-function stripCodeFence(text: string): string {
-  return text
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "")
-    .trim();
+/**
+ * Long runs of a repeated character (redaction bars, "xxxxx" placeholders,
+ * "----" separators) can send small/fast instruct models into a degenerate
+ * empty completion. Collapsing them keeps the signal and drops the noise.
+ */
+function collapseRepeatedRuns(text: string): string {
+  return text.replace(/(.)\1{4,}/g, "$1$1$1");
 }
 
 export async function classifyAndExtract(
   env: Env,
   content: string,
 ): Promise<VaultExtraction> {
-  const result = await env.AI.run(EXTRACTION_MODEL, {
-    messages: [
-      { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
-      { role: "user", content },
-    ],
-    temperature: 0,
-    max_tokens: 512,
-  });
+  const workersai = createWorkersAI({ binding: env.AI });
 
-  const raw = extractResponseText(result);
-  const cleaned = stripCodeFence(raw);
-  const preview = raw.slice(0, 200) || "(empty response)";
-
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const { object } = await generateObject({
+      model: workersai(EXTRACTION_MODEL),
+      schema: vaultExtractionSchema,
+      system: EXTRACTION_SYSTEM_PROMPT,
+      prompt: collapseRepeatedRuns(content),
+      temperature: 0,
+    });
+
+    return object;
+  } catch (error) {
+    if (NoObjectGeneratedError.isInstance(error)) {
       throw new VaultProcessingError(
         "bad_json",
-        `Extraction model did not return JSON: "${preview}"`,
+        `Extraction model did not return usable JSON: ${error.message}`,
       );
     }
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch {
-      throw new VaultProcessingError(
-        "malformed_json",
-        `Extraction model returned malformed JSON: "${preview}"`,
-      );
-    }
+    throw error;
   }
-
-  const validation = vaultExtractionSchema.safeParse(parsed);
-  if (!validation.success) {
-    throw new VaultProcessingError(
-      "invalid_shape",
-      `Extraction model's JSON didn't match the expected shape: ${validation.error.issues.map((issue) => issue.message).join(", ")}`,
-    );
-  }
-
-  return validation.data;
 }
 
 export async function processVaultItem(
@@ -154,20 +243,24 @@ export async function processVaultItem(
   if (!item) {
     throw new Error(`vault item ${itemId} not found`);
   }
+  if (!item.r2Key || !item.mimeType) {
+    throw new Error(`vault item ${itemId} has no file to process`);
+  }
+  const r2Key = item.r2Key;
+  const mimeType = item.mimeType;
 
-  const [, object] = await Promise.all([
-    db
-      .update(vaultItem)
-      .set({ status: "processing" })
-      .where(eq(vaultItem.id, itemId)),
-    env.VAULT_BUCKET.get(item.r2Key),
-  ]);
+  await db
+    .update(vaultItem)
+    .set({ status: "processing" })
+    .where(eq(vaultItem.id, itemId));
+
+  const object = await env.VAULT_BUCKET.get(r2Key);
   if (!object) {
-    throw new Error(`r2 object missing for key ${item.r2Key}`);
+    throw new Error(`r2 object missing for key ${r2Key}`);
   }
 
   const bytes = await object.arrayBuffer();
-  const content = await extractContent(env, bytes, item.mimeType);
+  const content = await extractContent(env, bytes, mimeType);
   const extraction = await classifyAndExtract(env, content);
 
   await db
@@ -186,11 +279,9 @@ export async function processVaultItem(
 
 const HUMAN_ERROR_MESSAGE: Record<VaultErrorCode, string> = {
   no_ocr_text: "Couldn't find any readable text in this image.",
-  scanned_pdf: "This PDF looks scanned — we can't read scanned PDFs yet.",
+  scanned_pdf: "Couldn't find any readable text in this scanned PDF.",
   unsupported_type: "This file type isn't supported yet.",
   bad_json: "Couldn't read this document. Try again in a moment.",
-  malformed_json: "Couldn't read this document. Try again in a moment.",
-  invalid_shape: "Couldn't read this document. Try again in a moment.",
 };
 
 export function toHumanErrorMessage(error: unknown): string {

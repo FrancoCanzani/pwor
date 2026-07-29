@@ -3,6 +3,7 @@
 ## Git
 
 - Never run `git commit` unless the user explicitly asks for it in that turn. Staging/inspecting changes is fine; committing is not.
+- Never create a new branch unless the user explicitly asks for it in that turn.
 
 ## Dev server
 

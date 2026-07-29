@@ -41,8 +41,9 @@ export function AppShell({
     select: (state) => state.location.pathname,
   });
   const isNotes = pathname === "/notes" || pathname.startsWith("/notes/");
+  const isVault = pathname === "/vault" || pathname.startsWith("/vault/");
   const isLogFeed = pathname === "/log" || pathname === "/log/";
-  const isFlush = isNotes || isLogFeed;
+  const isFlush = isNotes || isVault || isLogFeed;
 
   return (
     <TooltipProvider>
@@ -102,7 +103,7 @@ export function AppShell({
               Odiseum
             </span>
           </div>
-          {isNotes ? (
+          {isNotes || isVault ? (
             <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
           ) : isLogFeed ? (
             <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-8 pt-10">

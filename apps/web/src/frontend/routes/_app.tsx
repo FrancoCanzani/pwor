@@ -7,6 +7,8 @@ import {
 
 import { Toaster } from "@/components/ui/sonner";
 import { Loading } from "@components/loading";
+import { NotFound } from "@components/not-found";
+import { RouteError } from "@components/route-error";
 import { AppShell } from "@features/navigation/components/app-shell";
 import { VaultDropZone } from "@features/vault/components/vault-drop-zone";
 import { sessionQueryOptions } from "@lib/session";
@@ -41,6 +43,8 @@ export const Route = createFileRoute("/_app")({
     };
   },
   pendingComponent: Loading,
+  errorComponent: RouteError,
+  notFoundComponent: NotFound,
   component: AppLayout,
 });
 

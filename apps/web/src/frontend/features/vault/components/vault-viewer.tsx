@@ -28,13 +28,12 @@ export function VaultViewer({
 }) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [tab, setTab] = useState<"preview" | "transcript">("preview");
 
   const { data: detail } = useQuery({
     ...vaultItemQueryOptions(item.id),
     enabled: open,
   });
-  const transcript = detail?.ocrText?.trim() || null;
+  const content = detail?.content?.trim() || null;
   const isTextItem = item.kind === "text";
 
   const fileUrl = `/api/vault/${item.id}/file`;
@@ -49,7 +48,6 @@ export function VaultViewer({
         if (!next) {
           setNumPages(null);
           setPageNumber(1);
-          setTab("preview");
         }
       }}
     >
@@ -58,46 +56,25 @@ export function VaultViewer({
           <DialogTitle>{item.title ?? "Untitled"}</DialogTitle>
         </DialogHeader>
 
-        {transcript && !isTextItem ? (
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant={tab === "preview" ? "secondary" : "ghost"}
-              size="sm"
-              className="font-normal"
-              onClick={() => setTab("preview")}
-            >
-              Preview
-            </Button>
-            <Button
-              variant={tab === "transcript" ? "secondary" : "ghost"}
-              size="sm"
-              className="font-normal"
-              onClick={() => setTab("transcript")}
-            >
-              Transcript
-            </Button>
-          </div>
-        ) : null}
-
-        {isTextItem || (tab === "transcript" && transcript) ? (
+        {isTextItem ? (
           <div className="flex max-h-[70vh] flex-col gap-3">
             <div className="flex justify-end">
               <Button
                 variant="outline"
                 size="sm"
                 className="font-normal"
-                disabled={!transcript}
+                disabled={!content}
                 onClick={() => {
-                  if (!transcript) return;
-                  void navigator.clipboard.writeText(transcript);
-                  toast.success("Copied transcript");
+                  if (!content) return;
+                  void navigator.clipboard.writeText(content);
+                  toast.success("Copied");
                 }}
               >
                 Copy
               </Button>
             </div>
             <pre className="overflow-auto whitespace-pre-wrap text-sm text-foreground">
-              {transcript}
+              {content}
             </pre>
           </div>
         ) : (

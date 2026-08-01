@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -15,19 +15,28 @@ import {
   noteImageR2Key,
 } from "./images";
 
+const listQuerySchema = z.object({
+  workspaceId: z.string().optional(),
+});
+
 const createNoteSchema = z.object({
   body: z.string().optional().default(""),
   title: z.string().nullable().optional(),
+  workspaceId: z.string().nullable().optional(),
 });
 
 const updateNoteSchema = z
   .object({
     body: z.string().optional(),
     title: z.string().nullable().optional(),
+    workspaceId: z.string().nullable().optional(),
   })
   .refine(
-    (value) => value.body !== undefined || value.title !== undefined,
-    { message: "body or title is required" },
+    (value) =>
+      value.body !== undefined ||
+      value.title !== undefined ||
+      value.workspaceId !== undefined,
+    { message: "body, title, or workspaceId is required" },
   );
 
 function normalizeTitle(title: string | null | undefined) {
@@ -38,19 +47,24 @@ function normalizeTitle(title: string | null | undefined) {
 }
 
 const app = new Hono<AppEnv>()
-  .get("/", async (c) => {
+  .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
+    const { workspaceId } = c.req.valid("query");
     const db = createDb(c.env.DB);
+
+    const conditions = [eq(note.userId, user.id)];
+    if (workspaceId) conditions.push(eq(note.workspaceId, workspaceId));
 
     const items = await db
       .select({
         id: note.id,
         title: note.title,
+        workspaceId: note.workspaceId,
         updatedAt: note.updatedAt,
         createdAt: note.createdAt,
       })
       .from(note)
-      .where(eq(note.userId, user.id))
+      .where(and(...conditions))
       .orderBy(desc(note.updatedAt));
 
     return c.json({ items });
@@ -58,7 +72,7 @@ const app = new Hono<AppEnv>()
 
   .post("/", zValidator("json", createNoteSchema), async (c) => {
     const user = c.get("user")!;
-    const { body, title } = c.req.valid("json");
+    const { body, title, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
 
@@ -67,6 +81,7 @@ const app = new Hono<AppEnv>()
       userId: user.id,
       body,
       title: normalizeTitle(title) ?? null,
+      workspaceId: workspaceId ?? null,
     });
 
     const [created] = await db
@@ -177,7 +192,7 @@ const app = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", updateNoteSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { body, title } = c.req.valid("json");
+    const { body, title, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
     const [existing] = await db
@@ -195,6 +210,7 @@ const app = new Hono<AppEnv>()
       .set({
         ...(body !== undefined ? { body } : {}),
         ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
+        ...(workspaceId !== undefined ? { workspaceId } : {}),
         updatedAt: new Date(),
       })
       .where(ownedBy(note.id, id, note.userId, user.id));

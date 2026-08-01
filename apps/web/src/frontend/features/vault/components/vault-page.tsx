@@ -1,6 +1,7 @@
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useParams } from "@tanstack/react-router";
+import { useState, type SubmitEvent } from "react";
 import { toast } from "sonner";
 
 import {
@@ -33,7 +34,6 @@ import {
   createVaultLink,
   createVaultText,
   deleteVaultItem,
-  retryVaultItem,
   vaultItemsQueryOptions,
   type VaultItem,
 } from "@features/vault/api";
@@ -68,7 +68,7 @@ function VaultLinkRow({ item }: { item: VaultItem }) {
     onSuccess: () => {
       toast.success(`Deleted ${item.title ?? "link"}`);
       queryClient.invalidateQueries({
-        queryKey: vaultItemsQueryOptions.queryKey,
+        queryKey: ["vault", "items"],
       });
     },
     onError: () => toast.error("Delete failed"),
@@ -116,26 +116,14 @@ function VaultLinkRow({ item }: { item: VaultItem }) {
 
 function VaultFileRow({ item }: { item: VaultItem }) {
   const queryClient = useQueryClient();
-  const isText = item.kind === "text" || item.mimeType?.startsWith("text/");
   const [viewerOpen, setViewerOpen] = useState(false);
-
-  const retry = useMutation({
-    mutationFn: () => retryVaultItem(item.id),
-    onSuccess: () => {
-      toast.success(`Retrying ${item.title ?? "item"}…`);
-      queryClient.invalidateQueries({
-        queryKey: vaultItemsQueryOptions.queryKey,
-      });
-    },
-    onError: () => toast.error("Retry failed"),
-  });
 
   const remove = useMutation({
     mutationFn: () => deleteVaultItem(item.id),
     onSuccess: () => {
       toast.success(`Deleted ${item.title ?? "item"}`);
       queryClient.invalidateQueries({
-        queryKey: vaultItemsQueryOptions.queryKey,
+        queryKey: ["vault", "items"],
       });
     },
     onError: () => toast.error("Delete failed"),
@@ -152,21 +140,13 @@ function VaultFileRow({ item }: { item: VaultItem }) {
           <span className="text-sm">{item.title ?? "Untitled"}</span>
           <span className="text-xs text-muted-foreground">
             {item.kind === "text" ? "text" : fileKindLabel(item.mimeType)}
-            {item.type ? ` · ${item.type}` : ""}
           </span>
         </div>
-        {item.status === "failed" && item.error && !isText ? (
-          <span className="text-xs text-destructive">{item.error}</span>
-        ) : null}
       </button>
 
       <VaultViewer item={item} open={viewerOpen} onOpenChange={setViewerOpen} />
 
       <div className="flex items-center gap-3">
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {item.status}
-        </span>
-
         <AlertDialog>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -181,15 +161,6 @@ function VaultFileRow({ item }: { item: VaultItem }) {
                   render={<a href={`/api/vault/${item.id}/file`} download />}
                 >
                   Download
-                </DropdownMenuItem>
-              ) : null}
-              {item.status === "failed" ? (
-                <DropdownMenuItem
-                  className="font-normal text-xs"
-                  onClick={() => retry.mutate()}
-                  disabled={retry.isPending}
-                >
-                  Retry
                 </DropdownMenuItem>
               ) : null}
               <AlertDialogTrigger
@@ -238,19 +209,20 @@ function VaultRow({ item }: { item: VaultItem }) {
 function VaultLinkQuickAdd() {
   const [url, setUrl] = useState("");
   const queryClient = useQueryClient();
+  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
 
   const addLink = useMutation({
-    mutationFn: (url: string) => createVaultLink(url),
+    mutationFn: (url: string) => createVaultLink(url, workspaceId),
     onSuccess: () => {
       setUrl("");
       queryClient.invalidateQueries({
-        queryKey: vaultItemsQueryOptions.queryKey,
+        queryKey: ["vault", "items"],
       });
     },
     onError: () => toast.error("Couldn't add that link"),
   });
 
-  function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmed = url.trim();
     if (!trimmed || addLink.isPending) return;
@@ -280,19 +252,20 @@ function VaultLinkQuickAdd() {
 function VaultTextQuickAdd() {
   const [content, setContent] = useState("");
   const queryClient = useQueryClient();
+  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
 
   const addText = useMutation({
-    mutationFn: (content: string) => createVaultText(content),
+    mutationFn: (content: string) => createVaultText(content, workspaceId),
     onSuccess: () => {
       setContent("");
       queryClient.invalidateQueries({
-        queryKey: vaultItemsQueryOptions.queryKey,
+        queryKey: ["vault", "items"],
       });
     },
     onError: () => toast.error("Couldn't save that"),
   });
 
-  function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmed = content.trim();
     if (!trimmed || addText.isPending) return;
@@ -320,7 +293,8 @@ function VaultTextQuickAdd() {
 
 export function VaultPage() {
   const isMobile = useIsMobile();
-  const { data: items = [] } = useQuery(vaultItemsQueryOptions);
+  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
+  const { data: items = [] } = useQuery(vaultItemsQueryOptions(workspaceId));
   const [category, setCategory] = useState<VaultCategory | null>(null);
 
   const filtered = category

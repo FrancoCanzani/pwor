@@ -8,20 +8,24 @@ import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import { vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
-import { REMINDER_WINDOW_MS } from "./constants";
 import { domainOf, fetchLinkMetadata } from "./links";
-import { vaultDocumentTypeSchema } from "./schema";
 
 const listQuerySchema = z.object({
-  type: vaultDocumentTypeSchema.optional(),
+  workspaceId: z.string().optional(),
+});
+
+const updateVaultItemSchema = z.object({
+  workspaceId: z.string().nullable(),
 });
 
 const createLinkSchema = z.object({
   url: z.string().trim().url(),
+  workspaceId: z.string().nullable().optional(),
 });
 
 const createTextSchema = z.object({
   content: z.string().trim().min(1),
+  workspaceId: z.string().nullable().optional(),
 });
 
 const app = new Hono<AppEnv>()
@@ -29,6 +33,8 @@ const app = new Hono<AppEnv>()
     const user = c.get("user")!;
     const body = await c.req.parseBody();
     const file = body.file;
+    const workspaceId =
+      typeof body.workspaceId === "string" ? body.workspaceId : null;
 
     if (!(file instanceof File)) {
       throw new HTTPException(400, { message: "file is required" });
@@ -45,20 +51,24 @@ const app = new Hono<AppEnv>()
     await db.insert(vaultItem).values({
       id,
       userId: user.id,
-      status: "uploaded",
       title: file.name,
       r2Key,
       mimeType: file.type || "application/octet-stream",
+      workspaceId,
     });
 
-    await c.env.VAULT_QUEUE.send({ itemId: id });
+    const [created] = await db
+      .select()
+      .from(vaultItem)
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+      .limit(1);
 
-    return c.json({ id, status: "uploaded" as const }, 201);
+    return c.json(created, 201);
   })
 
   .post("/links", zValidator("json", createLinkSchema), async (c) => {
     const user = c.get("user")!;
-    const { url } = c.req.valid("json");
+    const { url, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
 
@@ -68,10 +78,10 @@ const app = new Hono<AppEnv>()
       id,
       userId: user.id,
       kind: "link",
-      status: "ready",
       title: title ?? domainOf(url),
       url,
       siteName: title,
+      workspaceId: workspaceId ?? null,
     });
 
     const [created] = await db
@@ -85,7 +95,7 @@ const app = new Hono<AppEnv>()
 
   .post("/text", zValidator("json", createTextSchema), async (c) => {
     const user = c.get("user")!;
-    const { content } = c.req.valid("json");
+    const { content, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
 
@@ -96,9 +106,9 @@ const app = new Hono<AppEnv>()
       id,
       userId: user.id,
       kind: "text",
-      status: "ready",
       title,
-      ocrText: content,
+      content,
+      workspaceId: workspaceId ?? null,
     });
 
     const [created] = await db
@@ -112,11 +122,11 @@ const app = new Hono<AppEnv>()
 
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { type } = c.req.valid("query");
+    const { workspaceId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(vaultItem.userId, user.id)];
-    if (type) conditions.push(eq(vaultItem.type, type));
+    if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
 
     const items = await db
       .select()
@@ -127,49 +137,32 @@ const app = new Hono<AppEnv>()
     return c.json({ items });
   })
 
-  .get("/reminders", async (c) => {
-    const user = c.get("user")!;
-    const db = createDb(c.env.DB);
-
-    const items = await db
-      .select()
-      .from(vaultItem)
-      .where(and(eq(vaultItem.userId, user.id), eq(vaultItem.status, "ready")));
-
-    const cutoff = Date.now() + REMINDER_WINDOW_MS;
-    const needsAttention = items.filter(
-      (item) => item.expiresAt !== null && item.expiresAt.getTime() <= cutoff,
-    );
-
-    return c.json({ items: needsAttention });
-  })
-
-  .post("/:id/retry", async (c) => {
+  .patch("/:id", zValidator("json", updateVaultItemSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
+    const { workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
-    const [item] = await db
+    const [existing] = await db
+      .select({ id: vaultItem.id })
+      .from(vaultItem)
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+      .limit(1);
+
+    if (!existing) throw new HTTPException(404, { message: "Not found" });
+
+    await db
+      .update(vaultItem)
+      .set({ workspaceId })
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id));
+
+    const [updated] = await db
       .select()
       .from(vaultItem)
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    if (!item) throw new HTTPException(404, { message: "Not found" });
-    if (item.status !== "failed") {
-      throw new HTTPException(400, {
-        message: "Only failed items can be retried",
-      });
-    }
-
-    await db
-      .update(vaultItem)
-      .set({ status: "uploaded", error: null })
-      .where(eq(vaultItem.id, id));
-
-    await c.env.VAULT_QUEUE.send({ itemId: id });
-
-    return c.json({ id, status: "uploaded" as const });
+    return c.json(updated);
   })
 
   .delete("/:id", async (c) => {

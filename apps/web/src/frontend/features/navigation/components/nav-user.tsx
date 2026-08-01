@@ -1,7 +1,9 @@
-import { CaretSortIcon } from "@radix-ui/react-icons";
-import { Link } from "@tanstack/react-router";
+import { CaretSortIcon, CheckIcon, PlusIcon } from "@radix-ui/react-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 
-import { UserAvatar } from "@/components/user-avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +20,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { authClient } from "@lib/auth-client";
+import { cue } from "@lib/sound";
+import { workspacesQueryOptions, type Workspace } from "@features/workspaces/api";
+import { CreateWorkspaceDialog } from "@features/workspaces/components/create-workspace-dialog";
+import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
+import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
 export type ShellUser = {
   name: string;
@@ -27,7 +34,30 @@ export type ShellUser = {
 
 export function NavUser({ user }: { user: ShellUser }) {
   const { isMobile } = useSidebar();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const label = user.name.trim() || user.email;
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
+  const { id: currentId, name: currentWorkspaceName = "No workspace" } =
+    useCurrentWorkspace();
+
+  const selectWorkspace = (id: string) => {
+    setStoredWorkspaceId(id);
+    void navigate({
+      to: "/$workspaceId",
+      params: { workspaceId: id },
+    });
+  };
+
+  async function handleWorkspaceCreated(workspace: Workspace) {
+    await queryClient.invalidateQueries({
+      queryKey: workspacesQueryOptions.queryKey,
+      exact: true,
+    });
+    selectWorkspace(workspace.id);
+  }
 
   return (
     <SidebarMenu>
@@ -41,42 +71,65 @@ export function NavUser({ user }: { user: ShellUser }) {
               />
             }
           >
-            <UserAvatar
-              name={user.name}
-              email={user.email}
-              image={user.image}
-              size="sm"
-            />
             <div className="grid flex-1 text-left text-xs leading-tight">
               <span className="truncate font-normal">{label}</span>
               <span className="truncate text-muted-foreground">
-                {user.email}
+                {currentWorkspaceName}
               </span>
             </div>
             <CaretSortIcon className="ml-auto" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="min-w-48 rounded-none"
+            className="min-w-48"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1.5 py-1.5 text-left text-xs">
-                <UserAvatar
-                  name={user.name}
-                  email={user.email}
-                  image={user.image}
-                  size="sm"
-                />
-                <div className="grid flex-1 text-left leading-tight">
-                  <span className="truncate font-normal">{label}</span>
-                  <span className="truncate text-muted-foreground">
-                    {user.email}
-                  </span>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center px-1.5 py-1.5 text-left text-xs">
+                  <div className="grid flex-1 text-left leading-tight">
+                    <span className="truncate font-normal">{label}</span>
+                    <span className="truncate text-muted-foreground">
+                      {currentWorkspaceName}
+                    </span>
+                  </div>
                 </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <div className="flex items-center justify-between gap-2 px-1.5">
+                <DropdownMenuLabel className="p-0 font-normal text-[11px] text-muted-foreground">
+                  Workspaces
+                </DropdownMenuLabel>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="New workspace"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <PlusIcon className="size-3" />
+                </Button>
               </div>
-            </DropdownMenuLabel>
+              {workspaces.map((workspace) => (
+                <DropdownMenuItem
+                  key={workspace.id}
+                  className="font-normal text-xs"
+                  onClick={() => selectWorkspace(workspace.id)}
+                >
+                  <span className="w-4 shrink-0">
+                    {workspace.id === currentId ? (
+                      <CheckIcon className="size-3" />
+                    ) : null}
+                  </span>
+                  <span className="truncate">
+                    {workspace.name.trim() || "Untitled"}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem
@@ -88,7 +141,10 @@ export function NavUser({ user }: { user: ShellUser }) {
               <DropdownMenuItem
                 variant="destructive"
                 className="font-normal text-xs"
-                onClick={() => void authClient.signOut()}
+                onClick={() => {
+                  cue("whisper");
+                  void authClient.signOut();
+                }}
               >
                 Sign out
               </DropdownMenuItem>
@@ -96,6 +152,12 @@ export function NavUser({ user }: { user: ShellUser }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
+
+      <CreateWorkspaceDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={handleWorkspaceCreated}
+      />
     </SidebarMenu>
   );
 }

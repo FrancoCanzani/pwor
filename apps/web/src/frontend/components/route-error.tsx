@@ -16,7 +16,7 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
       : "Something went wrong. Try again.";
 
   return (
-    <Empty className="min-h-[calc(100svh-8rem)] items-center justify-center gap-3 rounded-none border-0 p-6 text-center">
+    <Empty className="min-h-[calc(100svh-8rem)] items-center justify-center gap-3 border-0 p-6 text-center">
       <EmptyHeader className="items-center gap-1.5">
         <EmptyTitle className="font-normal text-sm tracking-normal">
           Something went wrong

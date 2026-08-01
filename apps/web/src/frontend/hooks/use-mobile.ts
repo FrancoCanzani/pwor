@@ -1,6 +1,12 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
+export const MOBILE_BREAKPOINT = 768;
+
+/** Non-hook viewport check, for use outside components (e.g. route `beforeLoad`). */
+export function isMobileViewport() {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth < MOBILE_BREAKPOINT;
+}
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState(() => {

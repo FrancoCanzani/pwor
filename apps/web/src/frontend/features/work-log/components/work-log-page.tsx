@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type SubmitEvent } from "react";
 
 import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -147,7 +147,7 @@ export function WorkLogPage() {
     },
   });
 
-  function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!body.trim() || busy) return;
     if (editingId) {
@@ -199,7 +199,7 @@ export function WorkLogPage() {
             onChange={(event) => setBody(event.target.value)}
             placeholder="What did you do today…"
             rows={3}
-            className="min-h-20 w-full resize-y border border-input bg-transparent px-3 py-2 text-sm font-normal outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+            className="min-h-20 w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-xs font-normal outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           />
           <div className="flex items-center justify-end gap-2">
             {editing ? (

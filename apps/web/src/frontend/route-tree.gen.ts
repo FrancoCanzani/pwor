@@ -12,14 +12,17 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppLogRouteImport } from './routes/_app/log'
-import { Route as AppNotesRouteImport } from './routes/_app/notes'
-import { Route as AppOnboardingRouteImport } from './routes/_app/onboarding'
-import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppTasksRouteImport } from './routes/_app/tasks'
-import { Route as AppVaultRouteImport } from './routes/_app/vault'
-import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
-import { Route as AppNotesNoteIdRouteImport } from './routes/_app/notes/$noteId'
+import { Route as AppWorkspaceIdRouteImport } from './routes/_app/$workspaceId'
+import { Route as AppWorkspaceIdIndexRouteImport } from './routes/_app/$workspaceId/index'
+import { Route as AppWorkspaceIdNotesRouteRouteImport } from './routes/_app/$workspaceId/notes/route'
+import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppWorkspaceIdInboxIndexRouteImport } from './routes/_app/$workspaceId/inbox/index'
+import { Route as AppWorkspaceIdLogIndexRouteImport } from './routes/_app/$workspaceId/log/index'
+import { Route as AppWorkspaceIdNotesIndexRouteImport } from './routes/_app/$workspaceId/notes/index'
+import { Route as AppWorkspaceIdTasksIndexRouteImport } from './routes/_app/$workspaceId/tasks/index'
+import { Route as AppWorkspaceIdVaultIndexRouteImport } from './routes/_app/$workspaceId/vault/index'
+import { Route as AppWorkspaceIdNotesNoteIdIndexRouteImport } from './routes/_app/$workspaceId/notes/$noteId/index'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -35,121 +38,158 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLogRoute = AppLogRouteImport.update({
-  id: '/log',
-  path: '/log',
+const AppWorkspaceIdRoute = AppWorkspaceIdRouteImport.update({
+  id: '/$workspaceId',
+  path: '/$workspaceId',
   getParentRoute: () => AppRoute,
 } as any)
-const AppNotesRoute = AppNotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOnboardingRoute = AppOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTasksRoute = AppTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppVaultRoute = AppVaultRouteImport.update({
-  id: '/vault',
-  path: '/vault',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNotesIndexRoute = AppNotesIndexRouteImport.update({
+const AppWorkspaceIdIndexRoute = AppWorkspaceIdIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppNotesRoute,
+  getParentRoute: () => AppWorkspaceIdRoute,
 } as any)
-const AppNotesNoteIdRoute = AppNotesNoteIdRouteImport.update({
-  id: '/$noteId',
-  path: '/$noteId',
-  getParentRoute: () => AppNotesRoute,
+const AppWorkspaceIdNotesRouteRoute =
+  AppWorkspaceIdNotesRouteRouteImport.update({
+    id: '/notes',
+    path: '/notes',
+    getParentRoute: () => AppWorkspaceIdRoute,
+  } as any)
+const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
+  id: '/onboarding/',
+  path: '/onboarding/',
+  getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWorkspaceIdInboxIndexRoute =
+  AppWorkspaceIdInboxIndexRouteImport.update({
+    id: '/inbox/',
+    path: '/inbox/',
+    getParentRoute: () => AppWorkspaceIdRoute,
+  } as any)
+const AppWorkspaceIdLogIndexRoute = AppWorkspaceIdLogIndexRouteImport.update({
+  id: '/log/',
+  path: '/log/',
+  getParentRoute: () => AppWorkspaceIdRoute,
+} as any)
+const AppWorkspaceIdNotesIndexRoute =
+  AppWorkspaceIdNotesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppWorkspaceIdNotesRouteRoute,
+  } as any)
+const AppWorkspaceIdTasksIndexRoute =
+  AppWorkspaceIdTasksIndexRouteImport.update({
+    id: '/tasks/',
+    path: '/tasks/',
+    getParentRoute: () => AppWorkspaceIdRoute,
+  } as any)
+const AppWorkspaceIdVaultIndexRoute =
+  AppWorkspaceIdVaultIndexRouteImport.update({
+    id: '/vault/',
+    path: '/vault/',
+    getParentRoute: () => AppWorkspaceIdRoute,
+  } as any)
+const AppWorkspaceIdNotesNoteIdIndexRoute =
+  AppWorkspaceIdNotesNoteIdIndexRouteImport.update({
+    id: '/$noteId/',
+    path: '/$noteId/',
+    getParentRoute: () => AppWorkspaceIdNotesRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/log': typeof AppLogRoute
-  '/notes': typeof AppNotesRouteWithChildren
-  '/onboarding': typeof AppOnboardingRoute
-  '/settings': typeof AppSettingsRoute
-  '/tasks': typeof AppTasksRoute
-  '/vault': typeof AppVaultRoute
-  '/notes/$noteId': typeof AppNotesNoteIdRoute
-  '/notes/': typeof AppNotesIndexRoute
+  '/$workspaceId': typeof AppWorkspaceIdRouteWithChildren
+  '/$workspaceId/notes': typeof AppWorkspaceIdNotesRouteRouteWithChildren
+  '/$workspaceId/': typeof AppWorkspaceIdIndexRoute
+  '/onboarding/': typeof AppOnboardingIndexRoute
+  '/settings/': typeof AppSettingsIndexRoute
+  '/$workspaceId/inbox/': typeof AppWorkspaceIdInboxIndexRoute
+  '/$workspaceId/log/': typeof AppWorkspaceIdLogIndexRoute
+  '/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
+  '/$workspaceId/tasks/': typeof AppWorkspaceIdTasksIndexRoute
+  '/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
+  '/$workspaceId/notes/$noteId/': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
-  '/log': typeof AppLogRoute
-  '/onboarding': typeof AppOnboardingRoute
-  '/settings': typeof AppSettingsRoute
-  '/tasks': typeof AppTasksRoute
-  '/vault': typeof AppVaultRoute
   '/': typeof AppIndexRoute
-  '/notes/$noteId': typeof AppNotesNoteIdRoute
-  '/notes': typeof AppNotesIndexRoute
+  '/$workspaceId': typeof AppWorkspaceIdIndexRoute
+  '/onboarding': typeof AppOnboardingIndexRoute
+  '/settings': typeof AppSettingsIndexRoute
+  '/$workspaceId/inbox': typeof AppWorkspaceIdInboxIndexRoute
+  '/$workspaceId/log': typeof AppWorkspaceIdLogIndexRoute
+  '/$workspaceId/notes': typeof AppWorkspaceIdNotesIndexRoute
+  '/$workspaceId/tasks': typeof AppWorkspaceIdTasksIndexRoute
+  '/$workspaceId/vault': typeof AppWorkspaceIdVaultIndexRoute
+  '/$workspaceId/notes/$noteId': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/_app/log': typeof AppLogRoute
-  '/_app/notes': typeof AppNotesRouteWithChildren
-  '/_app/onboarding': typeof AppOnboardingRoute
-  '/_app/settings': typeof AppSettingsRoute
-  '/_app/tasks': typeof AppTasksRoute
-  '/_app/vault': typeof AppVaultRoute
+  '/_app/$workspaceId': typeof AppWorkspaceIdRouteWithChildren
   '/_app/': typeof AppIndexRoute
-  '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
-  '/_app/notes/': typeof AppNotesIndexRoute
+  '/_app/$workspaceId/notes': typeof AppWorkspaceIdNotesRouteRouteWithChildren
+  '/_app/$workspaceId/': typeof AppWorkspaceIdIndexRoute
+  '/_app/onboarding/': typeof AppOnboardingIndexRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/$workspaceId/inbox/': typeof AppWorkspaceIdInboxIndexRoute
+  '/_app/$workspaceId/log/': typeof AppWorkspaceIdLogIndexRoute
+  '/_app/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
+  '/_app/$workspaceId/tasks/': typeof AppWorkspaceIdTasksIndexRoute
+  '/_app/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
+  '/_app/$workspaceId/notes/$noteId/': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
-    | '/log'
-    | '/notes'
-    | '/onboarding'
-    | '/settings'
-    | '/tasks'
-    | '/vault'
-    | '/notes/$noteId'
-    | '/notes/'
+    | '/$workspaceId'
+    | '/$workspaceId/notes'
+    | '/$workspaceId/'
+    | '/onboarding/'
+    | '/settings/'
+    | '/$workspaceId/inbox/'
+    | '/$workspaceId/log/'
+    | '/$workspaceId/notes/'
+    | '/$workspaceId/tasks/'
+    | '/$workspaceId/vault/'
+    | '/$workspaceId/notes/$noteId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
-    | '/log'
+    | '/'
+    | '/$workspaceId'
     | '/onboarding'
     | '/settings'
-    | '/tasks'
-    | '/vault'
-    | '/'
-    | '/notes/$noteId'
-    | '/notes'
+    | '/$workspaceId/inbox'
+    | '/$workspaceId/log'
+    | '/$workspaceId/notes'
+    | '/$workspaceId/tasks'
+    | '/$workspaceId/vault'
+    | '/$workspaceId/notes/$noteId'
   id:
     | '__root__'
     | '/_app'
     | '/login'
-    | '/_app/log'
-    | '/_app/notes'
-    | '/_app/onboarding'
-    | '/_app/settings'
-    | '/_app/tasks'
-    | '/_app/vault'
+    | '/_app/$workspaceId'
     | '/_app/'
-    | '/_app/notes/$noteId'
-    | '/_app/notes/'
+    | '/_app/$workspaceId/notes'
+    | '/_app/$workspaceId/'
+    | '/_app/onboarding/'
+    | '/_app/settings/'
+    | '/_app/$workspaceId/inbox/'
+    | '/_app/$workspaceId/log/'
+    | '/_app/$workspaceId/notes/'
+    | '/_app/$workspaceId/tasks/'
+    | '/_app/$workspaceId/vault/'
+    | '/_app/$workspaceId/notes/$noteId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -180,97 +220,136 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/log': {
-      id: '/_app/log'
-      path: '/log'
-      fullPath: '/log'
-      preLoaderRoute: typeof AppLogRouteImport
+    '/_app/$workspaceId': {
+      id: '/_app/$workspaceId'
+      path: '/$workspaceId'
+      fullPath: '/$workspaceId'
+      preLoaderRoute: typeof AppWorkspaceIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/notes': {
-      id: '/_app/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof AppNotesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/onboarding': {
-      id: '/_app/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AppOnboardingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/tasks': {
-      id: '/_app/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof AppTasksRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/vault': {
-      id: '/_app/vault'
-      path: '/vault'
-      fullPath: '/vault'
-      preLoaderRoute: typeof AppVaultRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/notes/': {
-      id: '/_app/notes/'
+    '/_app/$workspaceId/': {
+      id: '/_app/$workspaceId/'
       path: '/'
-      fullPath: '/notes/'
-      preLoaderRoute: typeof AppNotesIndexRouteImport
-      parentRoute: typeof AppNotesRoute
+      fullPath: '/$workspaceId/'
+      preLoaderRoute: typeof AppWorkspaceIdIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdRoute
     }
-    '/_app/notes/$noteId': {
-      id: '/_app/notes/$noteId'
+    '/_app/$workspaceId/notes': {
+      id: '/_app/$workspaceId/notes'
+      path: '/notes'
+      fullPath: '/$workspaceId/notes'
+      preLoaderRoute: typeof AppWorkspaceIdNotesRouteRouteImport
+      parentRoute: typeof AppWorkspaceIdRoute
+    }
+    '/_app/onboarding/': {
+      id: '/_app/onboarding/'
+      path: '/onboarding'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof AppOnboardingIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/$workspaceId/inbox/': {
+      id: '/_app/$workspaceId/inbox/'
+      path: '/inbox'
+      fullPath: '/$workspaceId/inbox/'
+      preLoaderRoute: typeof AppWorkspaceIdInboxIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdRoute
+    }
+    '/_app/$workspaceId/log/': {
+      id: '/_app/$workspaceId/log/'
+      path: '/log'
+      fullPath: '/$workspaceId/log/'
+      preLoaderRoute: typeof AppWorkspaceIdLogIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdRoute
+    }
+    '/_app/$workspaceId/notes/': {
+      id: '/_app/$workspaceId/notes/'
+      path: '/'
+      fullPath: '/$workspaceId/notes/'
+      preLoaderRoute: typeof AppWorkspaceIdNotesIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdNotesRouteRoute
+    }
+    '/_app/$workspaceId/tasks/': {
+      id: '/_app/$workspaceId/tasks/'
+      path: '/tasks'
+      fullPath: '/$workspaceId/tasks/'
+      preLoaderRoute: typeof AppWorkspaceIdTasksIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdRoute
+    }
+    '/_app/$workspaceId/vault/': {
+      id: '/_app/$workspaceId/vault/'
+      path: '/vault'
+      fullPath: '/$workspaceId/vault/'
+      preLoaderRoute: typeof AppWorkspaceIdVaultIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdRoute
+    }
+    '/_app/$workspaceId/notes/$noteId/': {
+      id: '/_app/$workspaceId/notes/$noteId/'
       path: '/$noteId'
-      fullPath: '/notes/$noteId'
-      preLoaderRoute: typeof AppNotesNoteIdRouteImport
-      parentRoute: typeof AppNotesRoute
+      fullPath: '/$workspaceId/notes/$noteId/'
+      preLoaderRoute: typeof AppWorkspaceIdNotesNoteIdIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdNotesRouteRoute
     }
   }
 }
 
-interface AppNotesRouteChildren {
-  AppNotesNoteIdRoute: typeof AppNotesNoteIdRoute
-  AppNotesIndexRoute: typeof AppNotesIndexRoute
+interface AppWorkspaceIdNotesRouteRouteChildren {
+  AppWorkspaceIdNotesIndexRoute: typeof AppWorkspaceIdNotesIndexRoute
+  AppWorkspaceIdNotesNoteIdIndexRoute: typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
 
-const AppNotesRouteChildren: AppNotesRouteChildren = {
-  AppNotesNoteIdRoute: AppNotesNoteIdRoute,
-  AppNotesIndexRoute: AppNotesIndexRoute,
+const AppWorkspaceIdNotesRouteRouteChildren: AppWorkspaceIdNotesRouteRouteChildren =
+  {
+    AppWorkspaceIdNotesIndexRoute: AppWorkspaceIdNotesIndexRoute,
+    AppWorkspaceIdNotesNoteIdIndexRoute: AppWorkspaceIdNotesNoteIdIndexRoute,
+  }
+
+const AppWorkspaceIdNotesRouteRouteWithChildren =
+  AppWorkspaceIdNotesRouteRoute._addFileChildren(
+    AppWorkspaceIdNotesRouteRouteChildren,
+  )
+
+interface AppWorkspaceIdRouteChildren {
+  AppWorkspaceIdNotesRouteRoute: typeof AppWorkspaceIdNotesRouteRouteWithChildren
+  AppWorkspaceIdIndexRoute: typeof AppWorkspaceIdIndexRoute
+  AppWorkspaceIdInboxIndexRoute: typeof AppWorkspaceIdInboxIndexRoute
+  AppWorkspaceIdLogIndexRoute: typeof AppWorkspaceIdLogIndexRoute
+  AppWorkspaceIdTasksIndexRoute: typeof AppWorkspaceIdTasksIndexRoute
+  AppWorkspaceIdVaultIndexRoute: typeof AppWorkspaceIdVaultIndexRoute
 }
 
-const AppNotesRouteWithChildren = AppNotesRoute._addFileChildren(
-  AppNotesRouteChildren,
+const AppWorkspaceIdRouteChildren: AppWorkspaceIdRouteChildren = {
+  AppWorkspaceIdNotesRouteRoute: AppWorkspaceIdNotesRouteRouteWithChildren,
+  AppWorkspaceIdIndexRoute: AppWorkspaceIdIndexRoute,
+  AppWorkspaceIdInboxIndexRoute: AppWorkspaceIdInboxIndexRoute,
+  AppWorkspaceIdLogIndexRoute: AppWorkspaceIdLogIndexRoute,
+  AppWorkspaceIdTasksIndexRoute: AppWorkspaceIdTasksIndexRoute,
+  AppWorkspaceIdVaultIndexRoute: AppWorkspaceIdVaultIndexRoute,
+}
+
+const AppWorkspaceIdRouteWithChildren = AppWorkspaceIdRoute._addFileChildren(
+  AppWorkspaceIdRouteChildren,
 )
 
 interface AppRouteChildren {
-  AppLogRoute: typeof AppLogRoute
-  AppNotesRoute: typeof AppNotesRouteWithChildren
-  AppOnboardingRoute: typeof AppOnboardingRoute
-  AppSettingsRoute: typeof AppSettingsRoute
-  AppTasksRoute: typeof AppTasksRoute
-  AppVaultRoute: typeof AppVaultRoute
+  AppWorkspaceIdRoute: typeof AppWorkspaceIdRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppOnboardingIndexRoute: typeof AppOnboardingIndexRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppLogRoute: AppLogRoute,
-  AppNotesRoute: AppNotesRouteWithChildren,
-  AppOnboardingRoute: AppOnboardingRoute,
-  AppSettingsRoute: AppSettingsRoute,
-  AppTasksRoute: AppTasksRoute,
-  AppVaultRoute: AppVaultRoute,
+  AppWorkspaceIdRoute: AppWorkspaceIdRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppOnboardingIndexRoute: AppOnboardingIndexRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

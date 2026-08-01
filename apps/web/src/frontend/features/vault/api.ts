@@ -2,43 +2,38 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 
-export type VaultItemStatus = "uploaded" | "processing" | "ready" | "failed";
 export type VaultItemKind = "file" | "link" | "text";
-
-export type VaultDocumentType =
-  | "passport"
-  | "id"
-  | "contract"
-  | "insurance"
-  | "other";
 
 export type VaultItem = {
   id: string;
-  status: VaultItemStatus;
   kind: VaultItemKind;
-  type: VaultDocumentType | null;
   title: string | null;
   mimeType: string | null;
   url: string | null;
   siteName: string | null;
-  error: string | null;
+  workspaceId: string | null;
   createdAt: string;
 };
 
-async function fetchVaultItems(): Promise<VaultItem[]> {
+async function fetchVaultItems(workspaceId?: string): Promise<VaultItem[]> {
+  const params = new URLSearchParams();
+  if (workspaceId) params.set("workspaceId", workspaceId);
+  const query = params.toString();
   const data = await parseJson<{ items: VaultItem[] }>(
-    await fetch("/api/vault"),
+    await fetch(`/api/vault${query ? `?${query}` : ""}`),
   );
   return data.items;
 }
 
-export const vaultItemsQueryOptions = queryOptions({
-  queryKey: ["vault", "items"] as const,
-  queryFn: fetchVaultItems,
-});
+export function vaultItemsQueryOptions(workspaceId?: string) {
+  return queryOptions({
+    queryKey: ["vault", "items", workspaceId] as const,
+    queryFn: () => fetchVaultItems(workspaceId),
+  });
+}
 
 export type VaultItemDetail = VaultItem & {
-  ocrText: string | null;
+  content: string | null;
 };
 
 async function fetchVaultItem(id: string): Promise<VaultItemDetail> {
@@ -52,43 +47,60 @@ export function vaultItemQueryOptions(id: string) {
   });
 }
 
-export async function uploadVaultItem(file: File): Promise<{ id: string }> {
+export async function uploadVaultItem(
+  file: File,
+  workspaceId?: string | null,
+): Promise<{ id: string }> {
   const formData = new FormData();
   formData.append("file", file);
+  if (workspaceId) formData.append("workspaceId", workspaceId);
 
   return parseJson<{ id: string }>(
     await fetch("/api/vault", { method: "POST", body: formData }),
   );
 }
 
-export async function createVaultLink(url: string): Promise<VaultItem> {
+export async function createVaultLink(
+  url: string,
+  workspaceId?: string | null,
+): Promise<VaultItem> {
   return parseJson<VaultItem>(
     await fetch("/api/vault/links", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, workspaceId }),
     }),
   );
 }
 
-export async function createVaultText(content: string): Promise<VaultItem> {
+export async function createVaultText(
+  content: string,
+  workspaceId?: string | null,
+): Promise<VaultItem> {
   return parseJson<VaultItem>(
     await fetch("/api/vault/text", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, workspaceId }),
     }),
-  );
-}
-
-export async function retryVaultItem(id: string): Promise<{ id: string }> {
-  return parseJson<{ id: string }>(
-    await fetch(`/api/vault/${id}/retry`, { method: "POST" }),
   );
 }
 
 export async function deleteVaultItem(id: string): Promise<{ id: string }> {
   return parseJson<{ id: string }>(
     await fetch(`/api/vault/${id}`, { method: "DELETE" }),
+  );
+}
+
+export async function updateVaultItemProject(
+  id: string,
+  workspaceId: string | null,
+): Promise<VaultItem> {
+  return parseJson<VaultItem>(
+    await fetch(`/api/vault/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspaceId }),
+    }),
   );
 }

@@ -1,6 +1,4 @@
-import { EXTRACTION_MODEL } from "../vault/constants";
-
-export const WORK_LOG_MODEL = EXTRACTION_MODEL;
+export const WORK_LOG_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
 export const QUIET_DAY_BODY = "Quiet day.";
 

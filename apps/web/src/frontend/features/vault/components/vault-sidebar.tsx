@@ -44,7 +44,7 @@ export function VaultSidebar({
               type="button"
               onClick={() => onSelect(null)}
               className={cn(
-                "flex w-full items-center justify-between rounded-none px-2 py-1.5 text-left text-xs transition-colors",
+                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors",
                 selected === null
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -60,7 +60,7 @@ export function VaultSidebar({
                 type="button"
                 onClick={() => onSelect(category)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-none px-2 py-1.5 text-left text-xs transition-colors",
+                  "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors",
                   selected === category
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",

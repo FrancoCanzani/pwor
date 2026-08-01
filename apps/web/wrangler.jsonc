@@ -27,22 +27,6 @@
       "bucket_name": "customer-vault",
     },
   ],
-  "queues": {
-    "producers": [
-      {
-        "binding": "VAULT_QUEUE",
-        "queue": "vault-processing",
-      },
-    ],
-    "consumers": [
-      {
-        "queue": "vault-processing",
-        "max_batch_size": 1,
-        "max_retries": 3,
-        "dead_letter_queue": "vault-processing-dlq",
-      },
-    ],
-  },
   "ai": {
     "binding": "AI",
   },

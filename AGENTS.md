@@ -19,7 +19,7 @@
 ## Database
 
 - Never run DB commands (`db:generate`, `db:migrate`, `db:migrate:dev`, `db:studio`, `wrangler d1 …`, drizzle-kit apply/push, etc.) unless the user explicitly asks.
-- You may still edit schema files and write migration SQL when building features; leave generating/applying migrations to the user.
+- Never touch migration files or `db/migrations/meta/*` (journal, snapshots) — not by hand, not via drizzle-kit. Only edit schema files in `db/schema/`. Migrations (generating and applying) are the user's to run, always.
 
 ## Product
 
@@ -29,7 +29,7 @@
 ## UI
 
 - Font: Geist Mono everywhere. Geist Pixel (`font-pixel`) for brand / display accents only.
-- All squared: `--radius: 0` — no rounded corners.
+- Minimally rounded: `--radius: 0.5rem` (~8px). Prefer token classes (`rounded-sm` / `rounded-md` / `rounded-lg`) — do not hardcode `rounded-none`.
 - Style with **Tailwind utilities** in components. Keep `index.css` to theme tokens + base only — no hand-rolled layout/component CSS classes.
 - Prefer shadcn primitives (`Button`, `Input`, `Empty`, `DropdownMenu`, …) over custom markup.
 - White background.
@@ -41,6 +41,6 @@
 - Numbers use `tabular-nums` (already mono).
 - Empty states use shadcn `Empty`.
 - App chrome uses shadcn `Sidebar` (brand, nav, user footer dropdown). Keep it minimal — no inset/floating chrome.
-- New users are gated to `/onboarding` until they set a full name. Avatar is optional; missing avatars use squared [Hashvatar](https://www.hashvatar.com/) from email.
+- New users are gated to `/onboarding` until they set a full name. Avatar is optional; missing avatars use [Hashvatar](https://www.hashvatar.com/) from email (soft-squared, not circular).
 - Notes use a source markdown editor (CodeMirror) — marks stay visible, autosave, no toolbar.
 - Homepage is search-first, not a task feed.

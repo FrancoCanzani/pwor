@@ -21,13 +21,14 @@ import {
   NavUser,
   type ShellUser,
 } from "@features/navigation/components/nav-user";
+import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
 const navItems = [
-  { to: "/", label: "Home", exact: true },
-  { to: "/tasks", label: "Tasks", exact: false },
-  { to: "/notes", label: "Notes", exact: false },
-  { to: "/vault", label: "Vault", exact: false },
-  { to: "/log", label: "Log", exact: false },
+  { to: "/$workspaceId/inbox", segment: "inbox", label: "Inbox" },
+  { to: "/$workspaceId/tasks", segment: "tasks", label: "Tasks" },
+  { to: "/$workspaceId/notes", segment: "notes", label: "Notes" },
+  { to: "/$workspaceId/vault", segment: "vault", label: "Vault" },
+  { to: "/$workspaceId/log", segment: "log", label: "Log" },
 ] as const;
 
 export function AppShell({
@@ -40,10 +41,14 @@ export function AppShell({
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const isNotes = pathname === "/notes" || pathname.startsWith("/notes/");
-  const isVault = pathname === "/vault" || pathname.startsWith("/vault/");
-  const isLogFeed = pathname === "/log" || pathname === "/log/";
-  const isFlush = isNotes || isVault || isLogFeed;
+  const activeSegment = pathname.split("/")[2];
+  const isNotes = activeSegment === "notes";
+  const isVault = activeSegment === "vault";
+  const isTasks = activeSegment === "tasks";
+  const isLogFeed = activeSegment === "log";
+  const isFlush = isNotes || isVault || isTasks || isLogFeed;
+
+  const { id: currentWorkspaceId } = useCurrentWorkspace();
 
   return (
     <TooltipProvider>
@@ -64,26 +69,30 @@ export function AppShell({
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-0.5">
-                  {navItems.map((item) => {
-                    const isActive = item.exact
-                      ? pathname === item.to
-                      : pathname === item.to ||
-                        pathname.startsWith(`${item.to}/`);
+                  {currentWorkspaceId
+                    ? navItems.map((item) => {
+                        const isActive = activeSegment === item.segment;
 
-                    return (
-                      <SidebarMenuItem key={item.to}>
-                        <SidebarMenuButton
-                          render={<Link to={item.to} />}
-                          isActive={isActive}
-                          tooltip={item.label}
-                          size="sm"
-                          className="font-normal"
-                        >
-                          {item.label}
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
+                        return (
+                          <SidebarMenuItem key={item.to}>
+                            <SidebarMenuButton
+                              render={
+                                <Link
+                                  to={item.to}
+                                  params={{ workspaceId: currentWorkspaceId }}
+                                />
+                              }
+                              isActive={isActive}
+                              tooltip={item.label}
+                              size="sm"
+                              className="font-normal"
+                            >
+                              {item.label}
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })
+                    : null}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -103,7 +112,7 @@ export function AppShell({
               Odiseum
             </span>
           </div>
-          {isNotes || isVault ? (
+          {isNotes || isVault || isTasks ? (
             <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
           ) : isLogFeed ? (
             <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-8 pt-10">

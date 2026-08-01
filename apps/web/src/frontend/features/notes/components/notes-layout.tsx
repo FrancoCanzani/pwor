@@ -1,17 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Outlet, useMatch, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Outlet,
+  useMatch,
+  useNavigate,
+  useParams,
+} from "@tanstack/react-router";
+
 import {
   ResizableHandle,
   ResizablePanel,
@@ -21,7 +15,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { PageEmpty } from "@components/page-empty";
 import {
   createNote,
-  deleteNote,
   noteQueryOptions,
   notesQueryOptions,
   type NoteListItem,
@@ -32,54 +25,51 @@ export function NotesLayout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const noteMatch = useMatch({
-    from: "/_app/notes/$noteId",
+    from: "/_app/$workspaceId/notes/$noteId/",
     shouldThrow: false,
   });
   const selectedId = noteMatch?.params.noteId;
-  const { data: notes = [] } = useQuery(notesQueryOptions);
-  const [pendingDelete, setPendingDelete] = useState<NoteListItem | null>(null);
+  const { data: notes = [] } = useQuery(notesQueryOptions(workspaceId));
 
   const createMutation = useMutation({
-    mutationFn: () => createNote(""),
+    mutationFn: () => createNote("", undefined, workspaceId),
     onSuccess: async (note) => {
       await queryClient.invalidateQueries({
-        queryKey: notesQueryOptions.queryKey,
-        exact: true,
+        queryKey: ["notes", "list"],
       });
-      await navigate({ to: "/notes/$noteId", params: { noteId: note.id } });
+      await navigate({
+        to: "/$workspaceId/notes/$noteId",
+        params: { workspaceId, noteId: note.id },
+      });
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteNote(id),
-    onSuccess: async (_data, deletedId) => {
-      setPendingDelete(null);
-      queryClient.removeQueries({
-        queryKey: noteQueryOptions(deletedId).queryKey,
-      });
-      const current = queryClient.getQueryData(notesQueryOptions.queryKey) ?? [];
-      const remaining = current.filter((item) => item.id !== deletedId);
-      queryClient.setQueryData(notesQueryOptions.queryKey, remaining);
-      await queryClient.invalidateQueries({
-        queryKey: notesQueryOptions.queryKey,
-        exact: true,
-      });
+  async function handleNoteDeleted(note: NoteListItem) {
+    queryClient.removeQueries({
+      queryKey: noteQueryOptions(note.id).queryKey,
+    });
+    const listKey = notesQueryOptions(workspaceId).queryKey;
+    const remaining = (
+      queryClient.getQueryData<NoteListItem[]>(listKey) ?? []
+    ).filter((item) => item.id !== note.id);
+    queryClient.setQueryData(listKey, remaining);
+    await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
 
-      if (selectedId === deletedId) {
-        if (isMobile || remaining.length === 0) {
-          await navigate({ to: "/notes" });
-          return;
-        }
-        const next = remaining[0];
-        if (!next) return;
-        await navigate({
-          to: "/notes/$noteId",
-          params: { noteId: next.id },
-        });
-      }
-    },
-  });
+    if (selectedId !== note.id) return;
+
+    if (isMobile || remaining.length === 0) {
+      await navigate({ to: "/$workspaceId/notes", params: { workspaceId } });
+      return;
+    }
+    const next = remaining[0];
+    if (!next) return;
+    await navigate({
+      to: "/$workspaceId/notes/$noteId",
+      params: { workspaceId, noteId: next.id },
+    });
+  }
 
   const list = (
     <NotesList
@@ -87,7 +77,7 @@ export function NotesLayout() {
       selectedId={selectedId}
       createPending={createMutation.isPending}
       onCreate={() => createMutation.mutate()}
-      onDelete={setPendingDelete}
+      onDeleted={handleNoteDeleted}
     />
   );
 
@@ -106,76 +96,39 @@ export function NotesLayout() {
     </div>
   );
 
+  if (isMobile) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        {selectedId ? editor : list}
+      </div>
+    );
+  }
+
   return (
-    <>
-      {isMobile ? (
-        <div className="flex h-full min-h-0 flex-col overflow-hidden">
-          {selectedId ? editor : list}
-        </div>
-      ) : (
-        <ResizablePanelGroup
-          orientation="horizontal"
-          className="h-full min-h-0 overflow-hidden"
-        >
-          <ResizablePanel
-            id="notes-aside"
-            defaultSize={224}
-            minSize={180}
-            maxSize={420}
-            className="min-h-0 min-w-0 overflow-hidden"
-          >
-            {list}
-          </ResizablePanel>
-
-          <ResizableHandle className="w-px bg-border/40 after:w-px" />
-
-          <ResizablePanel
-            id="notes-editor"
-            defaultSize="70%"
-            minSize="40%"
-            className="min-h-0 min-w-0 overflow-hidden"
-          >
-            {editor}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      )}
-
-      <AlertDialog
-        open={pendingDelete !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingDelete(null);
-        }}
+    <ResizablePanelGroup
+      orientation="horizontal"
+      className="h-full min-h-0 overflow-hidden"
+    >
+      <ResizablePanel
+        id="notes-aside"
+        defaultSize={224}
+        minSize={180}
+        maxSize={420}
+        className="min-h-0 min-w-0 overflow-hidden"
       >
-        <AlertDialogContent size="sm" className="gap-3 p-3">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-normal">
-              Delete note?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs">
-              {pendingDelete?.title?.trim()
-                ? `“${pendingDelete.title.trim()}” will be permanently deleted.`
-                : "This note will be permanently deleted."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="-mx-3 -mb-3 p-3">
-            <AlertDialogCancel size="sm" className="font-normal">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              size="sm"
-              variant="destructive"
-              className="font-normal"
-              disabled={deleteMutation.isPending || !pendingDelete}
-              onClick={(event) => {
-                event.preventDefault();
-                if (pendingDelete) deleteMutation.mutate(pendingDelete.id);
-              }}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        {list}
+      </ResizablePanel>
+
+      <ResizableHandle className="w-px bg-border/40 after:w-px" />
+
+      <ResizablePanel
+        id="notes-editor"
+        defaultSize="70%"
+        minSize="40%"
+        className="min-h-0 min-w-0 overflow-hidden"
+      >
+        {editor}
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }

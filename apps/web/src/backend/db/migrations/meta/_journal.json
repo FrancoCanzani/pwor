@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1785172609433,
-      "tag": "0000_auth",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1785175374505,
-      "tag": "0001_vengeful_yellowjacket",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1785177466025,
-      "tag": "0002_quiet_deathbird",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1785179834355,
-      "tag": "0003_free_donald_blake",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1785180552256,
-      "tag": "0004_married_iron_monger",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1785260000000,
-      "tag": "0005_work_log",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1785261000000,
-      "tag": "0006_work_log_daily",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "6",
-      "when": 1785361002045,
-      "tag": "0007_high_darwin",
+      "when": 1785601664929,
+      "tag": "0000_robust_sharon_ventura",
       "breakpoints": true
     }
   ]

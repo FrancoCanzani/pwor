@@ -3,6 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ const SAVE_DEBOUNCE_MS = 500;
 
 export function NoteEditorPane({ noteId }: { noteId: string }) {
   const queryClient = useQueryClient();
+  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const { data: note, error } = useQuery(noteQueryOptions(noteId));
 
   const [title, setTitle] = useState("");
@@ -65,7 +67,7 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
       savedTitleRef.current = updated.title ?? "";
       queryClient.setQueryData(noteQueryOptions(noteId).queryKey, updated);
       queryClient.setQueryData(
-        notesQueryOptions.queryKey,
+        notesQueryOptions(workspaceId).queryKey,
         (current: NoteListItem[] | undefined) => {
           if (!current) return current;
           const next = current.map((item) =>
@@ -73,6 +75,7 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
               ? {
                   id: updated.id,
                   title: updated.title,
+                  workspaceId: updated.workspaceId,
                   updatedAt: updated.updatedAt,
                   createdAt: updated.createdAt,
                 }

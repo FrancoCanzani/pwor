@@ -5,6 +5,7 @@ import { parseJson } from "@lib/api";
 export type NoteListItem = {
   id: string;
   title: string | null;
+  workspaceId: string | null;
   updatedAt: string | Date;
   createdAt: string | Date;
 };
@@ -12,11 +13,15 @@ export type NoteListItem = {
 export type Note = NoteListItem & {
   body: string;
   userId: string;
+  workspaceId: string | null;
 };
 
-async function fetchNotes(): Promise<NoteListItem[]> {
+async function fetchNotes(workspaceId?: string): Promise<NoteListItem[]> {
+  const params = new URLSearchParams();
+  if (workspaceId) params.set("workspaceId", workspaceId);
+  const query = params.toString();
   const data = await parseJson<{ items: NoteListItem[] }>(
-    await fetch("/api/notes"),
+    await fetch(`/api/notes${query ? `?${query}` : ""}`),
   );
   return data.items;
 }
@@ -25,10 +30,12 @@ async function fetchNote(id: string): Promise<Note> {
   return parseJson<Note>(await fetch(`/api/notes/${id}`));
 }
 
-export const notesQueryOptions = queryOptions({
-  queryKey: ["notes", "list"] as const,
-  queryFn: fetchNotes,
-});
+export function notesQueryOptions(workspaceId?: string) {
+  return queryOptions({
+    queryKey: ["notes", "list", workspaceId] as const,
+    queryFn: () => fetchNotes(workspaceId),
+  });
+}
 
 export function noteQueryOptions(id: string) {
   return queryOptions({
@@ -40,19 +47,20 @@ export function noteQueryOptions(id: string) {
 export async function createNote(
   body = "",
   title?: string | null,
+  workspaceId?: string | null,
 ): Promise<Note> {
   return parseJson<Note>(
     await fetch("/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body, title }),
+      body: JSON.stringify({ body, title, workspaceId }),
     }),
   );
 }
 
 export async function updateNote(
   id: string,
-  patch: { body?: string; title?: string | null },
+  patch: { body?: string; title?: string | null; workspaceId?: string | null },
 ): Promise<Note> {
   return parseJson<Note>(
     await fetch(`/api/notes/${id}`, {
@@ -61,6 +69,13 @@ export async function updateNote(
       body: JSON.stringify(patch),
     }),
   );
+}
+
+export async function updateNoteProject(
+  id: string,
+  workspaceId: string | null,
+): Promise<Note> {
+  return updateNote(id, { workspaceId });
 }
 
 export async function deleteNote(id: string): Promise<void> {

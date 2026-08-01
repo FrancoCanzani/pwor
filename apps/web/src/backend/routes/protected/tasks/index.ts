@@ -11,11 +11,13 @@ import type { AppEnv } from "../../../types";
 
 const listQuerySchema = z.object({
   status: z.enum(["open", "all"]).optional().default("open"),
+  workspaceId: z.string().optional(),
 });
 
 const createTaskSchema = z.object({
   title: z.string().min(1),
   dueAt: z.string().nullable().optional(),
+  workspaceId: z.string().nullable().optional(),
 });
 
 const updateTaskSchema = z
@@ -23,36 +25,39 @@ const updateTaskSchema = z
     title: z.string().min(1).optional(),
     dueAt: z.string().nullable().optional(),
     status: z.enum(["open", "done", "dismissed"]).optional(),
+    workspaceId: z.string().nullable().optional(),
   })
   .refine(
     (value) =>
       value.title !== undefined ||
       value.dueAt !== undefined ||
-      value.status !== undefined,
-    { message: "title, dueAt, or status is required" },
+      value.status !== undefined ||
+      value.workspaceId !== undefined,
+    { message: "title, dueAt, status, or workspaceId is required" },
   );
 
 const app = new Hono<AppEnv>()
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { status } = c.req.valid("query");
+    const { status, workspaceId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(task.userId, user.id)];
     if (status === "open") conditions.push(eq(task.status, "open"));
+    if (workspaceId) conditions.push(eq(task.workspaceId, workspaceId));
 
     const items = await db
       .select()
       .from(task)
       .where(and(...conditions))
-      .orderBy(asc(task.dueAt));
+      .orderBy(asc(task.createdAt));
 
     return c.json({ items });
   })
 
   .post("/", zValidator("json", createTaskSchema), async (c) => {
     const user = c.get("user")!;
-    const { title, dueAt } = c.req.valid("json");
+    const { title, dueAt, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
 
@@ -61,6 +66,7 @@ const app = new Hono<AppEnv>()
       userId: user.id,
       title,
       dueAt: dueAt ? new Date(dueAt) : null,
+      workspaceId: workspaceId ?? null,
     });
 
     const [created] = await db
@@ -75,7 +81,7 @@ const app = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", updateTaskSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { title, dueAt, status } = c.req.valid("json");
+    const { title, dueAt, status, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
     const [existing] = await db
@@ -94,6 +100,7 @@ const app = new Hono<AppEnv>()
           ? { dueAt: dueAt ? new Date(dueAt) : null }
           : {}),
         ...(status !== undefined ? { status } : {}),
+        ...(workspaceId !== undefined ? { workspaceId } : {}),
       })
       .where(ownedBy(task.id, id, task.userId, user.id));
 

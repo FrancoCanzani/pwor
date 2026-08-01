@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SweepEffect } from "@components/sweep-effect";
-import { createNote, notesQueryOptions } from "@features/notes/api";
-import { uploadVaultItem, vaultItemsQueryOptions } from "@features/vault/api";
+import { createNote } from "@features/notes/api";
+import { uploadVaultItem } from "@features/vault/api";
 
 const SWEEP_DURATION_MS = 800;
 
@@ -28,6 +29,7 @@ export function VaultDropZone() {
   const [isSweeping, setIsSweeping] = useState(false);
   const dragDepth = useRef(0);
   const queryClient = useQueryClient();
+  const { workspaceId } = useParams({ strict: false });
 
   const handleFiles = useCallback(
     async (files: FileList) => {
@@ -46,7 +48,7 @@ export function VaultDropZone() {
           try {
             const body = await file.text();
             const title = file.name.replace(/\.md$/i, "");
-            await createNote(body, title);
+            await createNote(body, title, workspaceId);
             toast.success(`${file.name} added to Notes`, { id: toastId });
           } catch {
             toast.error(`Failed to add ${file.name} to Notes`, {
@@ -57,7 +59,7 @@ export function VaultDropZone() {
         ...otherFiles.map(async (file) => {
           const toastId = toast.loading(`Uploading ${file.name}…`);
           try {
-            await uploadVaultItem(file);
+            await uploadVaultItem(file, workspaceId);
             toast.success(`${file.name} added to Vault`, { id: toastId });
           } catch {
             toast.error(`Failed to upload ${file.name}`, { id: toastId });
@@ -67,16 +69,16 @@ export function VaultDropZone() {
 
       if (markdownFiles.length > 0) {
         await queryClient.invalidateQueries({
-          queryKey: notesQueryOptions.queryKey,
+          queryKey: ["notes", "list"],
         });
       }
       if (otherFiles.length > 0) {
         await queryClient.invalidateQueries({
-          queryKey: vaultItemsQueryOptions.queryKey,
+          queryKey: ["vault", "items"],
         });
       }
     },
-    [queryClient],
+    [queryClient, workspaceId],
   );
 
   useEffect(() => {
@@ -129,7 +131,7 @@ export function VaultDropZone() {
   return (
     <>
       {isDraggingOver ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center rounded-none border border-dashed border-foreground/20 bg-background/80">
+        <div className="fixed inset-0 z-40 flex items-center justify-center border border-dashed border-foreground/20 bg-background/80">
           <p className="text-sm text-muted-foreground">
             Drop to add to Vault
           </p>

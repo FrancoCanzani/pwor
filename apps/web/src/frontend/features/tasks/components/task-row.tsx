@@ -1,21 +1,25 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { Task } from "@features/tasks/api";
 import { dueDateInfo } from "@features/tasks/lib/due-date";
+import { relativeTime } from "@features/tasks/lib/relative-time";
+import { cue } from "@lib/sound";
 
 function TaskTitle({ task }: { task: Task }) {
+  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const className = cn(
-    "text-sm",
+    "truncate text-sm font-normal",
     task.status === "done" && "text-muted-foreground line-through",
+    task.status === "dismissed" && "text-muted-foreground",
   );
 
   if (task.sourceType === "note" && task.sourceId) {
     return (
       <Link
-        to="/notes/$noteId"
-        params={{ noteId: task.sourceId }}
+        to="/$workspaceId/notes/$noteId"
+        params={{ workspaceId, noteId: task.sourceId }}
         className={className}
       >
         {task.title}
@@ -25,7 +29,11 @@ function TaskTitle({ task }: { task: Task }) {
 
   if (task.sourceType === "vault_item" && task.sourceId) {
     return (
-      <Link to="/vault" className={className}>
+      <Link
+        to="/$workspaceId/vault"
+        params={{ workspaceId }}
+        className={className}
+      >
         {task.title}
       </Link>
     );
@@ -37,33 +45,55 @@ function TaskTitle({ task }: { task: Task }) {
 export function TaskRow({
   task,
   onToggle,
+  className,
 }: {
   task: Task;
-  onToggle: (done: boolean) => void;
+  onToggle?: (done: boolean) => void;
+  className?: string;
 }) {
   const due = dueDateInfo(task.dueAt);
+  const age = relativeTime(task.updatedAt);
+  const showCheckbox = onToggle != null && task.status !== "dismissed";
 
   return (
-    <li className="flex items-center justify-between gap-4 py-3">
-      <div className="flex items-center gap-3">
-        <Checkbox
-          checked={task.status === "done"}
-          onCheckedChange={(checked) => onToggle(checked === true)}
-          className="rounded-none"
-        />
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4 py-3",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {showCheckbox ? (
+          <Checkbox
+            checked={task.status === "done"}
+            onCheckedChange={(checked) => {
+              cue("toggle");
+              onToggle(checked === true);
+            }}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          />
+        ) : null}
         <TaskTitle task={task} />
       </div>
 
-      {due.group !== "no-date" ? (
-        <span
-          className={cn(
-            "text-xs tabular-nums text-muted-foreground",
-            due.overdue && "text-destructive",
-          )}
-        >
-          {due.label}
-        </span>
-      ) : null}
-    </li>
+      <div className="flex shrink-0 items-center gap-3">
+        {due.group !== "no-date" ? (
+          <span
+            className={cn(
+              "text-xs tabular-nums text-muted-foreground",
+              due.overdue && "text-destructive",
+            )}
+          >
+            {due.label}
+          </span>
+        ) : null}
+        {age ? (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {age}
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }

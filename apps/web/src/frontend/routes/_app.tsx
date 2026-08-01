@@ -11,11 +11,8 @@ import { NotFound } from "@components/not-found";
 import { RouteError } from "@components/route-error";
 import { AppShell } from "@features/navigation/components/app-shell";
 import { VaultDropZone } from "@features/vault/components/vault-drop-zone";
+import { workspacesQueryOptions } from "@features/workspaces/api";
 import { sessionQueryOptions } from "@lib/session";
-
-function isProfileIncomplete(user: { name: string }) {
-  return !user.name.trim();
-}
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context, location }) => {
@@ -23,7 +20,11 @@ export const Route = createFileRoute("/_app")({
       await context.queryClient.ensureQueryData(sessionQueryOptions);
     if (!session) throw redirect({ to: "/login" });
 
-    const incomplete = isProfileIncomplete(session.user);
+    const workspaces = await context.queryClient.ensureQueryData(
+      workspacesQueryOptions,
+    );
+
+    const incomplete = workspaces.length === 0;
     const onOnboarding = location.pathname === "/onboarding";
 
     if (incomplete && !onOnboarding) {

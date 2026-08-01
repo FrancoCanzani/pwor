@@ -310,7 +310,7 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
           />
           <Button
             type="submit"
-            size="sm"
+
             className="h-7 font-normal"
             disabled={!taskTitle.trim() || createTaskMutation.isPending}
           >
@@ -487,24 +487,20 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
       </section>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent size="sm" className="gap-3 p-3">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-normal">
+            <AlertDialogTitle>
               Delete workspace?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs">
-              “{workspace.name}” will be deleted. Linked tasks, notes, and
-              vault items are kept, just unlinked.
+            <AlertDialogDescription>
+              “{workspace.name}” will be deleted. Linked tasks, notes, and vault
+              items are kept, just unlinked.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="-mx-3 -mb-3 p-3">
-            <AlertDialogCancel size="sm" className="font-normal">
-              Cancel
-            </AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              size="sm"
               variant="destructive"
-              className="font-normal"
               disabled={deleteMutation.isPending}
               onClick={(event) => {
                 event.preventDefault();

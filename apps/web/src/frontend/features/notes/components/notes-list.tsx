@@ -72,7 +72,6 @@ function NoteRow({
             render={
               <Button
                 type="button"
-                size="sm"
                 variant="ghost"
                 className="absolute top-1.5 right-1 h-auto px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground opacity-100 hover:bg-transparent hover:text-destructive md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
               />
@@ -80,25 +79,21 @@ function NoteRow({
           >
             Delete
           </AlertDialogTrigger>
-          <AlertDialogContent size="sm" className="gap-3 p-3">
+          <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-sm font-normal">
+              <AlertDialogTitle>
                 Delete note?
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-xs">
+              <AlertDialogDescription>
                 {note.title?.trim()
                   ? `“${note.title.trim()}” will be permanently deleted.`
                   : "This note will be permanently deleted."}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter className="-mx-3 -mb-3 p-3">
-              <AlertDialogCancel size="sm" className="font-normal">
-                Cancel
-              </AlertDialogCancel>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                size="sm"
                 variant="destructive"
-                className="font-normal"
                 disabled={deleteMutation.isPending}
                 onClick={(event) => {
                   event.preventDefault();
@@ -139,13 +134,12 @@ export function NotesList({
         className,
       )}
     >
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-3">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4">
         <h1 className="text-xs leading-none font-normal text-muted-foreground">
           Notes
         </h1>
         <Button
-          size="sm"
-          variant="ghost"
+          variant="new"
           className="h-auto px-1.5 py-1 text-xs leading-none font-normal"
           disabled={createPending}
           onClick={onCreate}

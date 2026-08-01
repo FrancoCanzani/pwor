@@ -1,8 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type SubmitEvent } from "react";
 
-import { UserAvatar } from "@/components/user-avatar";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +11,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/user-avatar";
 import { PageEmpty } from "@components/page-empty";
 import { PageHeader } from "@components/page-header";
 import {
@@ -65,7 +65,7 @@ function FeedPost({
           <div className="mt-3 flex items-center gap-1">
             <Button
               variant="ghost"
-              size="sm"
+
               className="h-7 px-2 font-normal"
               onClick={() => onEdit(item)}
             >
@@ -73,7 +73,7 @@ function FeedPost({
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+
               className="h-7 px-2 font-normal text-destructive hover:text-destructive"
               onClick={() => onDelete(item)}
             >
@@ -206,8 +206,6 @@ export function WorkLogPage() {
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                className="font-normal"
                 onClick={clearComposer}
                 disabled={busy}
               >
@@ -217,8 +215,6 @@ export function WorkLogPage() {
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
-                className="font-normal"
                 onClick={() => draft.mutate()}
                 disabled={busy}
               >
@@ -227,8 +223,6 @@ export function WorkLogPage() {
             )}
             <Button
               type="submit"
-              size="sm"
-              className="font-normal"
               disabled={!body.trim() || busy}
             >
               {editing
@@ -253,23 +247,19 @@ export function WorkLogPage() {
           if (!open) setPendingDelete(null);
         }}
       >
-        <AlertDialogContent size="sm" className="gap-3 p-3">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-normal">
+            <AlertDialogTitle>
               Delete post?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs">
+            <AlertDialogDescription>
               This post will be permanently deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="-mx-3 -mb-3 p-3">
-            <AlertDialogCancel size="sm" className="font-normal">
-              Cancel
-            </AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              size="sm"
               variant="destructive"
-              className="font-normal"
               disabled={remove.isPending || !pendingDelete}
               onClick={(event) => {
                 event.preventDefault();

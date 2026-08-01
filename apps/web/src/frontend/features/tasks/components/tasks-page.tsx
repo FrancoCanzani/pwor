@@ -10,17 +10,19 @@ import {
   updateTask,
   type Task,
 } from "@features/tasks/api";
-import { CreateTaskDialog } from "@features/tasks/components/create-task-dialog";
+import { TaskDialog } from "@features/tasks/components/task-dialog";
 import { TasksKanban } from "@features/tasks/components/tasks-kanban";
 import { TasksList } from "@features/tasks/components/tasks-list";
 import { applyMove, type TaskMove } from "@features/tasks/lib/dnd";
 import { cue } from "@lib/sound";
 
+type TaskDialogState = { mode: "create" } | { mode: "edit"; task: Task };
+
 type TasksView = "kanban" | "list";
 
 export function TasksPage() {
   const [view, setView] = useState<TasksView>("kanban");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [taskDialog, setTaskDialog] = useState<TaskDialogState | null>(null);
   const queryClient = useQueryClient();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const { data: tasks = [] } = useQuery(tasksQueryOptions("all", workspaceId));
@@ -56,13 +58,8 @@ export function TasksPage() {
   });
 
   const move = useMutation({
-    mutationFn: async ({ taskId, status }: TaskMove) => {
-      const current = queryClient
-        .getQueryData<Task[]>(listKey)
-        ?.find((task) => task.id === taskId);
-      if (current?.status === status) return current ?? null;
-      return updateTask(taskId, { status });
-    },
+    mutationFn: ({ taskId, status }: TaskMove) =>
+      updateTask(taskId, { status }),
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: listKey });
       const previous = queryClient.getQueryData<Task[]>(listKey) ?? [];
@@ -108,17 +105,19 @@ export function TasksPage() {
     move.mutate(next);
   }
 
-  function handleRename(task: Task, title: string) {
-    rename.mutate({ id: task.id, title });
-  }
-
   function handleCreated(task: Task) {
     patchCache((items) => [...items, task]);
     invalidateTasks();
   }
 
-  function handleDelete(task: Task) {
-    remove.mutate(task.id);
+  function handleDialogSave(title: string) {
+    if (taskDialog?.mode !== "edit") return;
+    rename.mutate({ id: taskDialog.task.id, title });
+  }
+
+  function handleDialogDelete() {
+    if (taskDialog?.mode !== "edit") return;
+    remove.mutate(taskDialog.task.id);
   }
 
   return (
@@ -152,10 +151,8 @@ export function TasksPage() {
         </div>
 
         <Button
-          variant="ghost"
-          size="sm"
-          className="font-normal"
-          onClick={() => setCreateOpen(true)}
+          variant="new"
+          onClick={() => setTaskDialog({ mode: "create" })}
         >
           New
         </Button>
@@ -171,23 +168,26 @@ export function TasksPage() {
           <TasksList
             tasks={tasks}
             onMove={handleMove}
-            onRename={handleRename}
-            onDelete={handleDelete}
+            onEdit={(task) => setTaskDialog({ mode: "edit", task })}
           />
         ) : (
           <TasksKanban
             tasks={tasks}
             onMove={handleMove}
-            onRename={handleRename}
-            onDelete={handleDelete}
+            onEdit={(task) => setTaskDialog({ mode: "edit", task })}
           />
         )}
       </div>
 
-      <CreateTaskDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
+      <TaskDialog
+        open={taskDialog != null}
+        task={taskDialog?.mode === "edit" ? taskDialog.task : null}
+        onOpenChange={(open) => {
+          if (!open) setTaskDialog(null);
+        }}
         onCreated={handleCreated}
+        onSave={handleDialogSave}
+        onDelete={handleDialogDelete}
       />
     </div>
   );

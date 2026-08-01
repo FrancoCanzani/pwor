@@ -46,17 +46,16 @@ export function CreateWorkspaceDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-sm" showCloseButton>
+      <DialogContent showCloseButton>
         <DialogHeader>
           <DialogTitle>New workspace</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Input
             autoFocus
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Work, Life, Freelance…"
-            className="font-normal"
             disabled={create.isPending}
           />
           {create.isError ? (
@@ -68,14 +67,12 @@ export function CreateWorkspaceDialog({
             <Button
               type="button"
               variant="ghost"
-              className="font-normal"
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="font-normal"
               disabled={!name.trim() || create.isPending}
             >
               Create

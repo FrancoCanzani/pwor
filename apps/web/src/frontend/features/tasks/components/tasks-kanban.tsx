@@ -5,22 +5,20 @@ import {
   dropTargetForElements,
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { preserveOffsetOnSource } from "@atlaskit/pragmatic-drag-and-drop/element/preserve-offset-on-source";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 import {
   attachClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
+import { DragHandleDots2Icon } from "@radix-ui/react-icons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 import type { Task, TaskStatus } from "@features/tasks/api";
-import { EditableTaskTitle } from "@features/tasks/components/editable-task-title";
-import { TaskDeleteButton } from "@features/tasks/components/task-delete-button";
+import { DragChip } from "@features/tasks/components/drag-chip";
 import {
   TASKS_DND,
   isTaskData,
-  moveKey,
   resolveTaskDrop,
   type TaskMove,
 } from "@features/tasks/lib/dnd";
@@ -35,20 +33,29 @@ export type { TaskMove };
 
 function TaskCardBody({
   task,
-  onRename,
+  onEdit,
 }: {
   task: Task;
-  onRename: (task: Task, title: string) => void;
+  onEdit: (task: Task) => void;
 }) {
   const age = relativeTime(task.updatedAt);
 
   return (
     <div className="flex items-start justify-between gap-3">
-      <EditableTaskTitle
-        task={task}
-        onSave={(title) => onRename(task, title)}
-        className="flex-1"
-      />
+      <button
+        type="button"
+        className={cn(
+          "min-w-0 flex-1 truncate text-left text-sm font-normal leading-snug",
+          task.status === "done" && "text-muted-foreground line-through",
+          task.status === "dismissed" && "text-muted-foreground",
+        )}
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          onEdit(task);
+        }}
+      >
+        {task.title}
+      </button>
       {age ? (
         <span className="shrink-0 pt-0.5 text-[11px] tabular-nums text-muted-foreground">
           {age}
@@ -58,36 +65,23 @@ function TaskCardBody({
   );
 }
 
-function DropPlaceholder({ height }: { height: number }) {
-  return (
-    <div className="flex items-center" style={{ height: Math.max(height, 44) }}>
-      <div className="h-0.5 w-full rounded-full bg-primary" />
-    </div>
-  );
-}
-
 function KanbanCard({
   task,
   status,
   index,
-  onRename,
-  onDelete,
+  onEdit,
 }: {
   task: Task;
   status: TaskStatus;
   index: number;
-  onRename: (task: Task, title: string) => void;
-  onDelete: (task: Task) => void;
+  onEdit: (task: Task) => void;
 }) {
   const outerRef = useRef<HTMLLIElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const indexRef = useRef(index);
   indexRef.current = index;
   const [dragging, setDragging] = useState(false);
-  const [preview, setPreview] = useState<{
-    container: HTMLElement;
-    rect: DOMRect;
-  } | null>(null);
+  const [preview, setPreview] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const outer = outerRef.current;
@@ -105,16 +99,12 @@ function KanbanCard({
           rect: inner.getBoundingClientRect(),
           instanceId: TASKS_DND,
         }),
-        onGenerateDragPreview: ({ nativeSetDragImage, location, source }) => {
-          const rect = source.element.getBoundingClientRect();
+        onGenerateDragPreview: ({ nativeSetDragImage }) => {
           setCustomNativeDragPreview({
             nativeSetDragImage,
-            getOffset: preserveOffsetOnSource({
-              element: inner,
-              input: location.current.input,
-            }),
+            getOffset: () => ({ x: 16, y: 16 }),
             render({ container }) {
-              setPreview({ container, rect });
+              setPreview(container);
               return () => setPreview(null);
             },
           });
@@ -150,30 +140,16 @@ function KanbanCard({
       <div
         ref={innerRef}
         className={cn(
-          "group/card flex cursor-grab items-start gap-2 rounded-md border border-border/60 bg-background px-3 py-2.5 active:cursor-grabbing",
+          "flex cursor-grab items-start gap-1.5 rounded-md border border-border/60 bg-background py-2.5 pr-3 pl-1.5 active:cursor-grabbing",
           dragging && "opacity-30",
         )}
       >
+        <DragHandleDots2Icon className="mt-1 shrink-0 text-muted-foreground/40 sm:hidden" />
         <div className="min-w-0 flex-1">
-          <TaskCardBody task={task} onRename={onRename} />
+          <TaskCardBody task={task} onEdit={onEdit} />
         </div>
-        <TaskDeleteButton
-          task={task}
-          onDelete={onDelete}
-          className="opacity-0 group-hover/card:opacity-100"
-        />
       </div>
-      {preview
-        ? createPortal(
-            <div
-              className="rounded-md border border-border bg-background px-3 py-2.5 opacity-95 shadow-sm"
-              style={{ width: preview.rect.width }}
-            >
-              <TaskCardBody task={task} onRename={onRename} />
-            </div>,
-            preview.container,
-          )
-        : null}
+      {preview ? createPortal(<DragChip title={task.title} />, preview) : null}
     </li>
   );
 }
@@ -181,15 +157,11 @@ function KanbanCard({
 function KanbanColumn({
   status,
   tasks,
-  placeholder,
-  onRename,
-  onDelete,
+  onEdit,
 }: {
   status: TaskStatus;
   tasks: Task[];
-  placeholder: { index: number; height: number } | null;
-  onRename: (task: Task, title: string) => void;
-  onDelete: (task: Task) => void;
+  onEdit: (task: Task) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -222,39 +194,21 @@ function KanbanColumn({
     );
   }, [status]);
 
-  const items: ReactNode[] = [];
-  tasks.forEach((task, index) => {
-    if (placeholder?.index === index) {
-      items.push(
-        <li key={`ph-${status}`} className="list-none">
-          <DropPlaceholder height={placeholder.height} />
-        </li>,
-      );
-    }
-    items.push(
-      <KanbanCard
-        key={task.id}
-        task={task}
-        status={status}
-        index={index}
-        onRename={onRename}
-        onDelete={onDelete}
-      />,
-    );
-  });
-  if (placeholder && placeholder.index >= tasks.length) {
-    items.push(
-      <li key={`ph-end-${status}`} className="list-none">
-        <DropPlaceholder height={placeholder.height} />
-      </li>,
-    );
-  }
+  const items: ReactNode[] = tasks.map((task, index) => (
+    <KanbanCard
+      key={task.id}
+      task={task}
+      status={status}
+      index={index}
+      onEdit={onEdit}
+    />
+  ));
 
   return (
     <div
       ref={ref}
       className={cn(
-        "flex w-[260px] shrink-0 flex-col rounded-lg bg-muted/40",
+        "flex w-full flex-col rounded-lg bg-muted/40 sm:w-[260px] sm:shrink-0",
         isOver && "bg-muted/70",
       )}
     >
@@ -268,7 +222,7 @@ function KanbanColumn({
       </div>
       <ul
         ref={listRef}
-        className="flex min-h-[120px] flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-2 pb-3"
+        className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-2 pb-3 sm:min-h-[120px]"
       >
         {items}
       </ul>
@@ -279,22 +233,15 @@ function KanbanColumn({
 export function TasksKanban({
   tasks,
   onMove,
-  onRename,
-  onDelete,
+  onEdit,
 }: {
   tasks: Task[];
   onMove: (move: TaskMove) => void;
-  onRename: (task: Task, title: string) => void;
-  onDelete: (task: Task) => void;
+  onEdit: (task: Task) => void;
 }) {
   const grouped = groupTasksByStatus(tasks);
   const groupedRef = useRef(grouped);
   const onMoveRef = useRef(onMove);
-  const lastKey = useRef<string | null>(null);
-  const [hint, setHint] = useState<{
-    move: TaskMove;
-    height: number;
-  } | null>(null);
 
   groupedRef.current = grouped;
   onMoveRef.current = onMove;
@@ -302,30 +249,7 @@ export function TasksKanban({
   useEffect(() => {
     return monitorForElements({
       canMonitor: ({ source }) => isTaskData(source.data),
-      onDragStart: () => {
-        lastKey.current = null;
-        setHint(null);
-      },
-      onDrag: ({ source, location }) => {
-        if (!isTaskData(source.data)) return;
-        const next = resolveTaskDrop({
-          source: source.data,
-          dropTargets: location.current.dropTargets,
-          grouped: groupedRef.current,
-        });
-        if (!next) {
-          setHint(null);
-          lastKey.current = null;
-          return;
-        }
-        const key = moveKey(next);
-        if (key === lastKey.current) return;
-        lastKey.current = key;
-        setHint({ move: next, height: source.data.rect.height });
-      },
       onDrop: ({ source, location }) => {
-        lastKey.current = null;
-        setHint(null);
         if (!isTaskData(source.data)) return;
         const next = resolveTaskDrop({
           source: source.data,
@@ -339,20 +263,14 @@ export function TasksKanban({
   }, []);
 
   return (
-    <div className="flex min-h-0 flex-1 justify-center overflow-x-auto px-6 pb-6">
-      <div className="flex h-full gap-3">
+    <div className="flex min-h-0 flex-1 justify-center overflow-x-auto overflow-y-auto px-4 pb-6 sm:px-6">
+      <div className="mx-auto flex w-full flex-col gap-3 sm:h-full sm:w-auto sm:flex-row">
         {TASK_STATUSES.map((status) => (
           <KanbanColumn
             key={status}
             status={status}
             tasks={grouped[status]}
-            placeholder={
-              hint?.move.status === status
-                ? { index: hint.move.index, height: hint.height }
-                : null
-            }
-            onRename={onRename}
-            onDelete={onDelete}
+            onEdit={onEdit}
           />
         ))}
       </div>

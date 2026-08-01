@@ -26,10 +26,10 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={reset}>
+        <Button type="button" variant="outline" onClick={reset}>
           Try again
         </Button>
-        <Button variant="ghost" size="sm" render={<Link to="/" />}>
+        <Button variant="ghost" render={<Link to="/" />}>
           Go home
         </Button>
       </EmptyContent>

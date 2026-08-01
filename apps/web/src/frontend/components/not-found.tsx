@@ -21,7 +21,7 @@ export function NotFound() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center gap-2">
-        <Button variant="outline" size="sm" render={<Link to="/" />}>
+        <Button variant="outline" render={<Link to="/" />}>
           Go home
         </Button>
       </EmptyContent>

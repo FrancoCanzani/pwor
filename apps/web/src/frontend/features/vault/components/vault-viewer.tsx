@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { toast } from "sonner";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -61,8 +61,6 @@ export function VaultViewer({
             <div className="flex justify-end">
               <Button
                 variant="outline"
-                size="sm"
-                className="font-normal"
                 disabled={!content}
                 onClick={() => {
                   if (!content) return;
@@ -103,8 +101,6 @@ export function VaultViewer({
                   <div className="flex items-center gap-3 text-sm">
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="font-normal"
                       disabled={pageNumber <= 1}
                       onClick={() => setPageNumber((p) => p - 1)}
                     >
@@ -115,8 +111,6 @@ export function VaultViewer({
                     </span>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="font-normal"
                       disabled={pageNumber >= numPages}
                       onClick={() => setPageNumber((p) => p + 1)}
                     >

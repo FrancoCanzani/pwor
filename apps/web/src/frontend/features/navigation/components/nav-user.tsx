@@ -40,8 +40,7 @@ export function NavUser({ user }: { user: ShellUser }) {
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
-  const { id: currentId, name: currentWorkspaceName = "No workspace" } =
-    useCurrentWorkspace();
+  const { id: currentId } = useCurrentWorkspace();
 
   const selectWorkspace = (id: string) => {
     setStoredWorkspaceId(id);
@@ -74,7 +73,7 @@ export function NavUser({ user }: { user: ShellUser }) {
             <div className="grid flex-1 text-left text-xs leading-tight">
               <span className="truncate font-normal">{label}</span>
               <span className="truncate text-muted-foreground">
-                {currentWorkspaceName}
+                {user.email}
               </span>
             </div>
             <CaretSortIcon className="ml-auto" />
@@ -91,7 +90,7 @@ export function NavUser({ user }: { user: ShellUser }) {
                   <div className="grid flex-1 text-left leading-tight">
                     <span className="truncate font-normal">{label}</span>
                     <span className="truncate text-muted-foreground">
-                      {currentWorkspaceName}
+                      {user.email}
                     </span>
                   </div>
                 </div>
@@ -99,13 +98,13 @@ export function NavUser({ user }: { user: ShellUser }) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <div className="flex items-center justify-between gap-2 px-1.5">
+              <div className="flex items-center justify-between gap-2 py-1 pr-1.5 pl-7">
                 <DropdownMenuLabel className="p-0 font-normal text-[11px] text-muted-foreground">
                   Workspaces
                 </DropdownMenuLabel>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="new"
                   size="icon-sm"
                   aria-label="New workspace"
                   onClick={() => setCreateOpen(true)}
@@ -119,7 +118,7 @@ export function NavUser({ user }: { user: ShellUser }) {
                   className="font-normal text-xs"
                   onClick={() => selectWorkspace(workspace.id)}
                 >
-                  <span className="w-4 shrink-0">
+                  <span className="flex size-4 shrink-0 items-center justify-center">
                     {workspace.id === currentId ? (
                       <CheckIcon className="size-3" />
                     ) : null}

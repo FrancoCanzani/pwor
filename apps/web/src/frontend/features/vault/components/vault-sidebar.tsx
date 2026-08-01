@@ -31,7 +31,7 @@ export function VaultSidebar({
         className,
       )}
     >
-      <div className="flex h-12 shrink-0 items-center px-3">
+      <div className="flex h-12 shrink-0 items-center px-4">
         <h1 className="text-xs leading-none font-normal text-muted-foreground">
           Vault
         </h1>

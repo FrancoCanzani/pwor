@@ -58,7 +58,7 @@ function InboxRow({
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+
             className="font-normal text-muted-foreground hover:text-destructive"
             onClick={onDelete}
           >

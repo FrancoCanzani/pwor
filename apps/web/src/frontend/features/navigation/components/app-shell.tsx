@@ -56,10 +56,10 @@ export function AppShell({
         className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
       >
         <Sidebar collapsible="icon">
-          <SidebarHeader className="h-12 flex-row items-center gap-0 p-0 px-3">
+          <SidebarHeader className="h-12 flex-row items-center gap-0 p-2">
             <Link
               to="/"
-              className="font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
+              className="px-2 font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
             >
               Odiseum
             </Link>
@@ -85,7 +85,6 @@ export function AppShell({
                               isActive={isActive}
                               tooltip={item.label}
                               size="sm"
-                              className="font-normal"
                             >
                               {item.label}
                             </SidebarMenuButton>

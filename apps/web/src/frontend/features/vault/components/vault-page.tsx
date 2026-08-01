@@ -85,11 +85,7 @@ function VaultLinkRow({ item }: { item: VaultItem }) {
         className="flex min-w-0 items-center gap-2 no-underline"
       >
         {domain ? (
-          <img
-            src={faviconUrl(domain)}
-            alt=""
-            className="size-4 shrink-0"
-          />
+          <img src={faviconUrl(domain)} alt="" className="size-4 shrink-0" />
         ) : null}
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate text-sm">
@@ -103,7 +99,7 @@ function VaultLinkRow({ item }: { item: VaultItem }) {
 
       <Button
         variant="ghost"
-        size="sm"
+
         className="font-normal text-muted-foreground"
         onClick={() => remove.mutate()}
         disabled={remove.isPending}
@@ -178,10 +174,12 @@ function VaultFileRow({ item }: { item: VaultItem }) {
 
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete {item.title ?? "item"}?</AlertDialogTitle>
+              <AlertDialogTitle>
+                Delete {item.title ?? "item"}?
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This permanently removes the item from your vault. This can't
-                be undone.
+                This permanently removes the item from your vault. This can't be
+                undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -236,11 +234,9 @@ function VaultLinkQuickAdd() {
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         placeholder="Paste a link…"
-        className="font-normal"
       />
       <Button
         type="submit"
-        className="font-normal"
         disabled={!url.trim() || addLink.isPending}
       >
         Add
@@ -278,11 +274,9 @@ function VaultTextQuickAdd() {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Jot something down…"
-        className="font-normal"
       />
       <Button
         type="submit"
-        className="font-normal"
         disabled={!content.trim() || addText.isPending}
       >
         Add
@@ -313,7 +307,9 @@ export function VaultPage() {
         {filtered.length === 0 ? (
           <PageEmpty
             title={
-              category ? `Nothing in ${category} yet` : "Nothing in the vault yet"
+              category
+                ? `Nothing in ${category} yet`
+                : "Nothing in the vault yet"
             }
             description={
               category === "links"

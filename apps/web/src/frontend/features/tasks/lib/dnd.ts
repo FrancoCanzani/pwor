@@ -83,9 +83,9 @@ export function resolveTaskDrop({
   const target = dropTargets[0]!;
   const taskTarget = isTaskData(target.data) ? target.data : null;
   const columnTarget = dropTargets.map((entry) => entry.data).find(isColumnData);
-  if (!columnTarget) return null;
+  const destinationStatus = taskTarget?.status ?? columnTarget?.status;
+  if (!destinationStatus) return null;
 
-  const destinationStatus = columnTarget.status;
   const destinationColumn = grouped[destinationStatus];
   const sourceStatus = source.status;
   const sourceIndex = grouped[sourceStatus].findIndex(

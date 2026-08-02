@@ -39,6 +39,7 @@
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
     "cuelume": "^0.2.1",
+    "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "hashvatar": "^0.1.2",
     "hono": "^4.12.32",

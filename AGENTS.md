@@ -7,7 +7,7 @@
 
 ## Dev server
 
-- Never kill, restart, or replace a running dev server unless the user explicitly asks.
+- Never kill, restart, or replace a running dev server unless the user explicitly asks — including to "cleanly" test or screenshot something. If you need to verify a change and a server is already running, hit it as-is (curl, devtools, browser against the existing port); don't stop it first and don't start a second one.
 - Do not start a second `bun run dev` / Vite process if one is already running — reuse the existing one.
 - Prefer HMR / file edits over process restarts.
 

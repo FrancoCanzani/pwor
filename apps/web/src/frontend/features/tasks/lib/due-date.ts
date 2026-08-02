@@ -1,3 +1,5 @@
+import { differenceInCalendarDays } from "date-fns";
+
 export type DateGroup = "overdue" | "today" | "tomorrow" | "upcoming" | "no-date";
 
 export type DueDateInfo = {
@@ -9,9 +11,7 @@ export type DueDateInfo = {
 export function dueDateInfo(dueAt: string | null): DueDateInfo {
   if (!dueAt) return { group: "no-date", label: "", overdue: false };
 
-  const diffDays = Math.round(
-    (new Date(dueAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
-  );
+  const diffDays = differenceInCalendarDays(new Date(dueAt), new Date());
 
   if (diffDays < 0) {
     return { group: "overdue", label: "overdue", overdue: true };

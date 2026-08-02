@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   deleteTask,
   tasksQueryOptions,
@@ -23,6 +24,8 @@ type TasksView = "kanban" | "list";
 export function TasksPage() {
   const [view, setView] = useState<TasksView>("kanban");
   const [taskDialog, setTaskDialog] = useState<TaskDialogState | null>(null);
+  const isMobile = useIsMobile();
+  const effectiveView: TasksView = isMobile ? "list" : view;
   const queryClient = useQueryClient();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const { data: tasks = [] } = useQuery(tasksQueryOptions("all", workspaceId));
@@ -125,30 +128,32 @@ export function TasksPage() {
       <div className="relative flex shrink-0 items-center justify-between gap-4 px-6 pt-5 pb-4">
         <h1 className="text-base font-normal tracking-tight">Tasks</h1>
 
-        <div className="absolute left-1/2 -translate-x-1/2">
-          <div className="flex items-center overflow-hidden rounded-md border border-border bg-background">
-            {(
-              [
-                { id: "kanban", label: "Kanban" },
-                { id: "list", label: "List" },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setView(option.id)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-normal",
-                  view === option.id
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+        {!isMobile ? (
+          <div className="absolute left-1/2 -translate-x-1/2">
+            <div className="flex items-center overflow-hidden rounded-md border border-border bg-background">
+              {(
+                [
+                  { id: "kanban", label: "Kanban" },
+                  { id: "list", label: "List" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setView(option.id)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-normal",
+                    view === option.id
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <Button
           variant="new"
@@ -160,11 +165,11 @@ export function TasksPage() {
 
       <div
         className={cn(
-          "min-h-0 flex-1",
-          view === "list" ? "overflow-y-auto px-6 pt-2" : "flex flex-col",
+          "min-h-0 flex-1 pt-2",
+          effectiveView === "list" ? "overflow-y-auto px-6" : "flex flex-col",
         )}
       >
-        {view === "list" ? (
+        {effectiveView === "list" ? (
           <TasksList
             tasks={tasks}
             onMove={handleMove}

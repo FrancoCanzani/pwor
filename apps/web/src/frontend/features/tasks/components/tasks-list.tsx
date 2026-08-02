@@ -9,7 +9,7 @@ import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/el
 import {
   attachClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
-import { DragHandleDots2Icon } from "@radix-ui/react-icons";
+import { ClockIcon } from "@radix-ui/react-icons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -23,9 +23,12 @@ import {
   resolveTaskDrop,
   type TaskMove,
 } from "@features/tasks/lib/dnd";
-import { relativeTime } from "@features/tasks/lib/relative-time";
+import { dueDateInfo } from "@features/tasks/lib/due-date";
+import { useRelativeTime } from "@features/tasks/lib/relative-time";
 import {
   TASK_STATUSES,
+  TASK_STATUS_ICON,
+  TASK_STATUS_ICON_COLOR,
   TASK_STATUS_LABEL,
   groupTasksByStatus,
 } from "@features/tasks/lib/status";
@@ -37,10 +40,11 @@ function ListRowContent({
   task: Task;
   onEdit: (task: Task) => void;
 }) {
-  const age = relativeTime(task.updatedAt);
+  const age = useRelativeTime(task.updatedAt);
+  const due = dueDateInfo(task.dueAt);
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex min-w-0 flex-1 items-center gap-3">
       <button
         type="button"
         className={cn(
@@ -55,6 +59,17 @@ function ListRowContent({
       >
         {task.title}
       </button>
+      {due.group !== "no-date" ? (
+        <div
+          className={cn(
+            "hidden shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground sm:flex",
+            due.overdue && "bg-destructive/10 text-destructive",
+          )}
+        >
+          <ClockIcon className="size-3" />
+          <span>{due.label}</span>
+        </div>
+      ) : null}
       {age ? (
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
           {age}
@@ -139,14 +154,11 @@ function ListRow({
       <div
         ref={innerRef}
         className={cn(
-          "flex cursor-grab items-center gap-1.5 px-4 py-3 transition-colors hover:bg-muted/30 active:cursor-grabbing",
+          "flex cursor-grab touch-none items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-2.5 transition-colors active:cursor-grabbing active:border-foreground/30",
           dragging && "opacity-30",
         )}
       >
-        <DragHandleDots2Icon className="shrink-0 text-muted-foreground/40 sm:hidden" />
-        <div className="min-w-0 flex-1">
-          <ListRowContent task={task} onEdit={onEdit} />
-        </div>
+        <ListRowContent task={task} onEdit={onEdit} />
       </div>
       {preview ? createPortal(<DragChip title={task.title} />, preview) : null}
     </li>
@@ -164,6 +176,7 @@ function StatusSection({
 }) {
   const ref = useRef<HTMLElement>(null);
   const [isOver, setIsOver] = useState(false);
+  const Icon = TASK_STATUS_ICON[status];
 
   useEffect(() => {
     const element = ref.current;
@@ -202,27 +215,32 @@ function StatusSection({
   ));
 
   return (
-    <section ref={ref} className="flex flex-col gap-2">
-      <div
-        className={cn(
-          "flex items-center justify-between gap-4 rounded-lg bg-muted/60 px-3 py-2 transition-colors",
-          isOver && "bg-muted",
-        )}
-      >
-        <h2 className="text-sm font-normal text-foreground">
-          {TASK_STATUS_LABEL[status]}
-        </h2>
-        <span className="text-xs tabular-nums text-muted-foreground">
+    <section
+      ref={ref}
+      className={cn(
+        "flex flex-col rounded-xl border border-border/60 bg-muted/40 transition-colors",
+        isOver && "bg-muted/70",
+      )}
+    >
+      <div className="flex shrink-0 items-center justify-between gap-3 px-3 pt-3 pb-2">
+        <div className="flex items-center gap-1.5">
+          <Icon className={cn("size-3.5", TASK_STATUS_ICON_COLOR[status])} />
+          <h2 className="text-sm font-normal text-foreground">
+            {TASK_STATUS_LABEL[status]}
+          </h2>
+        </div>
+        <span className="rounded-full bg-background px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
           {tasks.length}
         </span>
       </div>
-      <ul
-        className={cn(
-          "flex min-h-10 flex-col divide-y divide-border/50 overflow-hidden rounded-lg border border-border/60 bg-background transition-colors",
-          isOver && "border-foreground/20",
+      <ul className="flex min-h-16 flex-1 flex-col gap-2 px-2 pb-3">
+        {items.length > 0 ? (
+          items
+        ) : (
+          <li className="list-none px-1 py-4 text-center text-xs text-muted-foreground">
+            Nothing here
+          </li>
         )}
-      >
-        {items}
       </ul>
     </section>
   );

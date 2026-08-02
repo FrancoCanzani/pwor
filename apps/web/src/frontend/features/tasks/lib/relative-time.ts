@@ -1,16 +1,32 @@
+import {
+  differenceInDays,
+  differenceInHours,
+  differenceInMinutes,
+} from "date-fns";
+import { useEffect, useState } from "react";
+
 export function relativeTime(iso: string | null | undefined): string {
   if (!iso) return "";
 
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms) || ms < 0) return "";
-
-  const minutes = Math.floor(ms / 60_000);
+  const date = new Date(iso);
+  const minutes = differenceInMinutes(Date.now(), date);
+  if (Number.isNaN(minutes) || minutes < 0) return "";
   if (minutes < 1) return "now";
   if (minutes < 60) return `${minutes}m`;
 
-  const hours = Math.floor(minutes / 60);
+  const hours = differenceInHours(Date.now(), date);
   if (hours < 48) return `${hours}h`;
 
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
+  return `${differenceInDays(Date.now(), date)}d`;
+}
+
+export function useRelativeTime(iso: string | null | undefined): string {
+  const [, tick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return relativeTime(iso);
 }

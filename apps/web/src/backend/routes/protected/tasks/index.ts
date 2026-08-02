@@ -12,6 +12,8 @@ import type { AppEnv } from "../../../types";
 const listQuerySchema = z.object({
   status: z.enum(["open", "all"]).optional().default("open"),
   workspaceId: z.string().optional(),
+  sourceType: z.enum(["vault_item", "note", "inbox_item"]).optional(),
+  sourceId: z.string().optional(),
 });
 
 const createTaskSchema = z.object({
@@ -39,12 +41,15 @@ const updateTaskSchema = z
 const app = new Hono<AppEnv>()
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { status, workspaceId } = c.req.valid("query");
+    const { status, workspaceId, sourceType, sourceId } =
+      c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(task.userId, user.id)];
     if (status === "open") conditions.push(eq(task.status, "open"));
     if (workspaceId) conditions.push(eq(task.workspaceId, workspaceId));
+    if (sourceType) conditions.push(eq(task.sourceType, sourceType));
+    if (sourceId) conditions.push(eq(task.sourceId, sourceId));
 
     const items = await db
       .select()

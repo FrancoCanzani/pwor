@@ -12,6 +12,7 @@ import { domainOf, fetchLinkMetadata } from "./links";
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
+  inboxItemId: z.string().optional(),
 });
 
 const updateVaultItemSchema = z.object({
@@ -122,11 +123,12 @@ const app = new Hono<AppEnv>()
 
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { workspaceId } = c.req.valid("query");
+    const { workspaceId, inboxItemId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(vaultItem.userId, user.id)];
     if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
+    if (inboxItemId) conditions.push(eq(vaultItem.inboxItemId, inboxItemId));
 
     const items = await db
       .select()

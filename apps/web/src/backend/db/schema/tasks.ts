@@ -18,7 +18,9 @@ export const task = sqliteTable("task", {
   status: text("status", { enum: ["open", "done", "dismissed"] })
     .notNull()
     .default("open"),
-  sourceType: text("source_type", { enum: ["vault_item", "note"] }),
+  sourceType: text("source_type", {
+    enum: ["vault_item", "note", "inbox_item"],
+  }),
   sourceId: text("source_id"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)

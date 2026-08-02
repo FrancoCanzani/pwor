@@ -13,9 +13,50 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { vaultItemQueryOptions, type VaultItem } from "@features/vault/api";
+import {
+  vaultFileTextQueryOptions,
+  vaultItemQueryOptions,
+  type VaultItem,
+} from "@features/vault/api";
+import { isTextPreviewable } from "@features/vault/lib/preview";
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+function TextPreview({
+  content,
+  downloadUrl,
+}: {
+  content: string | null;
+  downloadUrl?: string;
+}) {
+  return (
+    <div className="flex max-h-[70vh] flex-col gap-3">
+      <div className="flex justify-end gap-2">
+        {downloadUrl ? (
+          <Button variant="outline" render={<a href={downloadUrl} download />}>
+            Download
+          </Button>
+        ) : null}
+        <Button
+          variant="outline"
+          disabled={!content}
+          onClick={() => {
+            if (!content) return;
+            void navigator.clipboard.writeText(content);
+            toast.success("Copied");
+          }}
+        >
+          Copy
+        </Button>
+      </div>
+      {content !== null ? (
+        <pre className="overflow-auto whitespace-pre-wrap text-sm text-foreground">
+          {content}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
 
 export function VaultViewer({
   item,
@@ -29,16 +70,26 @@ export function VaultViewer({
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
 
-  const { data: detail } = useQuery({
-    ...vaultItemQueryOptions(item.id),
-    enabled: open,
-  });
-  const content = detail?.content?.trim() || null;
   const isTextItem = item.kind === "text";
-
   const fileUrl = `/api/vault/${item.id}/file`;
   const isImage = item.mimeType?.startsWith("image/") ?? false;
   const isPdf = item.mimeType === "application/pdf";
+  const isTextFile =
+    !isTextItem && isTextPreviewable(item.mimeType, item.title);
+
+  const { data: detail } = useQuery({
+    ...vaultItemQueryOptions(item.id),
+    enabled: open && isTextItem,
+  });
+
+  const { data: fileText } = useQuery({
+    ...vaultFileTextQueryOptions(item.id),
+    enabled: open && isTextFile,
+  });
+
+  const textContent = isTextItem
+    ? (detail?.content?.trim() || null)
+    : (fileText ?? null);
 
   return (
     <Dialog
@@ -56,25 +107,11 @@ export function VaultViewer({
           <DialogTitle>{item.title ?? "Untitled"}</DialogTitle>
         </DialogHeader>
 
-        {isTextItem ? (
-          <div className="flex max-h-[70vh] flex-col gap-3">
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                disabled={!content}
-                onClick={() => {
-                  if (!content) return;
-                  void navigator.clipboard.writeText(content);
-                  toast.success("Copied");
-                }}
-              >
-                Copy
-              </Button>
-            </div>
-            <pre className="overflow-auto whitespace-pre-wrap text-sm text-foreground">
-              {content}
-            </pre>
-          </div>
+        {isTextItem || isTextFile ? (
+          <TextPreview
+            content={textContent}
+            downloadUrl={isTextFile ? fileUrl : undefined}
+          />
         ) : (
           <div className="flex max-h-[70vh] flex-col items-center gap-3 overflow-auto">
             {isImage ? (

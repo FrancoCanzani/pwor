@@ -40,6 +40,7 @@ import {
 import { VaultSidebar } from "@features/vault/components/vault-sidebar";
 import { VaultViewer } from "@features/vault/components/vault-viewer";
 import { categoryOf, type VaultCategory } from "@features/vault/lib/category";
+import { isTextPreviewable } from "@features/vault/lib/preview";
 
 function faviconUrl(domain: string): string {
   return `https://www.google.com/s2/favicons?sz=32&domain=${encodeURIComponent(domain)}`;
@@ -53,10 +54,11 @@ function domainOf(url: string): string {
   }
 }
 
-function fileKindLabel(mimeType: string | null): string {
-  if (!mimeType) return "file";
-  if (mimeType.startsWith("image/")) return "image";
+function fileKindLabel(mimeType: string | null, title: string | null): string {
+  if (!mimeType && !title) return "file";
+  if (mimeType?.startsWith("image/")) return "image";
   if (mimeType === "application/pdf") return "pdf";
+  if (isTextPreviewable(mimeType, title)) return "text";
   return "file";
 }
 
@@ -135,7 +137,7 @@ function VaultFileRow({ item }: { item: VaultItem }) {
         <div className="flex items-baseline gap-2">
           <span className="text-sm">{item.title ?? "Untitled"}</span>
           <span className="text-xs text-muted-foreground">
-            {item.kind === "text" ? "text" : fileKindLabel(item.mimeType)}
+            {item.kind === "text" ? "text" : fileKindLabel(item.mimeType, item.title)}
           </span>
         </div>
       </button>

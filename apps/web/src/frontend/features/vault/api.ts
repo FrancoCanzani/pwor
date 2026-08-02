@@ -12,6 +12,7 @@ export type VaultItem = {
   url: string | null;
   siteName: string | null;
   workspaceId: string | null;
+  inboxItemId: string | null;
   createdAt: string;
 };
 
@@ -32,6 +33,23 @@ export function vaultItemsQueryOptions(workspaceId?: string) {
   });
 }
 
+async function fetchVaultItemsByInboxItem(
+  inboxItemId: string,
+): Promise<VaultItem[]> {
+  const params = new URLSearchParams({ inboxItemId });
+  const data = await parseJson<{ items: VaultItem[] }>(
+    await fetch(`/api/vault?${params.toString()}`),
+  );
+  return data.items;
+}
+
+export function vaultItemsByInboxItemQueryOptions(inboxItemId: string) {
+  return queryOptions({
+    queryKey: ["vault", "items", "inbox-item", inboxItemId] as const,
+    queryFn: () => fetchVaultItemsByInboxItem(inboxItemId),
+  });
+}
+
 export type VaultItemDetail = VaultItem & {
   content: string | null;
 };
@@ -44,6 +62,21 @@ export function vaultItemQueryOptions(id: string) {
   return queryOptions({
     queryKey: ["vault", "items", id] as const,
     queryFn: () => fetchVaultItem(id),
+  });
+}
+
+async function fetchVaultFileText(id: string): Promise<string> {
+  const res = await fetch(`/api/vault/${id}/file`);
+  if (!res.ok) {
+    throw new Error("Failed to load file");
+  }
+  return res.text();
+}
+
+export function vaultFileTextQueryOptions(id: string) {
+  return queryOptions({
+    queryKey: ["vault", "file-text", id] as const,
+    queryFn: () => fetchVaultFileText(id),
   });
 }
 

@@ -92,11 +92,9 @@ export function NavUser({ user }: { user: ShellUser }) {
                   className="font-normal text-xs"
                   onClick={() => selectWorkspace(workspace.id)}
                 >
-                  <span className="flex size-4 shrink-0 items-center justify-center">
-                    {workspace.id === currentId ? (
-                      <CheckIcon className="size-3" />
-                    ) : null}
-                  </span>
+                  {workspace.id === currentId ? (
+                    <CheckIcon className="size-3" />
+                  ) : null}
                   <span className="truncate">
                     {workspace.name.trim() || "Untitled"}
                   </span>

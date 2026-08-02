@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { parseJson } from "@lib/api";
 
 export type TaskStatus = "open" | "done" | "dismissed";
-export type TaskSourceType = "vault_item" | "note";
+export type TaskSourceType = "vault_item" | "note" | "inbox_item";
 
 export type Task = {
   id: string;
@@ -38,6 +38,31 @@ export function tasksQueryOptions(
   return queryOptions({
     queryKey: ["tasks", "list", filter, workspaceId] as const,
     queryFn: () => fetchTasks(filter, workspaceId),
+  });
+}
+
+async function fetchTasksBySource(
+  sourceType: TaskSourceType,
+  sourceId: string,
+): Promise<Task[]> {
+  const params = new URLSearchParams({
+    status: "all",
+    sourceType,
+    sourceId,
+  });
+  const data = await parseJson<{ items: Task[] }>(
+    await fetch(`/api/tasks?${params.toString()}`),
+  );
+  return data.items;
+}
+
+export function tasksBySourceQueryOptions(
+  sourceType: TaskSourceType,
+  sourceId: string,
+) {
+  return queryOptions({
+    queryKey: ["tasks", "list", "source", sourceType, sourceId] as const,
+    queryFn: () => fetchTasksBySource(sourceType, sourceId),
   });
 }
 

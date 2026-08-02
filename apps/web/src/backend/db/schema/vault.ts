@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
+import { inboxItem } from "./inbox";
 import { workspace } from "./workspaces";
 
 export const vaultItem = sqliteTable("vault_item", {
@@ -10,6 +11,9 @@ export const vaultItem = sqliteTable("vault_item", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   workspaceId: text("project_id").references(() => workspace.id, {
+    onDelete: "set null",
+  }),
+  inboxItemId: text("inbox_item_id").references(() => inboxItem.id, {
     onDelete: "set null",
   }),
   kind: text("kind", { enum: ["file", "link", "text"] })

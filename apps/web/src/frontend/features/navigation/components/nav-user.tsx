@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,7 +39,8 @@ export function NavUser({ user }: { user: ShellUser }) {
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
-  const { id: currentId } = useCurrentWorkspace();
+  const { id: currentId, name: currentName } = useCurrentWorkspace();
+  const workspaceLabel = currentName || "Untitled";
 
   const selectWorkspace = (id: string) => {
     setStoredWorkspaceId(id);
@@ -73,7 +73,7 @@ export function NavUser({ user }: { user: ShellUser }) {
             <div className="grid flex-1 text-left text-xs leading-tight">
               <span className="truncate font-normal">{label}</span>
               <span className="truncate text-muted-foreground">
-                {user.email}
+                {workspaceLabel}
               </span>
             </div>
             <CaretSortIcon className="ml-auto" />
@@ -85,33 +85,7 @@ export function NavUser({ user }: { user: ShellUser }) {
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center px-1.5 py-1.5 text-left text-xs">
-                  <div className="grid flex-1 text-left leading-tight">
-                    <span className="truncate font-normal">{label}</span>
-                    <span className="truncate text-muted-foreground">
-                      {user.email}
-                    </span>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <div className="flex items-center justify-between gap-2 py-1 pr-1.5 pl-7">
-                <DropdownMenuLabel className="p-0 font-normal text-[11px] text-muted-foreground">
-                  Workspaces
-                </DropdownMenuLabel>
-                <Button
-                  type="button"
-                  variant="new"
-                  size="icon-sm"
-                  aria-label="New workspace"
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <PlusIcon className="size-3" />
-                </Button>
-              </div>
+              <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
               {workspaces.map((workspace) => (
                 <DropdownMenuItem
                   key={workspace.id}
@@ -128,6 +102,13 @@ export function NavUser({ user }: { user: ShellUser }) {
                   </span>
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem
+                className="font-normal text-xs"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon className="size-3" />
+                New workspace
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>

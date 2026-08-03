@@ -70,7 +70,7 @@ function SectionHeader({
       <h2 className="text-xs font-normal text-muted-foreground">
         {label}
         {count > 0 ? (
-          <span className="ml-1.5 tabular-nums">{count}</span>
+          <span className="ml-1.5 font-nums">{count}</span>
         ) : null}
       </h2>
       {addItems && onAdd ? (
@@ -434,7 +434,7 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
           <h2 className="text-xs font-normal text-muted-foreground">
             Inboxes
             {workspace.inboxes.length > 0 ? (
-              <span className="ml-1.5 tabular-nums">
+              <span className="ml-1.5 font-nums">
                 {workspace.inboxes.length}
               </span>
             ) : null}

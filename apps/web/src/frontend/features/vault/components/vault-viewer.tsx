@@ -143,7 +143,7 @@ export function VaultViewer({
                     >
                       Previous
                     </Button>
-                    <span className="tabular-nums text-muted-foreground">
+                    <span className="font-nums text-muted-foreground">
                       {pageNumber} / {numPages}
                     </span>
                     <Button

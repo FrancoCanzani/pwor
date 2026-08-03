@@ -15,6 +15,13 @@
       "when": 1785665900838,
       "tag": "0001_complete_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785777517033,
+      "tag": "0002_perfect_jane_foster",
+      "breakpoints": true
     }
   ]
 }

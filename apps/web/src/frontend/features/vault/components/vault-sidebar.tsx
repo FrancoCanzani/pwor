@@ -51,7 +51,7 @@ export function VaultSidebar({
               )}
             >
               All
-              <span className="tabular-nums">{items.length}</span>
+              <span className="font-nums">{items.length}</span>
             </button>
           </li>
           {CATEGORY_ORDER.map((category) => (
@@ -67,7 +67,7 @@ export function VaultSidebar({
                 )}
               >
                 {CATEGORY_LABEL[category]}
-                <span className="tabular-nums">
+                <span className="font-nums">
                   {counts.get(category) ?? 0}
                 </span>
               </button>

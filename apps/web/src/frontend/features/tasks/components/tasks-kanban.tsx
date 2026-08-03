@@ -1,27 +1,11 @@
-import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
-import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import {
-  draggable,
-  dropTargetForElements,
-  monitorForElements,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
-import {
-  attachClosestEdge,
-} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { ClockIcon } from "@radix-ui/react-icons";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 import type { Task, TaskStatus } from "@features/tasks/api";
 import { DragChip } from "@features/tasks/components/drag-chip";
-import {
-  TASKS_DND,
-  isTaskData,
-  resolveTaskDrop,
-  type TaskMove,
-} from "@features/tasks/lib/dnd";
+import type { TaskMove } from "@features/tasks/lib/dnd";
 import { dueDateInfo } from "@features/tasks/lib/due-date";
 import { useRelativeTime } from "@features/tasks/lib/relative-time";
 import {
@@ -31,6 +15,11 @@ import {
   TASK_STATUS_LABEL,
   groupTasksByStatus,
 } from "@features/tasks/lib/status";
+import {
+  useTaskCardDnd,
+  useTaskColumnDnd,
+  useTaskDropMonitor,
+} from "@features/tasks/lib/use-task-dnd";
 
 export type { TaskMove };
 
@@ -62,7 +51,7 @@ function TaskCardBody({
           {task.title}
         </button>
         {age ? (
-          <span className="shrink-0 pt-0.5 text-[11px] tabular-nums text-muted-foreground">
+          <span className="shrink-0 pt-0.5 text-[11px] font-nums text-muted-foreground">
             {age}
           </span>
         ) : null}
@@ -93,64 +82,11 @@ function KanbanCard({
   index: number;
   onEdit: (task: Task) => void;
 }) {
-  const outerRef = useRef<HTMLLIElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-  const indexRef = useRef(index);
-  indexRef.current = index;
-  const [dragging, setDragging] = useState(false);
-  const [preview, setPreview] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const outer = outerRef.current;
-    const inner = innerRef.current;
-    if (!outer || !inner) return;
-
-    return combine(
-      draggable({
-        element: inner,
-        getInitialData: () => ({
-          type: "task" as const,
-          taskId: task.id,
-          status,
-          index: indexRef.current,
-          rect: inner.getBoundingClientRect(),
-          instanceId: TASKS_DND,
-        }),
-        onGenerateDragPreview: ({ nativeSetDragImage }) => {
-          setCustomNativeDragPreview({
-            nativeSetDragImage,
-            getOffset: () => ({ x: 16, y: 16 }),
-            render({ container }) {
-              setPreview(container);
-              return () => setPreview(null);
-            },
-          });
-        },
-        onDragStart: () => setDragging(true),
-        onDrop: () => setDragging(false),
-      }),
-      dropTargetForElements({
-        element: outer,
-        getIsSticky: () => true,
-        canDrop: ({ source }) => isTaskData(source.data),
-        getData: ({ input }) =>
-          attachClosestEdge(
-            {
-              type: "task",
-              taskId: task.id,
-              status,
-              index: indexRef.current,
-              instanceId: TASKS_DND,
-            },
-            {
-              element: outer,
-              input,
-              allowedEdges: ["top", "bottom"],
-            },
-          ),
-      }),
-    );
-  }, [status, task.id]);
+  const { outerRef, innerRef, dragging, preview } = useTaskCardDnd(
+    task.id,
+    status,
+    index,
+  );
 
   return (
     <li ref={outerRef} className="relative list-none">
@@ -177,51 +113,16 @@ function KanbanColumn({
   tasks: Task[];
   onEdit: (task: Task) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const [isOver, setIsOver] = useState(false);
+  const { columnRef, isOver } = useTaskColumnDnd<HTMLDivElement, HTMLUListElement>(
+    status,
+    listRef,
+  );
   const Icon = TASK_STATUS_ICON[status];
-
-  useEffect(() => {
-    const element = ref.current;
-    const list = listRef.current;
-    if (!element || !list) return;
-
-    return combine(
-      dropTargetForElements({
-        element,
-        getIsSticky: () => true,
-        canDrop: ({ source }) => isTaskData(source.data),
-        getData: () => ({
-          type: "column" as const,
-          status,
-          instanceId: TASKS_DND,
-        }),
-        onDragEnter: () => setIsOver(true),
-        onDrag: () => setIsOver(true),
-        onDragLeave: () => setIsOver(false),
-        onDrop: () => setIsOver(false),
-      }),
-      autoScrollForElements({
-        element: list,
-        canScroll: ({ source }) => isTaskData(source.data),
-      }),
-    );
-  }, [status]);
-
-  const items: ReactNode[] = tasks.map((task, index) => (
-    <KanbanCard
-      key={task.id}
-      task={task}
-      status={status}
-      index={index}
-      onEdit={onEdit}
-    />
-  ));
 
   return (
     <div
-      ref={ref}
+      ref={columnRef}
       className={cn(
         "flex min-w-0 flex-1 flex-col rounded-xl border border-border/60 bg-muted/40",
         isOver && "bg-muted/70",
@@ -234,7 +135,7 @@ function KanbanColumn({
             {TASK_STATUS_LABEL[status]}
           </h2>
         </div>
-        <span className="rounded-full bg-background px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+        <span className="rounded-full bg-background px-1.5 py-0.5 text-[11px] font-nums text-muted-foreground">
           {tasks.length}
         </span>
       </div>
@@ -242,7 +143,15 @@ function KanbanColumn({
         ref={listRef}
         className="flex min-h-[120px] flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-2 pb-3"
       >
-        {items}
+        {tasks.map((task, index) => (
+          <KanbanCard
+            key={task.id}
+            task={task}
+            status={status}
+            index={index}
+            onEdit={onEdit}
+          />
+        ))}
       </ul>
     </div>
   );
@@ -258,27 +167,7 @@ export function TasksKanban({
   onEdit: (task: Task) => void;
 }) {
   const grouped = groupTasksByStatus(tasks);
-  const groupedRef = useRef(grouped);
-  const onMoveRef = useRef(onMove);
-
-  groupedRef.current = grouped;
-  onMoveRef.current = onMove;
-
-  useEffect(() => {
-    return monitorForElements({
-      canMonitor: ({ source }) => isTaskData(source.data),
-      onDrop: ({ source, location }) => {
-        if (!isTaskData(source.data)) return;
-        const next = resolveTaskDrop({
-          source: source.data,
-          dropTargets: location.current.dropTargets,
-          grouped: groupedRef.current,
-        });
-        if (!next) return;
-        onMoveRef.current(next);
-      },
-    });
-  }, []);
+  useTaskDropMonitor(grouped, onMove);
 
   return (
     <div className="flex min-h-0 flex-1 justify-center overflow-x-auto overflow-y-auto px-6 pb-6">

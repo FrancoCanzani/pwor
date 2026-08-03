@@ -76,19 +76,16 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
 
-    await db.insert(note).values({
-      id,
-      userId: user.id,
-      body,
-      title: normalizeTitle(title) ?? null,
-      workspaceId: workspaceId ?? null,
-    });
-
     const [created] = await db
-      .select()
-      .from(note)
-      .where(ownedBy(note.id, id, note.userId, user.id))
-      .limit(1);
+      .insert(note)
+      .values({
+        id,
+        userId: user.id,
+        body,
+        title: normalizeTitle(title) ?? null,
+        workspaceId: workspaceId ?? null,
+      })
+      .returning();
 
     return c.json(created, 201);
   })
@@ -195,17 +192,9 @@ const app = new Hono<AppEnv>()
     const { body, title, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
-    const [existing] = await db
-      .select({ id: note.id })
-      .from(note)
-      .where(ownedBy(note.id, id, note.userId, user.id))
-      .limit(1);
-
-    if (!existing) throw new HTTPException(404, { message: "Not found" });
-
     const normalizedTitle = normalizeTitle(title);
 
-    await db
+    const [updated] = await db
       .update(note)
       .set({
         ...(body !== undefined ? { body } : {}),
@@ -213,13 +202,10 @@ const app = new Hono<AppEnv>()
         ...(workspaceId !== undefined ? { workspaceId } : {}),
         updatedAt: new Date(),
       })
-      .where(ownedBy(note.id, id, note.userId, user.id));
-
-    const [updated] = await db
-      .select()
-      .from(note)
       .where(ownedBy(note.id, id, note.userId, user.id))
-      .limit(1);
+      .returning();
+
+    if (!updated) throw new HTTPException(404, { message: "Not found" });
 
     return c.json(updated);
   })

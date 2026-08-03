@@ -53,7 +53,7 @@ function FeedPost({
             <span className="text-sm">
               {item.author.name.trim() || item.author.email}
             </span>
-            <span className="text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-[11px] font-nums text-muted-foreground">
               {isToday(item.day) ? "today" : formatDay(item.day)}
               {" · "}
               {formatTime(item.createdAt)}
@@ -165,8 +165,8 @@ export function WorkLogPage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto pb-6">
         <PageHeader
-          title="Log"
-          description="Updates for people who follow your work."
+          title="Updates"
+          description="About the project."
         />
 
         {items.length === 0 ? (
@@ -188,7 +188,7 @@ export function WorkLogPage() {
         )}
       </div>
 
-      <div className="shrink-0 border-t border-border bg-background pt-4 pb-6">
+      <div className="shrink-0 bg-background pt-4 pb-6">
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {editing ? (
             <p className="text-[11px] text-muted-foreground">Editing post</p>

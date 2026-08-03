@@ -81,7 +81,7 @@ export function TaskRow({
         {due.group !== "no-date" ? (
           <span
             className={cn(
-              "text-xs tabular-nums text-muted-foreground",
+              "text-xs font-nums text-muted-foreground",
               due.overdue && "text-destructive",
             )}
           >
@@ -89,7 +89,7 @@ export function TaskRow({
           </span>
         ) : null}
         {age ? (
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="text-xs font-nums text-muted-foreground">
             {age}
           </span>
         ) : null}

@@ -17,6 +17,7 @@ import { Route as AppWorkspaceIdIndexRouteImport } from './routes/_app/$workspac
 import { Route as AppWorkspaceIdNotesRouteRouteImport } from './routes/_app/$workspaceId/notes/route'
 import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppWorkspaceIdCalendarIndexRouteImport } from './routes/_app/$workspaceId/calendar/index'
 import { Route as AppWorkspaceIdInboxIndexRouteImport } from './routes/_app/$workspaceId/inbox/index'
 import { Route as AppWorkspaceIdLogIndexRouteImport } from './routes/_app/$workspaceId/log/index'
 import { Route as AppWorkspaceIdNotesIndexRouteImport } from './routes/_app/$workspaceId/notes/index'
@@ -64,6 +65,12 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWorkspaceIdCalendarIndexRoute =
+  AppWorkspaceIdCalendarIndexRouteImport.update({
+    id: '/calendar/',
+    path: '/calendar/',
+    getParentRoute: () => AppWorkspaceIdRoute,
+  } as any)
 const AppWorkspaceIdInboxIndexRoute =
   AppWorkspaceIdInboxIndexRouteImport.update({
     id: '/inbox/',
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/$workspaceId/': typeof AppWorkspaceIdIndexRoute
   '/onboarding/': typeof AppOnboardingIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
+  '/$workspaceId/calendar/': typeof AppWorkspaceIdCalendarIndexRoute
   '/$workspaceId/inbox/': typeof AppWorkspaceIdInboxIndexRoute
   '/$workspaceId/log/': typeof AppWorkspaceIdLogIndexRoute
   '/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
@@ -121,6 +129,7 @@ export interface FileRoutesByTo {
   '/$workspaceId': typeof AppWorkspaceIdIndexRoute
   '/onboarding': typeof AppOnboardingIndexRoute
   '/settings': typeof AppSettingsIndexRoute
+  '/$workspaceId/calendar': typeof AppWorkspaceIdCalendarIndexRoute
   '/$workspaceId/inbox': typeof AppWorkspaceIdInboxIndexRoute
   '/$workspaceId/log': typeof AppWorkspaceIdLogIndexRoute
   '/$workspaceId/notes': typeof AppWorkspaceIdNotesIndexRoute
@@ -138,6 +147,7 @@ export interface FileRoutesById {
   '/_app/$workspaceId/': typeof AppWorkspaceIdIndexRoute
   '/_app/onboarding/': typeof AppOnboardingIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
+  '/_app/$workspaceId/calendar/': typeof AppWorkspaceIdCalendarIndexRoute
   '/_app/$workspaceId/inbox/': typeof AppWorkspaceIdInboxIndexRoute
   '/_app/$workspaceId/log/': typeof AppWorkspaceIdLogIndexRoute
   '/_app/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/$workspaceId/'
     | '/onboarding/'
     | '/settings/'
+    | '/$workspaceId/calendar/'
     | '/$workspaceId/inbox/'
     | '/$workspaceId/log/'
     | '/$workspaceId/notes/'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/$workspaceId'
     | '/onboarding'
     | '/settings'
+    | '/$workspaceId/calendar'
     | '/$workspaceId/inbox'
     | '/$workspaceId/log'
     | '/$workspaceId/notes'
@@ -184,6 +196,7 @@ export interface FileRouteTypes {
     | '/_app/$workspaceId/'
     | '/_app/onboarding/'
     | '/_app/settings/'
+    | '/_app/$workspaceId/calendar/'
     | '/_app/$workspaceId/inbox/'
     | '/_app/$workspaceId/log/'
     | '/_app/$workspaceId/notes/'
@@ -255,6 +268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/$workspaceId/calendar/': {
+      id: '/_app/$workspaceId/calendar/'
+      path: '/calendar'
+      fullPath: '/$workspaceId/calendar/'
+      preLoaderRoute: typeof AppWorkspaceIdCalendarIndexRouteImport
+      parentRoute: typeof AppWorkspaceIdRoute
+    }
     '/_app/$workspaceId/inbox/': {
       id: '/_app/$workspaceId/inbox/'
       path: '/inbox'
@@ -319,6 +339,7 @@ const AppWorkspaceIdNotesRouteRouteWithChildren =
 interface AppWorkspaceIdRouteChildren {
   AppWorkspaceIdNotesRouteRoute: typeof AppWorkspaceIdNotesRouteRouteWithChildren
   AppWorkspaceIdIndexRoute: typeof AppWorkspaceIdIndexRoute
+  AppWorkspaceIdCalendarIndexRoute: typeof AppWorkspaceIdCalendarIndexRoute
   AppWorkspaceIdInboxIndexRoute: typeof AppWorkspaceIdInboxIndexRoute
   AppWorkspaceIdLogIndexRoute: typeof AppWorkspaceIdLogIndexRoute
   AppWorkspaceIdTasksIndexRoute: typeof AppWorkspaceIdTasksIndexRoute
@@ -328,6 +349,7 @@ interface AppWorkspaceIdRouteChildren {
 const AppWorkspaceIdRouteChildren: AppWorkspaceIdRouteChildren = {
   AppWorkspaceIdNotesRouteRoute: AppWorkspaceIdNotesRouteRouteWithChildren,
   AppWorkspaceIdIndexRoute: AppWorkspaceIdIndexRoute,
+  AppWorkspaceIdCalendarIndexRoute: AppWorkspaceIdCalendarIndexRoute,
   AppWorkspaceIdInboxIndexRoute: AppWorkspaceIdInboxIndexRoute,
   AppWorkspaceIdLogIndexRoute: AppWorkspaceIdLogIndexRoute,
   AppWorkspaceIdTasksIndexRoute: AppWorkspaceIdTasksIndexRoute,

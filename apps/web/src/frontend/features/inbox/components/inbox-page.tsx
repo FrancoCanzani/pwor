@@ -48,7 +48,7 @@ function InboxRow({
         </span>
       </button>
       <div className="flex shrink-0 items-center gap-3">
-        <span className="text-xs tabular-nums text-muted-foreground">
+        <span className="text-xs font-nums text-muted-foreground">
           {formatDate(item.createdAt)}
         </span>
         <Button

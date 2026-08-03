@@ -62,7 +62,7 @@ function NoteRow({
           <div className="truncate text-xs leading-none">
             {note.title?.trim() || "Untitled"}
           </div>
-          <div className="mt-1.5 font-mono tabular-nums text-[11px] leading-none text-muted-foreground">
+          <div className="mt-1.5 font-nums text-[11px] leading-none text-muted-foreground">
             {formatUpdatedAt(note.updatedAt)}
           </div>
         </Link>

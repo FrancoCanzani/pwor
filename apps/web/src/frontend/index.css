@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 @import "@fontsource/geist-pixel";
 @import "tw-animate-css";
@@ -39,14 +40,14 @@
   --sidebar-accent-foreground: #111111;
   --sidebar-border: #e8e8e8;
   --sidebar-ring: #a3a3a3;
-  --font-sans: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
   --font-pixel: "Geist Pixel", ui-monospace, monospace;
 }
 
 @theme inline {
-  --font-heading: var(--font-mono);
-  --font-sans: "Geist Mono Variable", ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
   --font-pixel: "Geist Pixel", ui-monospace, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -107,13 +108,18 @@
   }
 }
 
+@utility font-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50 antialiased;
   }
 
   html {
-    @apply font-mono;
+    @apply font-sans;
   }
 
   body {

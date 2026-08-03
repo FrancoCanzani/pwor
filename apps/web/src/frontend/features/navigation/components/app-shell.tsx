@@ -26,9 +26,10 @@ import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-worksp
 const navItems = [
   { to: "/$workspaceId/inbox", segment: "inbox", label: "Inbox" },
   { to: "/$workspaceId/tasks", segment: "tasks", label: "Tasks" },
+  { to: "/$workspaceId/calendar", segment: "calendar", label: "Calendar" },
   { to: "/$workspaceId/notes", segment: "notes", label: "Notes" },
   { to: "/$workspaceId/vault", segment: "vault", label: "Vault" },
-  { to: "/$workspaceId/log", segment: "log", label: "Log" },
+  { to: "/$workspaceId/log", segment: "log", label: "Updates" },
 ] as const;
 
 export function AppShell({
@@ -45,8 +46,9 @@ export function AppShell({
   const isNotes = activeSegment === "notes";
   const isVault = activeSegment === "vault";
   const isTasks = activeSegment === "tasks";
+  const isCalendar = activeSegment === "calendar";
   const isLogFeed = activeSegment === "log";
-  const isFlush = isNotes || isVault || isTasks || isLogFeed;
+  const isFlush = isNotes || isVault || isTasks || isCalendar || isLogFeed;
 
   const { id: currentWorkspaceId } = useCurrentWorkspace();
 
@@ -111,7 +113,7 @@ export function AppShell({
               Odiseum
             </span>
           </div>
-          {isNotes || isVault || isTasks ? (
+          {isNotes || isVault || isTasks || isCalendar ? (
             <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
           ) : isLogFeed ? (
             <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-8 pt-10">

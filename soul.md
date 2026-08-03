@@ -57,21 +57,6 @@ Everything AI creates can be regenerated.
 
 Kanban boards, nested folders, team collaboration, calendar views, web-browsing agents, external action executors.
 
-## Next up: wiring workspace inboxes to real email
-
-`workspace_inbox` generates addresses today but nothing delivers to them yet. Plan:
-
-1. **Domain** (external, not code) — a real domain added to the Cloudflare account, MX pointed at Email Routing. Blocks everything else below.
-2. **One catch-all routing rule** — `*@inbound.odiseum.app` → this Worker. Not one rule per workspace; the token in the local-part does the routing, so the rule never changes as workspaces come and go.
-3. **`email()` handler**, exported alongside the existing `fetch` (Hono) and `queue` handlers in the same Worker:
-   - `token = message.to.split("@")[0]`, look up `workspace_inbox` by token → `workspaceId`. Unknown token → `message.setReject(...)`.
-   - Buffer `message.raw` once (single-use stream), parse with `postal-mime` → `subject`, `text`, `html`, `attachments[]`.
-   - No attachments → one `vault_item` (`kind: "text"`, `ocrText: parsed.text`, `workspaceId`) — done, no OCR needed.
-   - Attachments → one `vault_item` per attachment (`kind: "file"`), bytes to `VAULT_BUCKET`, then enqueue to the existing `VAULT_QUEUE` — reuses the current OCR/extraction consumer as-is.
-4. **No confirmation reply for v1** — skip `send_email` here, keep it one-way. Revisit only if silent capture proves confusing.
-
-**No dedicated inbox/triage page.** Every address is bound to a workspace at creation, so items land pre-sorted — there's no unsorted pile to review. The existing global `/vault` page (unfiltered, newest-first) already reads as "what just came in." The one gap: nothing currently distinguishes an item that arrived by email from one added manually — worth a small muted "via email" tag on the vault item row, not a new page.
-
 ## Status
 
-Scaffolding + design system built. Notes, Tasks, Vault, Work Log, and Workspaces (grouping tasks/notes/vault items, plus generated inbound email addresses) shipped. Actually receiving mail at those addresses is the next planned step (see above). Capture pipeline (OCR/STT → extract → embed → match) and chat-over-data not yet built.
+Scaffolding + design system built. Notes, Tasks, Vault, Work Log, and Workspaces (grouping tasks/notes/vault items, plus generated inbound email addresses) shipped. Inbound email is code-complete: `email()` handler (`apps/web/src/backend/email.ts`) parses with postal-mime, resolves `workspace_inbox` by token, and creates vault items (plus AI task extraction). The only remaining piece is external — pointing a real domain's MX at Cloudflare Email Routing with a catch-all rule to this Worker. Capture pipeline for non-email sources (OCR/STT → extract → embed → match) and chat-over-data not yet built.

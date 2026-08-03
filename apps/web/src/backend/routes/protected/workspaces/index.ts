@@ -58,18 +58,15 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
 
-    await db.insert(workspace).values({
-      id,
-      userId: user.id,
-      name,
-      description: description ?? null,
-    });
-
     const [created] = await db
-      .select()
-      .from(workspace)
-      .where(ownedBy(workspace.id, id, workspace.userId, user.id))
-      .limit(1);
+      .insert(workspace)
+      .values({
+        id,
+        userId: user.id,
+        name,
+        description: description ?? null,
+      })
+      .returning();
 
     return c.json(created, 201);
   })
@@ -131,27 +128,16 @@ const app = new Hono<AppEnv>()
     const { name, description } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
-    const [existing] = await db
-      .select({ id: workspace.id })
-      .from(workspace)
-      .where(ownedBy(workspace.id, id, workspace.userId, user.id))
-      .limit(1);
-
-    if (!existing) throw new HTTPException(404, { message: "Not found" });
-
-    await db
+    const [updated] = await db
       .update(workspace)
       .set({
         ...(name !== undefined ? { name } : {}),
         ...(description !== undefined ? { description } : {}),
       })
-      .where(ownedBy(workspace.id, id, workspace.userId, user.id));
-
-    const [updated] = await db
-      .select()
-      .from(workspace)
       .where(ownedBy(workspace.id, id, workspace.userId, user.id))
-      .limit(1);
+      .returning();
+
+    if (!updated) throw new HTTPException(404, { message: "Not found" });
 
     return c.json(updated);
   })
@@ -193,19 +179,16 @@ const app = new Hono<AppEnv>()
       const id = crypto.randomUUID();
       const token = generateInboxToken();
 
-      await db.insert(workspaceInbox).values({
-        id,
-        workspaceId,
-        userId: user.id,
-        token,
-        label: label ?? null,
-      });
-
       const [created] = await db
-        .select()
-        .from(workspaceInbox)
-        .where(ownedBy(workspaceInbox.id, id, workspaceInbox.userId, user.id))
-        .limit(1);
+        .insert(workspaceInbox)
+        .values({
+          id,
+          workspaceId,
+          userId: user.id,
+          token,
+          label: label ?? null,
+        })
+        .returning();
 
       return c.json(created, 201);
     },

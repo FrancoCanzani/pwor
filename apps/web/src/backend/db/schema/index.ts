@@ -1,4 +1,5 @@
 export * from "./auth";
+export * from "./events";
 export * from "./inbox";
 export * from "./notes";
 export * from "./tasks";

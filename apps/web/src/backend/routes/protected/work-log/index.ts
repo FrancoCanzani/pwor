@@ -38,6 +38,20 @@ const authorSelect = {
   authorImage: user.image,
 };
 
+const entrySelect = {
+  id: workLog.id,
+  day: workLog.day,
+  body: workLog.body,
+  draftedAt: workLog.draftedAt,
+  sourceTaskCount: workLog.sourceTaskCount,
+  sourceNoteCount: workLog.sourceNoteCount,
+  sources: workLog.sources,
+  userId: workLog.userId,
+  updatedAt: workLog.updatedAt,
+  createdAt: workLog.createdAt,
+  ...authorSelect,
+};
+
 function withAuthor<T extends {
   authorName: string;
   authorEmail: string;
@@ -94,19 +108,7 @@ const app = new Hono<AppEnv>()
     });
 
     const [item] = await db
-      .select({
-        id: workLog.id,
-        day: workLog.day,
-        body: workLog.body,
-        draftedAt: workLog.draftedAt,
-        sourceTaskCount: workLog.sourceTaskCount,
-        sourceNoteCount: workLog.sourceNoteCount,
-        sources: workLog.sources,
-        userId: workLog.userId,
-        updatedAt: workLog.updatedAt,
-        createdAt: workLog.createdAt,
-        ...authorSelect,
-      })
+      .select(entrySelect)
       .from(workLog)
       .innerJoin(user, eq(workLog.userId, user.id))
       .where(ownedBy(workLog.id, id, workLog.userId, sessionUser.id))
@@ -138,19 +140,7 @@ const app = new Hono<AppEnv>()
     });
 
     const [item] = await db
-      .select({
-        id: workLog.id,
-        day: workLog.day,
-        body: workLog.body,
-        draftedAt: workLog.draftedAt,
-        sourceTaskCount: workLog.sourceTaskCount,
-        sourceNoteCount: workLog.sourceNoteCount,
-        sources: workLog.sources,
-        userId: workLog.userId,
-        updatedAt: workLog.updatedAt,
-        createdAt: workLog.createdAt,
-        ...authorSelect,
-      })
+      .select(entrySelect)
       .from(workLog)
       .innerJoin(user, eq(workLog.userId, user.id))
       .where(ownedBy(workLog.id, id, workLog.userId, sessionUser.id))
@@ -165,19 +155,7 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
 
     const [item] = await db
-      .select({
-        id: workLog.id,
-        day: workLog.day,
-        body: workLog.body,
-        draftedAt: workLog.draftedAt,
-        sourceTaskCount: workLog.sourceTaskCount,
-        sourceNoteCount: workLog.sourceNoteCount,
-        sources: workLog.sources,
-        userId: workLog.userId,
-        updatedAt: workLog.updatedAt,
-        createdAt: workLog.createdAt,
-        ...authorSelect,
-      })
+      .select(entrySelect)
       .from(workLog)
       .innerJoin(user, eq(workLog.userId, user.id))
       .where(ownedBy(workLog.id, id, workLog.userId, sessionUser.id))
@@ -194,33 +172,18 @@ const app = new Hono<AppEnv>()
     const { body } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
-    const [existing] = await db
-      .select({ id: workLog.id })
-      .from(workLog)
-      .where(ownedBy(workLog.id, id, workLog.userId, sessionUser.id))
-      .limit(1);
-
-    if (!existing) throw new HTTPException(404, { message: "Not found" });
-
-    await db
+    const touched = await db
       .update(workLog)
       .set({ body, updatedAt: new Date() })
-      .where(ownedBy(workLog.id, id, workLog.userId, sessionUser.id));
+      .where(ownedBy(workLog.id, id, workLog.userId, sessionUser.id))
+      .returning({ id: workLog.id });
+
+    if (touched.length === 0) {
+      throw new HTTPException(404, { message: "Not found" });
+    }
 
     const [updated] = await db
-      .select({
-        id: workLog.id,
-        day: workLog.day,
-        body: workLog.body,
-        draftedAt: workLog.draftedAt,
-        sourceTaskCount: workLog.sourceTaskCount,
-        sourceNoteCount: workLog.sourceNoteCount,
-        sources: workLog.sources,
-        userId: workLog.userId,
-        updatedAt: workLog.updatedAt,
-        createdAt: workLog.createdAt,
-        ...authorSelect,
-      })
+      .select(entrySelect)
       .from(workLog)
       .innerJoin(user, eq(workLog.userId, user.id))
       .where(ownedBy(workLog.id, id, workLog.userId, sessionUser.id))

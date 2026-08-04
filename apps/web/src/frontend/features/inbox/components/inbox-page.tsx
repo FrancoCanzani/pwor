@@ -2,6 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { PageEmpty } from "@components/page-empty";
 import { PageHeader } from "@components/page-header";
@@ -26,13 +37,17 @@ function formatDate(value: string) {
 
 function InboxRow({
   item,
+  deletePending,
   onOpen,
   onDelete,
 }: {
   item: InboxItem;
+  deletePending: boolean;
   onOpen: () => void;
   onDelete: () => void;
 }) {
+  const subject = item.subject?.trim();
+
   return (
     <li className="flex items-baseline justify-between gap-4 py-3">
       <button
@@ -40,9 +55,7 @@ function InboxRow({
         onClick={onOpen}
         className="flex min-w-0 items-baseline gap-2 text-left"
       >
-        <span className="truncate text-sm">
-          {item.subject?.trim() || "(no subject)"}
-        </span>
+        <span className="truncate text-sm">{subject || "(no subject)"}</span>
         <span className="shrink-0 truncate text-xs text-muted-foreground">
           {item.fromAddress}
         </span>
@@ -51,15 +64,43 @@ function InboxRow({
         <span className="text-xs font-nums text-muted-foreground">
           {formatDate(item.createdAt)}
         </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          className="font-normal text-muted-foreground hover:text-destructive"
-          onClick={onDelete}
-        >
-          Delete
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="font-normal text-muted-foreground hover:text-destructive"
+              />
+            }
+          >
+            Delete
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete email?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {subject
+                  ? `“${subject}” will be permanently deleted.`
+                  : "This email will be permanently deleted."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deletePending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onDelete();
+                }}
+              >
+                {deletePending ? "Deleting…" : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </li>
   );
@@ -118,6 +159,9 @@ export function InboxPage() {
             <InboxRow
               key={item.id}
               item={item}
+              deletePending={
+                deleteMutation.isPending && deleteMutation.variables === item.id
+              }
               onOpen={() => setSelectedId(item.id)}
               onDelete={() => deleteMutation.mutate(item.id)}
             />

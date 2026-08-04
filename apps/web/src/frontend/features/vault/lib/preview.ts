@@ -2,8 +2,6 @@ const TEXT_EXTENSIONS = new Set([
   "txt",
   "md",
   "markdown",
-  "csv",
-  "tsv",
   "json",
   "xml",
   "yaml",
@@ -58,6 +56,14 @@ export function isTextPreviewable(
   title: string | null,
 ): boolean {
   if (mimeType) {
+    const normalized = mimeType.toLowerCase().split(";")[0]?.trim() ?? "";
+    // CSV / TSV use the sheet viewer instead of a raw text dump.
+    if (
+      normalized === "text/csv" ||
+      normalized === "text/tab-separated-values"
+    ) {
+      return false;
+    }
     if (mimeType.startsWith("text/")) return true;
     if (TEXT_APPLICATION_TYPES.has(mimeType)) return true;
   }

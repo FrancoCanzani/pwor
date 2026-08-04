@@ -18,6 +18,7 @@ import {
   updateEvent,
   type CalendarEvent,
 } from "@features/calendar/api";
+import { eventRangeDays } from "@features/calendar/lib/month";
 
 export function EventDialog({
   open,
@@ -38,6 +39,7 @@ export function EventDialog({
 }) {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [time, setTime] = useState("");
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
 
@@ -45,23 +47,53 @@ export function EventDialog({
     if (!open) return;
     if (event) {
       setTitle(event.title);
-      setDate(format(new Date(event.startAt), "yyyy-MM-dd"));
+      const { start, end } = eventRangeDays(event);
+      setDate(format(start, "yyyy-MM-dd"));
+      setEndDate(
+        event.allDay &&
+          event.endAt &&
+          format(end, "yyyy-MM-dd") !== format(start, "yyyy-MM-dd")
+          ? format(end, "yyyy-MM-dd")
+          : "",
+      );
       setTime(event.allDay ? "" : format(new Date(event.startAt), "HH:mm"));
     } else {
       setTitle("");
       setDate(format(defaultDate ? new Date(defaultDate) : new Date(), "yyyy-MM-dd"));
+      setEndDate("");
       setTime("");
     }
   }, [open, event, defaultDate]);
 
-  function buildStart(): { startAt: string; allDay: boolean } {
-    const startAt = new Date(`${date}T${time || "12:00"}`);
-    return { startAt: startAt.toISOString(), allDay: time === "" };
+  const allDay = time === "";
+
+  function buildPayload(): {
+    title: string;
+    startAt: string;
+    endAt: string | null;
+    allDay: boolean;
+  } {
+    if (allDay && endDate && endDate !== date) {
+      const startDay = date <= endDate ? date : endDate;
+      const endDay = date <= endDate ? endDate : date;
+      return {
+        title: title.trim(),
+        startAt: new Date(`${startDay}T12:00`).toISOString(),
+        endAt: new Date(`${endDay}T12:00`).toISOString(),
+        allDay: true,
+      };
+    }
+    return {
+      title: title.trim(),
+      startAt: new Date(`${date}T${time || "12:00"}`).toISOString(),
+      endAt: null,
+      allDay,
+    };
   }
 
   const create = useMutation({
     mutationFn: () =>
-      createEvent({ title: title.trim(), ...buildStart(), workspaceId }),
+      createEvent({ ...buildPayload(), workspaceId }),
     onSuccess: (created) => {
       onCreated(created);
       onOpenChange(false);
@@ -69,8 +101,7 @@ export function EventDialog({
   });
 
   const save = useMutation({
-    mutationFn: () =>
-      updateEvent(event!.id, { title: title.trim(), ...buildStart() }),
+    mutationFn: () => updateEvent(event!.id, buildPayload()),
     onSuccess: (saved) => {
       onSaved(saved);
       onOpenChange(false);
@@ -108,24 +139,58 @@ export function EventDialog({
             placeholder="What's happening?"
             disabled={pending}
           />
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              disabled={pending}
-              className="flex-1"
-            />
-            <Input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              disabled={pending}
-              className="w-28"
-            />
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="event-start-date"
+              className="text-xs text-muted-foreground"
+            >
+              Start date
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="event-start-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                disabled={pending}
+                className="min-w-0 flex-1"
+              />
+              <Input
+                type="time"
+                value={time}
+                onChange={(e) => {
+                  setTime(e.target.value);
+                  if (e.target.value !== "") setEndDate("");
+                }}
+                disabled={pending}
+                className="w-28 shrink-0"
+                aria-label="Time"
+              />
+            </div>
           </div>
+          {allDay ? (
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="event-end-date"
+                className="text-xs text-muted-foreground"
+              >
+                End date
+              </label>
+              <Input
+                id="event-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                disabled={pending}
+                className="min-w-0 w-full"
+                min={date || undefined}
+              />
+            </div>
+          ) : null}
           <p className="text-xs text-muted-foreground">
-            Leave the time empty for an all-day event.
+            {allDay
+              ? "Leave end empty for a single day. Empty time = all day."
+              : "Empty time = all day."}
           </p>
           {create.isError || save.isError || remove.isError ? (
             <p className="text-xs text-destructive">Couldn’t save event.</p>

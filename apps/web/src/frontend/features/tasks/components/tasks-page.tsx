@@ -155,18 +155,15 @@ export function TasksPage() {
           </div>
         ) : null}
 
-        <Button
-          variant="new"
-          onClick={() => setTaskDialog({ mode: "create" })}
-        >
+        <Button variant="new" onClick={() => setTaskDialog({ mode: "create" })}>
           New
         </Button>
       </div>
 
       <div
         className={cn(
-          "min-h-0 flex-1 pt-2",
-          effectiveView === "list" ? "overflow-y-auto px-6" : "flex flex-col",
+          "flex min-h-0 flex-1 flex-col pt-2",
+          effectiveView === "list" && "overflow-y-auto px-6",
         )}
       >
         {effectiveView === "list" ? (

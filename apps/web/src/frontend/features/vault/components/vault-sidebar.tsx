@@ -6,14 +6,17 @@ import {
   categoryOf,
   type VaultCategory,
 } from "@features/vault/lib/category";
+import { formatGb } from "@features/vault/lib/size";
 
 export function VaultSidebar({
   items,
+  totalBytes,
   selected,
   onSelect,
   className,
 }: {
   items: VaultItem[];
+  totalBytes: number;
   selected: VaultCategory | null;
   onSelect: (category: VaultCategory | null) => void;
   className?: string;
@@ -31,10 +34,13 @@ export function VaultSidebar({
         className,
       )}
     >
-      <div className="flex h-12 shrink-0 items-center px-4">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4">
         <h1 className="text-xs leading-none font-normal text-muted-foreground">
           Vault
         </h1>
+        <span className="font-nums text-xs leading-none text-muted-foreground">
+          {formatGb(totalBytes)}
+        </span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin px-2 pb-3">

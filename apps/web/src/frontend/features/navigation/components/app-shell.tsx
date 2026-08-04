@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { CommandPalette } from "@features/command/components/command-palette";
 import {
   NavUser,
   type ShellUser,
@@ -57,6 +58,8 @@ export function AppShell({
       <SidebarProvider
         className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
       >
+        <CommandPalette />
+
         <Sidebar collapsible="icon">
           <SidebarHeader className="h-12 flex-row items-center gap-0 p-2">
             <Link

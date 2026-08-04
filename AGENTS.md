@@ -5,9 +5,15 @@
 - Never run `git commit` unless the user explicitly asks for it in that turn. Staging/inspecting changes is fine; committing is not.
 - Never create a new branch unless the user explicitly asks for it in that turn.
 
+## Verification
+
+- The user verifies changes by running the app. Do not drive a browser, take screenshots, seed or copy databases, write throwaway harness scripts, or hit endpoints to prove a change works.
+- `bun run check-types` is the check to run. Stop there and report what it says.
+- Never insert, copy, or mutate data — real or fake — to see something render. If a change can only be judged by running it, say so and hand it over.
+
 ## Dev server
 
-- Never kill, restart, or replace a running dev server unless the user explicitly asks — including to "cleanly" test or screenshot something. If you need to verify a change and a server is already running, hit it as-is (curl, devtools, browser against the existing port); don't stop it first and don't start a second one.
+- Never kill, restart, or replace a running dev server unless the user explicitly asks. Reuse whatever is already running; don't stop it and don't start a second one.
 - Do not start a second `bun run dev` / Vite process if one is already running — reuse the existing one.
 - Prefer HMR / file edits over process restarts.
 
@@ -20,6 +26,13 @@
 
 - Never run DB commands (`db:generate`, `db:migrate`, `db:migrate:dev`, `db:studio`, `wrangler d1 …`, drizzle-kit apply/push, etc.) unless the user explicitly asks.
 - Never touch migration files or `db/migrations/meta/*` (journal, snapshots) — not by hand, not via drizzle-kit. Only edit schema files in `db/schema/`. Migrations (generating and applying) are the user's to run, always.
+
+## Keyboard
+
+- All shortcuts go through `useHotkey` from `@tanstack/react-hotkeys`. Do not add `window.addEventListener("keydown", …)` in components — there should be exactly one keyboard layer.
+- `ignoreInputs` defaults correctly per binding: single keys and Shift/Alt combos are suppressed while typing, `Mod`/`Ctrl` combos and `Escape` still fire. Only override it when a binding genuinely needs the opposite.
+- Scope a binding with `{ enabled }` rather than early-returning inside the callback, so the registration stays visible in devtools.
+- `Mod+K` opens the command palette (`features/command`). Keep it reachable from anywhere — it's mounted once in `AppShell`.
 
 ## Product
 

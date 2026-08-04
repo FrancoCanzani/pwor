@@ -2,28 +2,30 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 
-export type VaultItemKind = "file" | "link" | "text";
+export type VaultItemKind = "file" | "text";
 
 export type VaultItem = {
   id: string;
   kind: VaultItemKind;
   title: string | null;
   mimeType: string | null;
-  url: string | null;
-  siteName: string | null;
   workspaceId: string | null;
   inboxItemId: string | null;
   createdAt: string;
 };
 
-async function fetchVaultItems(workspaceId?: string): Promise<VaultItem[]> {
+export type VaultList = {
+  items: VaultItem[];
+  totalBytes: number;
+};
+
+async function fetchVaultItems(workspaceId?: string): Promise<VaultList> {
   const params = new URLSearchParams();
   if (workspaceId) params.set("workspaceId", workspaceId);
   const query = params.toString();
-  const data = await parseJson<{ items: VaultItem[] }>(
+  return parseJson<VaultList>(
     await fetch(`/api/vault${query ? `?${query}` : ""}`),
   );
-  return data.items;
 }
 
 export function vaultItemsQueryOptions(workspaceId?: string) {
@@ -37,7 +39,7 @@ async function fetchVaultItemsByInboxItem(
   inboxItemId: string,
 ): Promise<VaultItem[]> {
   const params = new URLSearchParams({ inboxItemId });
-  const data = await parseJson<{ items: VaultItem[] }>(
+  const data = await parseJson<VaultList>(
     await fetch(`/api/vault?${params.toString()}`),
   );
   return data.items;
@@ -80,6 +82,23 @@ export function vaultFileTextQueryOptions(id: string) {
   });
 }
 
+async function fetchVaultSheet(id: string) {
+  const res = await fetch(`/api/vault/${id}/file`);
+  if (!res.ok) {
+    throw new Error("Failed to load file");
+  }
+  const buffer = await res.arrayBuffer();
+  const { parseSheetWorkbook } = await import("@features/vault/lib/sheet");
+  return parseSheetWorkbook(buffer);
+}
+
+export function vaultSheetQueryOptions(id: string) {
+  return queryOptions({
+    queryKey: ["vault", "sheet", id] as const,
+    queryFn: () => fetchVaultSheet(id),
+  });
+}
+
 export async function uploadVaultItem(
   file: File,
   workspaceId?: string | null,
@@ -90,19 +109,6 @@ export async function uploadVaultItem(
 
   return parseJson<{ id: string }>(
     await fetch("/api/vault", { method: "POST", body: formData }),
-  );
-}
-
-export async function createVaultLink(
-  url: string,
-  workspaceId?: string | null,
-): Promise<VaultItem> {
-  return parseJson<VaultItem>(
-    await fetch("/api/vault/links", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, workspaceId }),
-    }),
   );
 }
 

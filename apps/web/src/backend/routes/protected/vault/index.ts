@@ -1,14 +1,17 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
+import {
+  putVaultObject,
+  vaultObjectByteSize,
+} from "../../../lib/vault-storage";
 import { vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
-import { domainOf, fetchLinkMetadata } from "./links";
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
@@ -17,11 +20,6 @@ const listQuerySchema = z.object({
 
 const updateVaultItemSchema = z.object({
   workspaceId: z.string().nullable(),
-});
-
-const createLinkSchema = z.object({
-  url: z.string().trim().url(),
-  workspaceId: z.string().nullable().optional(),
 });
 
 const createTextSchema = z.object({
@@ -44,45 +42,22 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
     const r2Key = `${user.id}/${id}/${file.name}`;
+    const contentType = file.type || "application/octet-stream";
 
-    await c.env.VAULT_BUCKET.put(r2Key, file.stream(), {
-      httpMetadata: { contentType: file.type || "application/octet-stream" },
-    });
+    await putVaultObject(
+      c.env.VAULT_BUCKET,
+      r2Key,
+      await file.arrayBuffer(),
+      contentType,
+    );
 
     await db.insert(vaultItem).values({
       id,
       userId: user.id,
       title: file.name,
       r2Key,
-      mimeType: file.type || "application/octet-stream",
+      mimeType: contentType,
       workspaceId,
-    });
-
-    const [created] = await db
-      .select()
-      .from(vaultItem)
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
-
-    return c.json(created, 201);
-  })
-
-  .post("/links", zValidator("json", createLinkSchema), async (c) => {
-    const user = c.get("user")!;
-    const { url, workspaceId } = c.req.valid("json");
-    const db = createDb(c.env.DB);
-    const id = crypto.randomUUID();
-
-    const { title } = await fetchLinkMetadata(url);
-
-    await db.insert(vaultItem).values({
-      id,
-      userId: user.id,
-      kind: "link",
-      title: title ?? domainOf(url),
-      url,
-      siteName: title,
-      workspaceId: workspaceId ?? null,
     });
 
     const [created] = await db
@@ -126,7 +101,10 @@ const app = new Hono<AppEnv>()
     const { workspaceId, inboxItemId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
-    const conditions = [eq(vaultItem.userId, user.id)];
+    const conditions = [
+      eq(vaultItem.userId, user.id),
+      inArray(vaultItem.kind, ["file", "text"]),
+    ];
     if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
     if (inboxItemId) conditions.push(eq(vaultItem.inboxItemId, inboxItemId));
 
@@ -136,7 +114,24 @@ const app = new Hono<AppEnv>()
       .where(and(...conditions))
       .orderBy(desc(vaultItem.createdAt));
 
-    return c.json({ items });
+    // Sum real object sizes (metadata / head / one-time backfill).
+    let totalBytes = 0;
+    if (!inboxItemId) {
+      const sizes = await Promise.all(
+        items.map(async (item) => {
+          if (item.r2Key) {
+            return vaultObjectByteSize(c.env.VAULT_BUCKET, item.r2Key);
+          }
+          if (item.content) {
+            return new TextEncoder().encode(item.content).byteLength;
+          }
+          return 0;
+        }),
+      );
+      totalBytes = sizes.reduce((sum, size) => sum + size, 0);
+    }
+
+    return c.json({ items, totalBytes });
   })
 
   .patch("/:id", zValidator("json", updateVaultItemSchema), async (c) => {
@@ -146,12 +141,14 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
 
     const [existing] = await db
-      .select({ id: vaultItem.id })
+      .select({ id: vaultItem.id, kind: vaultItem.kind })
       .from(vaultItem)
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    if (!existing) throw new HTTPException(404, { message: "Not found" });
+    if (!existing || existing.kind === "link") {
+      throw new HTTPException(404, { message: "Not found" });
+    }
 
     await db
       .update(vaultItem)
@@ -197,7 +194,9 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    if (!item) throw new HTTPException(404, { message: "Not found" });
+    if (!item || item.kind === "link") {
+      throw new HTTPException(404, { message: "Not found" });
+    }
 
     return c.json(item);
   })

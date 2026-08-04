@@ -163,7 +163,7 @@ export function WorkLogPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-6">
         <PageHeader
           title="Updates"
           description="About the project."

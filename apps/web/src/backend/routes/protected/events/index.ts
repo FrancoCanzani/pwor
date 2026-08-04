@@ -13,6 +13,14 @@ const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
 });
 
+function assertEndNotBeforeStart(startAt: Date, endAt: Date | null) {
+  if (endAt != null && endAt.getTime() < startAt.getTime()) {
+    throw new HTTPException(400, {
+      message: "endAt must be on or after startAt",
+    });
+  }
+}
+
 const createEventSchema = z.object({
   title: z.string().min(1),
   startAt: z.string(),
@@ -62,6 +70,9 @@ const app = new Hono<AppEnv>()
     const { title, startAt, endAt, allDay, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
+    const start = new Date(startAt);
+    const end = endAt ? new Date(endAt) : null;
+    assertEndNotBeforeStart(start, end);
 
     const [created] = await db
       .insert(event)
@@ -69,8 +80,8 @@ const app = new Hono<AppEnv>()
         id,
         userId: user.id,
         title,
-        startAt: new Date(startAt),
-        endAt: endAt ? new Date(endAt) : null,
+        startAt: start,
+        endAt: end,
         allDay: allDay ?? true,
         workspaceId: workspaceId ?? null,
       })
@@ -85,14 +96,30 @@ const app = new Hono<AppEnv>()
     const { title, startAt, endAt, allDay, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
+    const [existing] = await db
+      .select()
+      .from(event)
+      .where(ownedBy(event.id, id, event.userId, user.id))
+      .limit(1);
+
+    if (!existing) throw new HTTPException(404, { message: "Not found" });
+
+    const nextStart =
+      startAt !== undefined ? new Date(startAt) : existing.startAt;
+    const nextEnd =
+      endAt !== undefined
+        ? endAt
+          ? new Date(endAt)
+          : null
+        : existing.endAt;
+    assertEndNotBeforeStart(nextStart, nextEnd);
+
     const [updated] = await db
       .update(event)
       .set({
         ...(title !== undefined ? { title } : {}),
-        ...(startAt !== undefined ? { startAt: new Date(startAt) } : {}),
-        ...(endAt !== undefined
-          ? { endAt: endAt ? new Date(endAt) : null }
-          : {}),
+        ...(startAt !== undefined ? { startAt: nextStart } : {}),
+        ...(endAt !== undefined ? { endAt: nextEnd } : {}),
         ...(allDay !== undefined ? { allDay } : {}),
         ...(workspaceId !== undefined ? { workspaceId } : {}),
       })

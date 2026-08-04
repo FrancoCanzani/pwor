@@ -1,8 +1,9 @@
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { addMonths, format, isSameDay, startOfMonth } from "date-fns";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -75,15 +76,23 @@ export function CalendarPage() {
     }: {
       id: string;
       startAt: string;
-      endAt?: string;
-    }) => updateEvent(id, { startAt, ...(endAt ? { endAt } : {}) }),
+      endAt?: string | null;
+    }) =>
+      updateEvent(id, {
+        startAt,
+        ...(endAt !== undefined ? { endAt } : {}),
+      }),
     onMutate: async ({ id, startAt, endAt }) => {
       await queryClient.cancelQueries({ queryKey: eventsKey });
       const previous = queryClient.getQueryData<CalendarEvent[]>(eventsKey);
       patchEvents((items) =>
         items.map((item) =>
           item.id === id
-            ? { ...item, startAt, ...(endAt ? { endAt } : {}) }
+            ? {
+                ...item,
+                startAt,
+                ...(endAt !== undefined ? { endAt } : {}),
+              }
             : item,
         ),
       );
@@ -159,21 +168,11 @@ export function CalendarPage() {
 
   const dialogOpen = eventDialog != null || editingTask != null;
 
-  useEffect(() => {
-    if (effectiveView !== "month" || dialogOpen) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, [contenteditable=true]")) return;
-      // Keyboard paging skips the animation: repeated actions shouldn't wait.
-      if (event.key === "ArrowLeft") page(-1, false);
-      else if (event.key === "ArrowRight") page(1, false);
-      else if (event.key === "t") goToday(false);
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [effectiveView, dialogOpen]);
+  // Keyboard paging skips the animation: repeated actions shouldn't wait.
+  const paging = { enabled: effectiveView === "month" && !dialogOpen };
+  useHotkey("ArrowLeft", () => page(-1, false), paging);
+  useHotkey("ArrowRight", () => page(1, false), paging);
+  useHotkey("T", () => goToday(false), paging);
 
   function handleDropChip(chip: CalendarChipData, day: Date) {
     if (!chip.at || isSameDay(new Date(chip.at), day)) return;
@@ -199,6 +198,13 @@ export function CalendarPage() {
         dueAt: rescheduleToDay(chip.at, day).toISOString(),
       });
     }
+  }
+
+  function handleResizeEvent(
+    id: string,
+    next: { startAt: string; endAt: string | null },
+  ) {
+    rescheduleEvent.mutate({ id, startAt: next.startAt, endAt: next.endAt });
   }
 
   function handleToggleTask(task: Task) {
@@ -273,7 +279,9 @@ export function CalendarPage() {
           ) : null}
           <Button
             variant="new"
-            onClick={() => setEventDialog({ mode: "create", defaultDate: null })}
+            onClick={() =>
+              setEventDialog({ mode: "create", defaultDate: null })
+            }
           >
             New
           </Button>
@@ -288,15 +296,19 @@ export function CalendarPage() {
             events={events}
             tasks={tasks}
             onQuickAdd={(day) =>
-              setEventDialog({ mode: "create", defaultDate: dayToDefaultAt(day) })
+              setEventDialog({
+                mode: "create",
+                defaultDate: dayToDefaultAt(day),
+              })
             }
             onEditEvent={(event) => setEventDialog({ mode: "edit", event })}
             onEditTask={setEditingTask}
             onDropChip={handleDropChip}
+            onResizeEvent={handleResizeEvent}
           />
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-2">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pt-2">
           <AgendaList
             events={events}
             tasks={tasks}

@@ -111,7 +111,8 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
     workspaceQueryOptions(workspaceId),
   );
   const { data: allNotes = [] } = useQuery(notesQueryOptions());
-  const { data: allVaultItems = [] } = useQuery(vaultItemsQueryOptions());
+  const { data: vaultList } = useQuery(vaultItemsQueryOptions());
+  const allVaultItems = vaultList?.items ?? [];
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");

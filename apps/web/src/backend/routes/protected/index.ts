@@ -4,6 +4,7 @@ import type { AppEnv } from "../../types";
 import eventsRoutes from "./events";
 import inboxRoutes from "./inbox";
 import notesRoutes from "./notes";
+import searchRoutes from "./search";
 import tasksRoutes from "./tasks";
 import vaultRoutes from "./vault";
 import workLogRoutes from "./work-log";
@@ -14,6 +15,7 @@ const app = new Hono<AppEnv>()
   .route("/events", eventsRoutes)
   .route("/inbox", inboxRoutes)
   .route("/notes", notesRoutes)
+  .route("/search", searchRoutes)
   .route("/tasks", tasksRoutes)
   .route("/vault", vaultRoutes)
   .route("/work-log", workLogRoutes)

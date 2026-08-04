@@ -3,6 +3,7 @@ import PostalMime, { type Attachment } from "postal-mime";
 
 import { createDb } from "./db";
 import { inboxItem, task, vaultItem, workspaceInbox } from "./db/schema";
+import { putVaultObject } from "./lib/vault-storage";
 import { extractTaskFromEmail } from "./lib/task-extraction";
 
 function attachmentBytes(
@@ -60,11 +61,12 @@ export async function handleInboundEmail(
     const filename = attachment.filename || "attachment";
     const r2Key = `${inbox.userId}/${id}/${filename}`;
 
-    await env.VAULT_BUCKET.put(r2Key, attachmentBytes(attachment), {
-      httpMetadata: {
-        contentType: attachment.mimeType || "application/octet-stream",
-      },
-    });
+    await putVaultObject(
+      env.VAULT_BUCKET,
+      r2Key,
+      attachmentBytes(attachment),
+      attachment.mimeType || "application/octet-stream",
+    );
 
     await db.insert(vaultItem).values({
       id,

@@ -6,6 +6,7 @@ import {
   useParams,
 } from "@tanstack/react-router";
 
+import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -83,18 +84,31 @@ export function NotesLayout() {
 
   const editor = (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      {notes.length === 0 ? (
-        <div className="mx-auto w-full max-w-3xl px-8 pt-12">
-          <PageEmpty
-            title="No notes yet"
-            description="Create a note to start writing in markdown."
-          />
-        </div>
-      ) : (
-        <Outlet />
-      )}
+      <Outlet />
     </div>
   );
+
+  // With no notes the list has nothing to show, so the aside would only repeat
+  // the empty state next to it. Drop it and let the empty own the full pane.
+  if (notes.length === 0) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden px-8">
+        <PageEmpty
+          title="No notes yet"
+          description="Create a note to start writing in markdown."
+          action={
+            <Button
+              variant="new"
+              disabled={createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+            >
+              {createMutation.isPending ? "Creating…" : "New note"}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
 
   if (isMobile) {
     return (

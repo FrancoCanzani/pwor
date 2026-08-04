@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileIcon, Link2Icon, MagicWandIcon } from "@radix-ui/react-icons";
+import { FileIcon, MagicWandIcon } from "@radix-ui/react-icons";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -85,20 +85,12 @@ export function InboxItemSheet({
                     {documentsQuery.data.map((doc) => (
                       <li key={doc.id}>
                         <a
-                          href={
-                            doc.kind === "file"
-                              ? `/api/vault/${doc.id}/file`
-                              : (doc.url ?? "#")
-                          }
+                          href={`/api/vault/${doc.id}/file`}
                           target="_blank"
                           rel="noreferrer"
                           className="flex items-center gap-1.5 text-sm text-foreground hover:underline"
                         >
-                          {doc.kind === "link" ? (
-                            <Link2Icon className="size-3.5 shrink-0 text-muted-foreground" />
-                          ) : (
-                            <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                          )}
+                          <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
                           <span className="truncate">
                             {doc.title || "Untitled"}
                           </span>

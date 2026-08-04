@@ -1,9 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,14 +8,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import {
   vaultFileTextQueryOptions,
   vaultItemQueryOptions,
+  vaultSheetQueryOptions,
   type VaultItem,
 } from "@features/vault/api";
+import { PdfViewer } from "@features/vault/components/pdf-viewer";
+import { SheetViewer } from "@features/vault/components/sheet-viewer";
 import { isTextPreviewable } from "@features/vault/lib/preview";
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+import { isSheetPreviewable } from "@features/vault/lib/sheet";
 
 function TextPreview({
   content,
@@ -30,8 +28,8 @@ function TextPreview({
   downloadUrl?: string;
 }) {
   return (
-    <div className="flex max-h-[70vh] flex-col gap-3">
-      <div className="flex justify-end gap-2">
+    <div className="flex h-[70vh] flex-col gap-3">
+      <div className="flex shrink-0 justify-end gap-2">
         {downloadUrl ? (
           <Button variant="outline" render={<a href={downloadUrl} download />}>
             Download
@@ -49,11 +47,13 @@ function TextPreview({
           Copy
         </Button>
       </div>
-      {content !== null ? (
-        <pre className="overflow-auto whitespace-pre-wrap text-sm text-foreground">
-          {content}
-        </pre>
-      ) : null}
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        {content !== null ? (
+          <pre className="whitespace-pre-wrap text-sm text-foreground">
+            {content}
+          </pre>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -67,15 +67,16 @@ export function VaultViewer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [numPages, setNumPages] = useState<number | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
-
   const isTextItem = item.kind === "text";
   const fileUrl = `/api/vault/${item.id}/file`;
   const isImage = item.mimeType?.startsWith("image/") ?? false;
   const isPdf = item.mimeType === "application/pdf";
+  const isSheet =
+    !isTextItem && isSheetPreviewable(item.mimeType, item.title);
   const isTextFile =
-    !isTextItem && isTextPreviewable(item.mimeType, item.title);
+    !isTextItem &&
+    !isSheet &&
+    isTextPreviewable(item.mimeType, item.title);
 
   const { data: detail } = useQuery({
     ...vaultItemQueryOptions(item.id),
@@ -87,24 +88,27 @@ export function VaultViewer({
     enabled: open && isTextFile,
   });
 
+  const { data: workbook, isError: sheetError } = useQuery({
+    ...vaultSheetQueryOptions(item.id),
+    enabled: open && isSheet,
+  });
+
   const textContent = isTextItem
     ? (detail?.content?.trim() || null)
     : (fileText ?? null);
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        onOpenChange(next);
-        if (!next) {
-          setNumPages(null);
-          setPageNumber(1);
-        }
-      }}
-    >
-      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{item.title ?? "Untitled"}</DialogTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={cn(
+          "max-w-[calc(100%-2rem)] overflow-hidden",
+          isSheet ? "gap-2 p-2 sm:max-w-5xl" : "sm:max-w-3xl",
+        )}
+      >
+        <DialogHeader className="min-w-0">
+          <DialogTitle className="truncate pr-8">
+            {item.title ?? "Untitled"}
+          </DialogTitle>
         </DialogHeader>
 
         {isTextItem || isTextFile ? (
@@ -112,59 +116,45 @@ export function VaultViewer({
             content={textContent}
             downloadUrl={isTextFile ? fileUrl : undefined}
           />
-        ) : (
-          <div className="flex max-h-[70vh] flex-col items-center gap-3 overflow-auto">
-            {isImage ? (
-              <img
-                src={fileUrl}
-                alt={item.title ?? "Vault file"}
-                className="max-h-[65vh] w-auto object-contain"
-              />
-            ) : isPdf ? (
-              <>
-                <Document
-                  file={fileUrl}
-                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                  loading={null}
-                  error={
-                    <p className="py-8 text-sm text-destructive">
-                      Couldn't load this PDF.
-                    </p>
-                  }
-                >
-                  <Page pageNumber={pageNumber} width={640} />
-                </Document>
-                {numPages && numPages > 1 ? (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Button
-                      variant="outline"
-                      disabled={pageNumber <= 1}
-                      onClick={() => setPageNumber((p) => p - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <span className="font-nums text-muted-foreground">
-                      {pageNumber} / {numPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      disabled={pageNumber >= numPages}
-                      onClick={() => setPageNumber((p) => p + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <p className="py-8 text-sm text-muted-foreground">
-                No preview available for this file.{" "}
+        ) : isSheet ? (
+          sheetError ? (
+            <div className="flex h-[70vh] flex-col items-center justify-center gap-3">
+              <p className="text-sm text-muted-foreground">
+                Couldn't preview this sheet.{" "}
                 <a href={fileUrl} download className="underline">
                   Download it instead
                 </a>
                 .
               </p>
-            )}
+            </div>
+          ) : (
+            <div className="h-[70vh] min-w-0 overflow-hidden">
+              <SheetViewer
+                key={item.id}
+                workbook={workbook}
+                downloadUrl={fileUrl}
+              />
+            </div>
+          )
+        ) : isPdf ? (
+          <PdfViewer key={item.id} fileUrl={fileUrl} />
+        ) : isImage ? (
+          <div className="flex h-[70vh] items-center justify-center overflow-auto">
+            <img
+              src={fileUrl}
+              alt={item.title ?? "Vault file"}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        ) : (
+          <div className="flex h-[40vh] flex-col items-center justify-center">
+            <p className="text-sm text-muted-foreground">
+              No preview available for this file.{" "}
+              <a href={fileUrl} download className="underline">
+                Download it instead
+              </a>
+              .
+            </p>
           </div>
         )}
       </DialogContent>

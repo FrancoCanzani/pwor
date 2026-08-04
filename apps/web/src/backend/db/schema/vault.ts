@@ -16,6 +16,7 @@ export const vaultItem = sqliteTable("vault_item", {
   inboxItemId: text("inbox_item_id").references(() => inboxItem.id, {
     onDelete: "set null",
   }),
+  // "link" remains for legacy rows only — creation and listing no longer use it.
   kind: text("kind", { enum: ["file", "link", "text"] })
     .notNull()
     .default("file"),

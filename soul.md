@@ -48,6 +48,7 @@ Everything AI creates can be regenerated.
 - Capture: paste, drag files, email/WhatsApp forward, voice
 - Object pages with AI-written briefs
 - Workspaces: name, description, linked tasks/notes/vault items, generated inbound email addresses
+- Calendar: events, plus tasks that carry a due date, as a month grid or an agenda
 - Hybrid search (FTS + vectors)
 - Chat over your data
 - Auto + manual reminders
@@ -55,8 +56,10 @@ Everything AI creates can be regenerated.
 
 ## Explicitly not V1
 
-Kanban boards, nested folders, team collaboration, calendar views, web-browsing agents, external action executors.
+Nested folders, team collaboration, web-browsing agents, external action executors.
+
+Calendar is deliberately narrow: days are buckets, entries are lines of text. No week view, no hour grid, no recurrence.
 
 ## Status
 
-Scaffolding + design system built. Notes, Tasks, Vault, Work Log, and Workspaces (grouping tasks/notes/vault items, plus generated inbound email addresses) shipped. Inbound email is code-complete: `email()` handler (`apps/web/src/backend/email.ts`) parses with postal-mime, resolves `workspace_inbox` by token, and creates vault items (plus AI task extraction). The only remaining piece is external — pointing a real domain's MX at Cloudflare Email Routing with a catch-all rule to this Worker. Capture pipeline for non-email sources (OCR/STT → extract → embed → match) and chat-over-data not yet built.
+Scaffolding + design system built. Notes, Tasks, Calendar, Vault, Work Log, and Workspaces (grouping tasks/notes/vault items, plus generated inbound email addresses) shipped. Inbound email is code-complete: `email()` handler (`apps/web/src/backend/email.ts`) parses with postal-mime, resolves `workspace_inbox` by token, and creates vault items (plus AI task extraction). The only remaining piece is external — pointing a real domain's MX at Cloudflare Email Routing with a catch-all rule to this Worker. Capture pipeline for non-email sources (OCR/STT → extract → embed → match) and chat-over-data not yet built.

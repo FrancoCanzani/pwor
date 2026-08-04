@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { VaultItem } from "@features/vault/api";
+import { VaultUploadButton } from "@features/vault/components/vault-upload-button";
 import {
   CATEGORY_LABEL,
   CATEGORY_ORDER,
@@ -80,6 +81,10 @@ export function VaultSidebar({
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="shrink-0 px-2 pb-2">
+        <VaultUploadButton />
       </div>
     </aside>
   );

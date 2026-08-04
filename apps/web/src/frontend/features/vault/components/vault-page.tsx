@@ -1,7 +1,7 @@
-import { DotsHorizontalIcon } from "@radix-ui/react-icons";
+import { CaretSortIcon, DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useState, type SubmitEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -20,6 +20,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -31,14 +33,20 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PageEmpty } from "@components/page-empty";
 import {
-  createVaultText,
   deleteVaultItem,
   vaultItemsQueryOptions,
   type VaultItem,
 } from "@features/vault/api";
 import { VaultSidebar } from "@features/vault/components/vault-sidebar";
 import { VaultViewer } from "@features/vault/components/vault-viewer";
-import { categoryOf, type VaultCategory } from "@features/vault/lib/category";
+import { type VaultCategory } from "@features/vault/lib/category";
+import {
+  filterAndSortVaultItems,
+  formatVaultDate,
+  VAULT_SORT_LABEL,
+  VAULT_SORT_ORDER,
+  type VaultSort,
+} from "@features/vault/lib/list";
 import { isTextPreviewable } from "@features/vault/lib/preview";
 import { isSheetPreviewable } from "@features/vault/lib/sheet";
 
@@ -78,22 +86,24 @@ function VaultFileRow({ item }: { item: VaultItem }) {
     <li className="flex items-center justify-between gap-4 py-3">
       <button
         type="button"
-        className="flex flex-col gap-0.5 text-left"
+        className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
         onClick={() => setViewerOpen(true)}
       >
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm">{item.title ?? "Untitled"}</span>
-          <span className="text-xs text-muted-foreground">
-            {item.kind === "text"
-              ? "text"
-              : fileKindLabel(item.mimeType, item.title)}
-          </span>
-        </div>
+        <span className="truncate text-sm">{item.title ?? "Untitled"}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {item.kind === "text"
+            ? "text"
+            : fileKindLabel(item.mimeType, item.title)}
+        </span>
       </button>
 
       <VaultViewer item={item} open={viewerOpen} onOpenChange={setViewerOpen} />
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="font-nums text-xs text-muted-foreground">
+          {formatVaultDate(item.createdAt)}
+        </span>
+
         <AlertDialog>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -102,6 +112,12 @@ function VaultFileRow({ item }: { item: VaultItem }) {
               <DotsHorizontalIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="font-normal text-xs"
+                onClick={() => setViewerOpen(true)}
+              >
+                Open
+              </DropdownMenuItem>
               {item.kind === "file" ? (
                 <DropdownMenuItem
                   className="font-normal text-xs"
@@ -150,43 +166,6 @@ function VaultFileRow({ item }: { item: VaultItem }) {
   );
 }
 
-function VaultTextQuickAdd() {
-  const [content, setContent] = useState("");
-  const queryClient = useQueryClient();
-  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
-
-  const addText = useMutation({
-    mutationFn: (content: string) => createVaultText(content, workspaceId),
-    onSuccess: () => {
-      setContent("");
-      queryClient.invalidateQueries({
-        queryKey: ["vault", "items"],
-      });
-    },
-    onError: () => toast.error("Couldn't save that"),
-  });
-
-  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const trimmed = content.trim();
-    if (!trimmed || addText.isPending) return;
-    addText.mutate(trimmed);
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2">
-      <Input
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Jot something down…"
-      />
-      <Button type="submit" disabled={!content.trim() || addText.isPending}>
-        Add
-      </Button>
-    </form>
-  );
-}
-
 export function VaultPage() {
   const isMobile = useIsMobile();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
@@ -194,37 +173,95 @@ export function VaultPage() {
   const items = data?.items ?? [];
   const totalBytes = data?.totalBytes ?? 0;
   const [category, setCategory] = useState<VaultCategory | null>(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<VaultSort>("newest");
 
-  const filtered = category
-    ? items.filter((item) => categoryOf(item) === category)
-    : items;
+  const filtered = filterAndSortVaultItems(items, { category, query, sort });
 
-  const content = (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain px-8 pt-10 pb-20">
-      <div className="flex min-h-0 flex-1 flex-col gap-8">
-        {category === "images" ? null : <VaultTextQuickAdd />}
+  const toolbar = (
+    <div className="flex h-12 shrink-0 items-center gap-2 px-4">
+      <Input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search…"
+        className="h-7 max-w-xs border-0 bg-transparent px-0 shadow-none focus-visible:border-0 focus-visible:ring-0"
+      />
+      <div className="ml-auto">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="xs"
+                className="gap-1 font-normal text-muted-foreground"
+              />
+            }
+          >
+            {VAULT_SORT_LABEL[sort]}
+            <CaretSortIcon className="size-3.5 opacity-60" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-28">
+            <DropdownMenuRadioGroup
+              value={sort}
+              onValueChange={(value) => {
+                if (
+                  value === "newest" ||
+                  value === "oldest" ||
+                  value === "name"
+                ) {
+                  setSort(value);
+                }
+              }}
+            >
+              {VAULT_SORT_ORDER.map((option) => (
+                <DropdownMenuRadioItem
+                  key={option}
+                  value={option}
+                  className="font-normal text-xs"
+                >
+                  {VAULT_SORT_LABEL[option]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
 
-        {filtered.length === 0 ? (
-          <PageEmpty
-            title={
-              category
+  const list = (
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-20">
+      {filtered.length === 0 ? (
+        <PageEmpty
+          title={
+            query.trim()
+              ? "No matches"
+              : category
                 ? `Nothing in ${category} yet`
                 : "Nothing in the vault yet"
-            }
-            description={
-              category === "images"
+          }
+          description={
+            query.trim()
+              ? "Try a different search."
+              : category === "images"
                 ? "Drop an image anywhere to add it."
-                : "Jot something down above, or drop a file anywhere to add it."
-            }
-          />
-        ) : (
-          <ul className="flex flex-col divide-y divide-dashed divide-border">
-            {filtered.map((item) => (
-              <VaultFileRow key={item.id} item={item} />
-            ))}
-          </ul>
-        )}
-      </div>
+                : "Upload a file, or drop one anywhere to add it."
+          }
+        />
+      ) : (
+        <ul className="flex flex-col divide-y divide-dashed divide-border">
+          {filtered.map((item) => (
+            <VaultFileRow key={item.id} item={item} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  const content = (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      {toolbar}
+      {list}
     </div>
   );
 

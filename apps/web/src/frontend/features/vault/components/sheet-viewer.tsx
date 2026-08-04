@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { isNumericCell, type SheetWorkbook } from "@features/vault/lib/sheet";
 
 const rowNumClass =
-  "sticky left-0 z-20 border-r border-border bg-background px-1.5 py-1 text-right font-nums font-normal text-muted-foreground";
+  "sticky left-0 z-20 w-7 border-r border-border bg-background px-1 py-1 text-right font-nums font-normal text-muted-foreground";
 
 export function SheetViewer({
   workbook,
@@ -84,7 +84,7 @@ export function SheetViewer({
                 <th
                   key={`h-${colIndex}`}
                   scope="col"
-                  className="max-w-[16rem] truncate bg-background px-1.5 py-1 font-normal text-muted-foreground"
+                  className="max-w-[16rem] truncate bg-background px-1 py-1 font-normal text-muted-foreground"
                   title={header}
                 >
                   {header}
@@ -107,7 +107,7 @@ export function SheetViewer({
                     <td
                       key={`c-${rowIndex}-${colIndex}`}
                       className={cn(
-                        "max-w-[16rem] truncate px-1.5 py-1 text-foreground group-hover:bg-muted",
+                        "max-w-[16rem] truncate px-1 py-1 text-foreground group-hover:bg-muted",
                         numeric && "font-nums text-right",
                       )}
                       title={cell}

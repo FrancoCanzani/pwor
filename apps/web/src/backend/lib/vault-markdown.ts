@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { createDb } from "../db";
 import { vaultItem } from "../db/schema";
 
-/** Extensions Workers AI `toMarkdown` supports (see CF supported-formats docs). */
 const EXTENSION_MIME: Record<string, string> = {
   pdf: "application/pdf",
   jpeg: "image/jpeg",

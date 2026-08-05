@@ -1,4 +1,4 @@
-# Odiseum — Personal Intelligence Layer
+# Pwor — Personal Intelligence Layer
 
 ## Pitch
 
@@ -27,6 +27,7 @@ Every capture answers one question: *what part of the user's life does this belo
 | Queue | Cloudflare Queues |
 | LLM | OpenRouter (cheap extraction + strong summaries/chat) |
 | Embeddings | Workers AI / dedicated embedding model |
+| Doc → Markdown | Workers AI `env.AI.toMarkdown()` (free for most formats; no Firecrawl) |
 
 ## Mental model
 
@@ -35,6 +36,8 @@ Capture → OCR/STT → Extract → Embed → Match → Merge/Create → Summari
 ```
 
 Workers, not agents, for ingestion.
+
+Vault / email attachments: raw bytes stay in R2; `AI.toMarkdown` produces searchable LLM-ready markdown (PDF, DOCX, XLS*, ODT/ODS, CSV, HTML, images). PPTX/RTF/EPUB/legacy `.doc` are out of CF's list — fall back later via pure-JS/WASM or a Container running anydoc if needed. Never pay Firecrawl Parse for the default path.
 
 ### Storage worlds
 

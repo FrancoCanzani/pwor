@@ -9,7 +9,7 @@ import {
 } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 
-export const odiseumHighlight = HighlightStyle.define([
+export const pworHighlight = HighlightStyle.define([
   { tag: tags.heading, fontWeight: "700", color: "var(--foreground)" },
   { tag: tags.heading1, fontSize: "1.35em", lineHeight: "1.3" },
   { tag: tags.heading2, fontSize: "1.15em", lineHeight: "1.35" },
@@ -27,7 +27,7 @@ export const odiseumHighlight = HighlightStyle.define([
   { tag: tags.list, color: "var(--foreground)" },
 ]);
 
-export const odiseumEditorTheme = EditorView.theme({
+export const pworEditorTheme = EditorView.theme({
   "&": {
     height: "100%",
     fontSize: "14px",
@@ -176,8 +176,8 @@ export function createNoteEditorState({
       // No codeLanguages — @codemirror/language-data loads every grammar and
       // will freeze the tab on larger notes / fenced blocks.
       markdown({ base: markdownLanguage }),
-      syntaxHighlighting(odiseumHighlight),
-      odiseumEditorTheme,
+      syntaxHighlighting(pworHighlight),
+      pworEditorTheme,
       EditorView.lineWrapping,
       placeholder ? placeholderExt(placeholder) : [],
       uploadImage ? createImageUploadHandler(uploadImage) : [],

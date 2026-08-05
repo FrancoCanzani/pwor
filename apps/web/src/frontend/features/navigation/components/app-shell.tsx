@@ -66,7 +66,7 @@ export function AppShell({
               to="/"
               className="px-2 font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
             >
-              Odiseum
+              Pwor
             </Link>
           </SidebarHeader>
 
@@ -113,7 +113,7 @@ export function AppShell({
           <div className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1 md:hidden">
             <SidebarTrigger />
             <span className="font-pixel text-base leading-none tracking-tight">
-              Odiseum
+              Pwor
             </span>
           </div>
           {isNotes || isVault || isTasks || isCalendar ? (

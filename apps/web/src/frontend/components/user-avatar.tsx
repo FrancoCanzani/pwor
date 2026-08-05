@@ -24,7 +24,7 @@ export function UserAvatar({
   className?: string;
 }) {
   const label = name.trim() || email;
-  const hash = email.trim() || name.trim() || "odiseum";
+  const hash = email.trim() || name.trim() || "pwor";
   const px = sizeMap[size];
   const avatarSize = size === "xs" ? "sm" : size;
 

@@ -82,7 +82,7 @@ const app = new Hono<AppEnv>()
     }
 
     const raw = `From: Alex <alex@example.com>
-To: ${token}@inbound.odiseum.app
+To: ${token}@inbound.pwor.app
 Subject: Contract renewal needed by Friday
 Content-Type: multipart/mixed; boundary="sim"
 MIME-Version: 1.0
@@ -105,7 +105,7 @@ Renewal terms attached.
 `;
 
     const message = {
-      to: `${token}@inbound.odiseum.app`,
+      to: `${token}@inbound.pwor.app`,
       from: "alex@example.com",
       raw: new Blob([raw]).stream(),
       setReject: () => {},

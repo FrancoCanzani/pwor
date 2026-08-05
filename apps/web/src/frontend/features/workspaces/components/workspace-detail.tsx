@@ -48,7 +48,7 @@ import {
   workspacesQueryOptions,
 } from "@features/workspaces/api";
 
-const INBOUND_EMAIL_DOMAIN = "inbound.odiseum.app";
+const INBOUND_EMAIL_DOMAIN = "inbound.pwor.app";
 
 function SectionHeader({
   label,

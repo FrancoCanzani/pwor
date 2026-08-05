@@ -1,4 +1,4 @@
-const STORAGE_KEY = "odiseum:current-workspace-id";
+const STORAGE_KEY = "pwor:current-workspace-id";
 
 export function getStoredWorkspaceId(): string | null {
   if (typeof window === "undefined") return null;

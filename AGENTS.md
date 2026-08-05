@@ -36,7 +36,7 @@
 
 ## Product
 
-- Product name: **Odiseum**.
+- Product name: **Pwor**.
 - Personal intelligence layer: capture anything, AI turns it into connected living objects (people, trips, companies, documents…). Not a task manager, not folders.
 
 ## UI

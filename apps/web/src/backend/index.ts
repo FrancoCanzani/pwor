@@ -44,7 +44,11 @@ export default {
     await cleanupOrphanNoteImages(env);
   },
 
-  async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
-    await handleInboundEmail(message, env);
+  async email(
+    message: ForwardableEmailMessage,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    await handleInboundEmail(message, env, ctx);
   },
 };

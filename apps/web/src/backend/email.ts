@@ -3,6 +3,7 @@ import PostalMime, { type Attachment } from "postal-mime";
 
 import { createDb } from "./db";
 import { inboxItem, task, vaultItem, workspaceInbox } from "./db/schema";
+import { scheduleVaultMarkdownExtraction } from "./lib/vault-markdown";
 import { putVaultObject } from "./lib/vault-storage";
 import { extractTaskFromEmail } from "./lib/task-extraction";
 
@@ -24,6 +25,7 @@ function attachmentBytes(
 export async function handleInboundEmail(
   message: ForwardableEmailMessage,
   env: Env,
+  ctx: { waitUntil(promise: Promise<unknown>): void },
 ): Promise<void> {
   const token = message.to.split("@")[0] ?? "";
   const db = createDb(env.DB);
@@ -77,7 +79,10 @@ export async function handleInboundEmail(
       title: filename,
       r2Key,
       mimeType: attachment.mimeType || "application/octet-stream",
+      parseStatus: "pending",
     });
+
+    scheduleVaultMarkdownExtraction(ctx, env, id);
   }
 
   try {

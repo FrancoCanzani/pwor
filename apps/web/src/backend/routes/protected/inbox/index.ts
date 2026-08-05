@@ -111,7 +111,7 @@ Renewal terms attached.
       setReject: () => {},
     } as unknown as ForwardableEmailMessage;
 
-    await handleInboundEmail(message, c.env);
+    await handleInboundEmail(message, c.env, c.executionCtx);
 
     return c.json({ ok: true });
   })

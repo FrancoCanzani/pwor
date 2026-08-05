@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
+import { scheduleVaultMarkdownExtraction } from "../../../lib/vault-markdown";
 import {
   putVaultObject,
   vaultObjectByteSize,
@@ -58,7 +59,10 @@ const app = new Hono<AppEnv>()
       r2Key,
       mimeType: contentType,
       workspaceId,
+      parseStatus: "pending",
     });
+
+    scheduleVaultMarkdownExtraction(c.executionCtx, c.env, id);
 
     const [created] = await db
       .select()

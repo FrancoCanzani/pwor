@@ -26,6 +26,13 @@ export const vaultItem = sqliteTable("vault_item", {
   url: text("url"),
   siteName: text("site_name"),
   content: text("content"),
+  // Workers AI toMarkdown output — for notes / agent context later.
+  extractedMarkdown: text("extracted_markdown"),
+  parseStatus: text("parse_status", {
+    enum: ["pending", "ready", "failed", "skipped"],
+  }),
+  parseError: text("parse_error"),
+  parsedAt: integer("parsed_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
     .notNull(),

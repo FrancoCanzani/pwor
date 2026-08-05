@@ -68,7 +68,6 @@ async function markParse(
     .where(eq(vaultItem.id, id));
 }
 
-/** Run Workers AI toMarkdown and persist markdown on the vault item. */
 export async function extractVaultItemMarkdown(
   env: Env,
   vaultItemId: string,
@@ -150,7 +149,6 @@ export async function extractVaultItemMarkdown(
   }
 }
 
-/** Fire-and-forget extraction after the response (or email handler) finishes. */
 export function scheduleVaultMarkdownExtraction(
   ctx: { waitUntil(promise: Promise<unknown>): void },
   env: Env,

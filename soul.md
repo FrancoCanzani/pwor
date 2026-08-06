@@ -63,4 +63,4 @@ Nested folders, team collaboration, task/notes/calendar product surface, web-bro
 
 ## Status
 
-Product cut to Packs. Schema table `pack` added (run migration). Ingestion not wired yet. Inbound email handler still writes legacy vault/task rows until Packs ingest replaces that path.
+Product cut to Packs. Drop → store (content-hashed R2) → async `toMarkdown` → source list with status is wired. Schema tables: `pack`, `source`, `pack_source` (run migrations). Zip unpack, Browser Rendering for hard URLs, Ask/compile still next. Inbound email still on legacy vault path.

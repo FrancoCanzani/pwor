@@ -8,6 +8,7 @@ import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import { pack, workspace } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
+import sourcesRoutes from "./sources";
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
@@ -48,6 +49,7 @@ async function assertWorkspaceOwned(
 }
 
 const app = new Hono<AppEnv>()
+  .route("/", sourcesRoutes)
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
     const { workspaceId } = c.req.valid("query");

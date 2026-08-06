@@ -1,6 +1,4 @@
-import {
-  DotsHorizontalIcon,
-} from "@radix-ui/react-icons";
+import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState, type SubmitEvent } from "react";
@@ -25,13 +23,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { PageEmpty } from "@components/page-empty";
 import {
   deletePack,
   packQueryOptions,
   packsQueryOptions,
+  packSourcesQueryOptions,
   updatePack,
 } from "@features/packs/api";
+import { PackDropZone } from "@features/packs/components/pack-drop-zone";
+import { PackSourcesList } from "@features/packs/components/pack-sources-list";
 
 function formatUpdated(value: string) {
   const date = new Date(value);
@@ -54,6 +54,7 @@ export function PackDetailPage({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: pack } = useQuery(packQueryOptions(packId));
+  const { data: sources = [] } = useQuery(packSourcesQueryOptions(packId));
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
 
@@ -87,6 +88,10 @@ export function PackDetailPage({
   if (!pack) return null;
 
   const updated = formatUpdated(pack.updatedAt);
+  const readyCount = sources.filter((item) => item.parseStatus === "ready").length;
+  const pendingCount = sources.filter(
+    (item) => item.parseStatus === "pending",
+  ).length;
 
   function startEdit() {
     setName(pack!.name);
@@ -144,7 +149,13 @@ export function PackDetailPage({
             <h1 className="text-lg font-normal tracking-tight">{pack.name}</h1>
           )}
           <p className="mt-1 text-xs text-muted-foreground">
-            0 sources
+            <span className="font-nums">{sources.length}</span> sources
+            {readyCount > 0 ? (
+              <span className="font-nums"> · {readyCount} ready</span>
+            ) : null}
+            {pendingCount > 0 ? (
+              <span className="font-nums"> · {pendingCount} parsing</span>
+            ) : null}
             {updated ? (
               <span className="font-nums"> · Updated {updated}</span>
             ) : null}
@@ -185,8 +196,8 @@ export function PackDetailPage({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete pack?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This removes the pack. Sources stay for now — linking comes
-                    with ingestion.
+                    This removes the pack and its source links. Shared originals
+                    are kept if other packs still use them.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -204,20 +215,8 @@ export function PackDetailPage({
         </DropdownMenu>
       </div>
 
-      <div className="mb-10 border border-dashed border-border px-6 py-10 text-center">
-        <p className="text-sm font-normal">Drop anything</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          PDF · URL · Image · Text
-        </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Ingestion comes next — this is the shell.
-        </p>
-      </div>
-
-      <PageEmpty
-        title="No sources yet"
-        description="Sources you drop into this pack will show up here."
-      />
+      <PackDropZone packId={packId} />
+      <PackSourcesList packId={packId} />
     </div>
   );
 }

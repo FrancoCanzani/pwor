@@ -140,6 +140,58 @@ const app = new Hono<AppEnv>()
     return c.json(row);
   })
 
+  .get("/:packId/sources/:sourceId/original", async (c) => {
+    const user = c.get("user")!;
+    const packId = c.req.param("packId");
+    const sourceId = c.req.param("sourceId");
+    const db = createDb(c.env.DB);
+    await getOwnedPack(db, packId, user.id);
+
+    const [row] = await db
+      .select({
+        r2Key: source.r2Key,
+        mimeType: source.mimeType,
+        filename: source.filename,
+        title: source.title,
+        userId: source.userId,
+      })
+      .from(packSource)
+      .innerJoin(source, eq(packSource.sourceId, source.id))
+      .where(
+        and(
+          eq(packSource.packId, packId),
+          eq(packSource.sourceId, sourceId),
+          eq(source.userId, user.id),
+        ),
+      )
+      .limit(1);
+
+    if (!row?.r2Key) {
+      throw new HTTPException(404, { message: "Original not found" });
+    }
+
+    const object = await c.env.VAULT_BUCKET.get(row.r2Key);
+    if (!object) {
+      throw new HTTPException(404, { message: "Original missing from storage" });
+    }
+
+    const headers = new Headers();
+    headers.set(
+      "Content-Type",
+      row.mimeType || object.httpMetadata?.contentType || "application/octet-stream",
+    );
+    headers.set("Cache-Control", "private, max-age=3600");
+    const filename = row.filename || row.title;
+    if (filename) {
+      headers.set(
+        "Content-Disposition",
+        `inline; filename="${filename.replace(/"/g, "")}"`,
+      );
+    }
+
+    return new Response(object.body, { headers });
+  })
+
   .post("/:packId/sources", async (c) => {
     const user = c.get("user")!;
     const packId = c.req.param("packId");

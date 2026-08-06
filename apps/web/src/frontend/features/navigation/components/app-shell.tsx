@@ -20,6 +20,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import {
   NavUser,
@@ -50,6 +51,7 @@ export function AppShell({
   });
 
   const activePackId = pathname.match(/\/packs\/([^/]+)/)?.[1];
+  const onPackDetail = Boolean(activePackId);
 
   async function handleCreated(pack: Pack) {
     if (!currentWorkspaceId) return;
@@ -64,7 +66,7 @@ export function AppShell({
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <SidebarProvider className={cn(onPackDetail && "h-svh min-h-0 overflow-hidden")}>
         <CommandPalette />
 
         <Sidebar collapsible="icon">
@@ -80,7 +82,20 @@ export function AppShell({
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupLabel className="flex items-center justify-between gap-2 font-normal">
-                <span>Packs</span>
+                {currentWorkspaceId ? (
+                  <Link
+                    to="/$workspaceId"
+                    params={{ workspaceId: currentWorkspaceId }}
+                    className={cn(
+                      "truncate text-sidebar-foreground/70 no-underline hover:text-sidebar-foreground",
+                      !activePackId && "text-sidebar-foreground",
+                    )}
+                  >
+                    All packs
+                  </Link>
+                ) : (
+                  <span>All packs</span>
+                )}
                 {currentWorkspaceId ? (
                   <button
                     type="button"
@@ -94,24 +109,8 @@ export function AppShell({
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-0.5">
-                  {currentWorkspaceId ? (
-                    <>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          render={
-                            <Link
-                              to="/$workspaceId"
-                              params={{ workspaceId: currentWorkspaceId }}
-                            />
-                          }
-                          isActive={!activePackId}
-                          tooltip="All packs"
-                          size="sm"
-                        >
-                          All packs
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      {packs.map((pack) => (
+                  {currentWorkspaceId
+                    ? packs.map((pack) => (
                         <SidebarMenuItem key={pack.id}>
                           <SidebarMenuButton
                             render={
@@ -130,9 +129,8 @@ export function AppShell({
                             <span className="truncate">{pack.name}</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
-                      ))}
-                    </>
-                  ) : null}
+                      ))
+                    : null}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -143,14 +141,18 @@ export function AppShell({
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset>
+        <SidebarInset className={cn(onPackDetail && "h-full min-h-0 overflow-hidden")}>
           <div className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1 md:hidden">
             <SidebarTrigger />
             <span className="font-pixel text-base leading-none tracking-tight">
               Pwor
             </span>
           </div>
-          {children}
+          {onPackDetail ? (
+            <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+          ) : (
+            children
+          )}
         </SidebarInset>
       </SidebarProvider>
 

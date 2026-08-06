@@ -71,7 +71,7 @@ export function PackDropZone({ packId }: { packId: string }) {
   }
 
   return (
-    <div className="mb-10 flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div
         onDragEnter={(event) => {
           event.preventDefault();
@@ -88,35 +88,35 @@ export function PackDropZone({ packId }: { packId: string }) {
         }}
         onDrop={onDrop}
         className={cn(
-          "border border-dashed border-border px-6 py-10 text-center transition-colors",
+          "flex items-center justify-between gap-3 rounded-md border border-dashed border-border px-3 py-2.5 transition-colors",
           dragging && "border-foreground/40 bg-muted/40",
         )}
       >
-        <p className="text-sm font-normal">Drop anything</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          PDF · Image · Text · URL
-        </p>
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="font-normal"
-            onClick={() => inputRef.current?.click()}
-          >
-            Choose files
-          </Button>
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(event) => {
-              if (event.target.files) uploadFiles(event.target.files);
-              event.target.value = "";
-            }}
-          />
+        <div className="min-w-0">
+          <p className="text-xs font-normal">Drop anything</p>
+          <p className="text-[11px] text-muted-foreground">
+            PDF · Image · Text · URL
+          </p>
         </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0 font-normal"
+          onClick={() => inputRef.current?.click()}
+        >
+          Choose files
+        </Button>
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(event) => {
+            if (event.target.files) uploadFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
       </div>
 
       <form onSubmit={handleUrlOrText} className="flex gap-2">
@@ -124,12 +124,12 @@ export function PackDropZone({ packId }: { packId: string }) {
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           placeholder="Paste a URL or text…"
-          className="font-normal"
+          className="h-8 font-normal"
         />
         <Button
           type="submit"
           size="sm"
-          className="shrink-0 font-normal"
+          className="h-8 shrink-0 font-normal"
           disabled={!url.trim()}
         >
           Add

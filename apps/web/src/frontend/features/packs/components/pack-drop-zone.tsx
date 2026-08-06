@@ -1,16 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type DragEvent, type SubmitEvent } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { packSourcesQueryOptions } from "@features/packs/api";
 import {
-  createPackTextSource,
-  createPackUrlSource,
-  packSourcesQueryOptions,
-  uploadPackSource,
-} from "@features/packs/api";
+  ingestFileWithToast,
+  ingestTextWithToast,
+  ingestUrlWithToast,
+} from "@features/packs/lib/ingest-toast";
 
 function looksLikeUrl(value: string) {
   try {
@@ -38,21 +37,9 @@ export function PackDropZone({ packId }: { packId: string }) {
     if (list.length === 0) return;
 
     for (const file of list) {
-      toast.promise(
-        uploadPackSource(packId, file).then(async (source) => {
-          await refresh();
-          return source;
-        }),
-        {
-          loading: `Uploading ${file.name}…`,
-          success: (source) =>
-            source.parseStatus === "ready"
-              ? `${source.title ?? file.name} ready`
-              : `${source.title ?? file.name} uploaded`,
-          error: (err) =>
-            err instanceof Error ? err.message : `Failed: ${file.name}`,
-        },
-      );
+      void ingestFileWithToast(packId, file).finally(() => {
+        void refresh();
+      });
     }
   }
 
@@ -68,38 +55,19 @@ export function PackDropZone({ packId }: { packId: string }) {
     if (!value) return;
 
     if (looksLikeUrl(value)) {
-      toast.promise(
-        createPackUrlSource(packId, { url: value }).then(async (source) => {
-          await refresh();
-          setUrl("");
-          return source;
-        }),
-        {
-          loading: "Fetching URL…",
-          success: (source) =>
-            source.parseStatus === "ready"
-              ? `${source.title ?? "URL"} ready`
-              : `${source.title ?? "URL"} added`,
-          error: (err) =>
-            err instanceof Error ? err.message : "Could not add URL",
-        },
-      );
+      void ingestUrlWithToast(packId, value)
+        .then(() => setUrl(""))
+        .finally(() => {
+          void refresh();
+        });
       return;
     }
 
-    toast.promise(
-      createPackTextSource(packId, { content: value }).then(async (source) => {
-        await refresh();
-        setUrl("");
-        return source;
-      }),
-      {
-        loading: "Saving text…",
-        success: "Text added",
-        error: (err) =>
-          err instanceof Error ? err.message : "Could not save text",
-      },
-    );
+    void ingestTextWithToast(packId, value)
+      .then(() => setUrl(""))
+      .finally(() => {
+        void refresh();
+      });
   }
 
   return (

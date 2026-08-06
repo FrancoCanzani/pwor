@@ -10,7 +10,6 @@ import { Loading } from "@components/loading";
 import { NotFound } from "@components/not-found";
 import { RouteError } from "@components/route-error";
 import { AppShell } from "@features/navigation/components/app-shell";
-import { VaultDropZone } from "@features/vault/components/vault-drop-zone";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { sessionQueryOptions } from "@lib/session";
 
@@ -61,7 +60,6 @@ function AppLayout() {
 
   return (
     <AppShell user={user}>
-      <VaultDropZone />
       <Toaster />
       <Outlet />
     </AppShell>

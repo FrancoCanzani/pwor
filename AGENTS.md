@@ -37,7 +37,8 @@
 ## Product
 
 - Product name: **Pwor**.
-- Personal intelligence layer: capture anything, AI turns it into connected living objects (people, trips, companies, documents…). Not a task manager, not folders.
+- Context system: drop anything into Packs; AI turns it into clean context for humans and agents. Not a task manager, not folders.
+- Primary objects: **Workspace** (standing context) → **Pack** (knowledge boundary) → **Source** (dropped material).
 
 ## UI
 
@@ -53,7 +54,6 @@
 - Monochrome first. Hierarchy via size, color (muted), and weight (400/700 only) — not surfaces.
 - Numbers and dates use `font-nums` (Geist Mono + tabular-nums).
 - Empty states use shadcn `Empty`.
-- App chrome uses shadcn `Sidebar` (brand, nav, user footer dropdown). Keep it minimal — no inset/floating chrome.
+- App chrome uses shadcn `Sidebar` (brand, Packs list, user footer dropdown). Keep it minimal — no inset/floating chrome.
 - New users are gated to `/onboarding` until they set a full name. Avatar is optional; missing avatars use [Hashvatar](https://www.hashvatar.com/) from email (soft-squared, not circular).
-- Notes use a source markdown editor (CodeMirror) — marks stay visible, autosave, no toolbar.
-- Homepage is search-first, not a task feed.
+- Homepage is Packs-first within the current workspace.

@@ -1,18 +1,18 @@
-# Pwor — Personal Intelligence Layer
+# Pwor — Context for humans and agents
 
 ## Pitch
 
-Your second brain that builds itself. Throw in emails, WhatsApps, PDFs, voice notes, screenshots, links, and files. AI organizes everything into connected, living pages you can search, chat with, and rely on for reminders — without folders, tags, or manual organization.
+Drop anything. We turn it into clean, portable context that humans and agents can use.
 
-Layered on top: a super-indie, Linear-style personal workspace. One person, minimal chrome, no team ceremony — just a place to run your actual work and life.
+Not a notes app. Not a file manager. Not another second brain. A **context system**: messy inputs go into Packs; the system ingests, parses, and exposes them.
 
 ## Core idea
 
-Not tasks. **Objects + relationships.**
+**Drop → Compile → Use**
 
-Every capture answers one question: *what part of the user's life does this belong to?*
+The main object is a **Pack** — a knowledge boundary (Acme Research, Design System, Customer Interviews). Users drop sources into it; the system organizes underneath. Hierarchy stays shallow: Packs → Sources.
 
-**Workspaces are the one exception to "no folders."** Not a filing system — a small, fairly fixed set of standing contexts (Work, Life, Holidays…) a user separates their world into. No status, no lifecycle — a workspace is just a label, not a task. Tasks, notes, and vault items can optionally belong to one, and each workspace can generate inbound email addresses so external capture routes straight into the right context instead of landing unsorted. Selection lives in a switcher embedded in the user menu, not its own nav destination, and remembers the last one you picked.
+**Workspaces** remain the standing context (company / life container). Packs live under a workspace. Ops surfaces (tasks, notes, calendar, inbox, vault UI, work log) are removed from the product — knowledge is Packs.
 
 ## Stack (Cloudflare)
 
@@ -32,37 +32,35 @@ Every capture answers one question: *what part of the user's life does this belo
 ## Mental model
 
 ```
-Capture → OCR/STT → Extract → Embed → Match → Merge/Create → Summarize → Remind → Index
+Drop → Ingest → Parse → Normalize → Understand → Index → Compile → Agent
 ```
 
-Workers, not agents, for ingestion.
+Workers, not one autonomous agent, for the pipeline.
 
-Vault / email attachments: raw bytes stay in R2; `AI.toMarkdown` produces searchable LLM-ready markdown (PDF, DOCX, XLS*, ODT/ODS, CSV, HTML, images). PPTX/RTF/EPUB/legacy `.doc` are out of CF's list — fall back later via pure-JS/WASM or a Container running anydoc if needed. Never pay Firecrawl Parse for the default path.
+### Objects
 
-### Storage worlds
+- **Workspace** — org / life container (switcher in user menu)
+- **Pack** — knowledge boundary inside a workspace
+- **Source** — dropped item (files, URLs, text) — ingestion next; legacy `vault_item` still used by inbound email
 
-- **Raw** — immutable inputs (`raw_items`)
-- **Knowledge** — generated `objects`, `relationships`, `summaries`, embeddings, reminders, and now `workspaces` (a thin grouping label with inbound routing addresses, not a knowledge object itself)
+## V1 surface (current)
 
-Everything AI creates can be regenerated.
+- Workspaces + Packs CRUD
+- Context sidebar: Packs for the current workspace
+- Pack detail shell (drop zone placeholder, empty sources)
+- Command palette (jump + pack search)
+- Auth, onboarding, settings
 
-## V1 surface
+## Next
 
-- Capture: paste, drag files, email/WhatsApp forward, voice
-- Object pages with AI-written briefs
-- Workspaces: name, description, linked tasks/notes/vault items, generated inbound email addresses
-- Calendar: events, plus tasks that carry a due date, as a month grid or an agenda
-- Hybrid search (FTS + vectors)
-- Chat over your data
-- Auto + manual reminders
-- Search-first home
+- Source ingestion (content-addressed R2, `pack_sources`, async parse)
+- Ask / compile
+- MCP
 
 ## Explicitly not V1
 
-Nested folders, team collaboration, web-browsing agents, external action executors.
-
-Calendar is deliberately narrow: days are buckets, entries are lines of text. No week view, no hour grid, no recurrence.
+Nested folders, team collaboration, task/notes/calendar product surface, web-browsing agents.
 
 ## Status
 
-Scaffolding + design system built. Notes, Tasks, Calendar, Vault, Work Log, and Workspaces (grouping tasks/notes/vault items, plus generated inbound email addresses) shipped. Inbound email is code-complete: `email()` handler (`apps/web/src/backend/email.ts`) parses with postal-mime, resolves `workspace_inbox` by token, and creates vault items (plus AI task extraction). Vault file uploads and email attachments schedule Workers AI `toMarkdown` via `waitUntil` and store `extracted_markdown` on `vault_item` (`pending` → `ready` / `failed` / `skipped`) for later notes / agent context — run a schema migration before relying on those columns. The only remaining email piece is external — pointing a real domain's MX at Cloudflare Email Routing with a catch-all rule to this Worker. Capture pipeline for non-email sources beyond docs (OCR/STT → extract → embed → match) and chat-over-data not yet built.
+Product cut to Packs. Drop → store (content-hashed R2) → async `toMarkdown` → source list with status is wired. Schema tables: `pack`, `source`, `pack_source` (run migrations). Zip unpack, Browser Rendering for hard URLs, Ask/compile still next. Inbound email still on legacy vault path.

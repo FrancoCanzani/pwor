@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_app/")({
       : workspaces[0]!.id;
 
     throw redirect({
-      to: "/$workspaceId/inbox",
+      to: "/$workspaceId",
       params: { workspaceId },
     });
   },

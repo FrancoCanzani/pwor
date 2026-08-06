@@ -8,7 +8,6 @@ import { handleInboundEmail } from "./email";
 import { createAuth } from "./lib/auth";
 import { authMiddleware, requireAuth } from "./middleware/auth";
 import protectedRoutes from "./routes/protected";
-import { cleanupOrphanNoteImages } from "./routes/protected/notes/cleanup";
 import publicRoutes from "./routes/public";
 import type { AppEnv } from "./types";
 
@@ -39,10 +38,6 @@ app.route("/api", protectedRoutes);
 
 export default {
   fetch: app.fetch,
-
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-    await cleanupOrphanNoteImages(env);
-  },
 
   async email(
     message: ForwardableEmailMessage,

@@ -10,39 +10,11 @@ import {
   MIN_QUERY_LENGTH,
   searchQueryOptions,
   type SearchHit,
-  type SearchKind,
 } from "@features/command/api";
 import { fuzzyScore } from "@features/command/lib/score";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-
-/** Every destination shares a single `{ workspaceId }` param, which keeps
- *  `navigate` type-safe across the union. Note detail is handled separately. */
-const NAV_ITEMS = [
-  { to: "/$workspaceId/inbox", label: "Inbox" },
-  { to: "/$workspaceId/tasks", label: "Tasks" },
-  { to: "/$workspaceId/calendar", label: "Calendar" },
-  { to: "/$workspaceId/notes", label: "Notes" },
-  { to: "/$workspaceId/vault", label: "Vault" },
-  { to: "/$workspaceId/log", label: "Updates" },
-] as const;
-
-const KIND_META = {
-  note: { label: "Notes", to: "/$workspaceId/notes" },
-  task: { label: "Tasks", to: "/$workspaceId/tasks" },
-  event: { label: "Events", to: "/$workspaceId/calendar" },
-  vault_item: { label: "Vault", to: "/$workspaceId/vault" },
-  inbox_item: { label: "Inbox", to: "/$workspaceId/inbox" },
-} as const satisfies Record<SearchKind, { label: string; to: string }>;
-
-const KIND_ORDER: SearchKind[] = [
-  "note",
-  "task",
-  "event",
-  "vault_item",
-  "inbox_item",
-];
 
 type PaletteItem = {
   id: string;
@@ -55,7 +27,6 @@ type PaletteItem = {
 
 const SEARCH_DEBOUNCE_MS = 120;
 
-// Stable fallbacks: a fresh `[]` per render would rebuild `items` every render.
 const NO_HITS: SearchHit[] = [];
 const NO_WORKSPACES: { id: string; name: string }[] = [];
 
@@ -86,17 +57,17 @@ export function CommandPalette() {
 
     if (currentWorkspaceId) {
       const jumps: Omit<PaletteItem, "index">[] = [
-        ...NAV_ITEMS.map((item) => ({
-          id: `nav:${item.to}`,
-          label: item.label,
+        {
+          id: "nav:packs",
+          label: "Packs",
           run: () =>
             select(currentWorkspaceId, () =>
               navigate({
-                to: item.to,
+                to: "/$workspaceId",
                 params: { workspaceId: currentWorkspaceId },
               }),
             ),
-        })),
+        },
         ...workspaces
           .filter((workspace) => workspace.id !== currentWorkspaceId)
           .map((workspace) => ({
@@ -106,7 +77,7 @@ export function CommandPalette() {
             run: () =>
               select(workspace.id, () =>
                 navigate({
-                  to: "/$workspaceId/inbox",
+                  to: "/$workspaceId",
                   params: { workspaceId: workspace.id },
                 }),
               ),
@@ -117,13 +88,10 @@ export function CommandPalette() {
       if (matched.length > 0) groups.push({ label: "Go to", items: matched });
     }
 
-    for (const kind of KIND_ORDER) {
-      const matches = hits.filter((hit) => hit.kind === kind);
-      if (matches.length === 0) continue;
-
+    if (hits.length > 0) {
       groups.push({
-        label: KIND_META[kind].label,
-        items: matches.map((hit) => ({
+        label: "Packs",
+        items: hits.map((hit) => ({
           id: `${hit.kind}:${hit.id}`,
           label: hit.title,
           detail: hit.snippet,
@@ -131,25 +99,12 @@ export function CommandPalette() {
           run: () => {
             const workspaceId = hit.workspaceId ?? currentWorkspaceId;
             if (!workspaceId) return;
-            select(workspaceId, () => {
-              if (hit.kind === "note") {
-                return navigate({
-                  to: "/$workspaceId/notes/$noteId",
-                  params: { workspaceId, noteId: hit.id },
-                });
-              }
-              if (hit.kind === "vault_item") {
-                return navigate({
-                  to: "/$workspaceId/vault",
-                  params: { workspaceId },
-                  search: { item: hit.id },
-                });
-              }
-              return navigate({
-                to: KIND_META[hit.kind].to,
-                params: { workspaceId },
-              });
-            });
+            select(workspaceId, () =>
+              navigate({
+                to: "/$workspaceId/packs/$packId",
+                params: { workspaceId, packId: hit.id },
+              }),
+            );
           },
         })),
       });
@@ -164,8 +119,6 @@ export function CommandPalette() {
     return { sections, items: sections.flatMap((section) => section.items) };
   }, [query, hits, workspaces, currentWorkspaceId, navigate]);
 
-  // Keyed on the query and the result count, not on `items` identity — a
-  // reset on every re-render would undo each arrow press.
   useEffect(() => setActiveIndex(0), [query, items.length]);
 
   useEffect(() => {
@@ -323,7 +276,6 @@ function rank<T extends { label: string }>(items: T[], term: string): T[] {
     .map((entry) => entry.item);
 }
 
-/** Results are cross-workspace, so off-workspace hits say where they live. */
 function workspaceLabel(
   hit: SearchHit,
   currentWorkspaceId: string | undefined,

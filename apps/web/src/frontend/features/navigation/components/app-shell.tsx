@@ -1,5 +1,8 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { PlusIcon } from "@radix-ui/react-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 import {
   Sidebar,
@@ -7,6 +10,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -22,16 +26,9 @@ import {
   NavUser,
   type ShellUser,
 } from "@features/navigation/components/nav-user";
+import { packsQueryOptions, type Pack } from "@features/packs/api";
+import { CreatePackDialog } from "@features/packs/components/create-pack-dialog";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-
-const navItems = [
-  { to: "/$workspaceId/inbox", segment: "inbox", label: "Inbox" },
-  { to: "/$workspaceId/tasks", segment: "tasks", label: "Tasks" },
-  { to: "/$workspaceId/calendar", segment: "calendar", label: "Calendar" },
-  { to: "/$workspaceId/notes", segment: "notes", label: "Notes" },
-  { to: "/$workspaceId/vault", segment: "vault", label: "Vault" },
-  { to: "/$workspaceId/log", segment: "log", label: "Updates" },
-] as const;
 
 export function AppShell({
   user,
@@ -43,21 +40,33 @@ export function AppShell({
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const activeSegment = pathname.split("/")[2];
-  const isNotes = activeSegment === "notes";
-  const isVault = activeSegment === "vault";
-  const isTasks = activeSegment === "tasks";
-  const isCalendar = activeSegment === "calendar";
-  const isLogFeed = activeSegment === "log";
-  const isFlush = isNotes || isVault || isTasks || isCalendar || isLogFeed;
-
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id: currentWorkspaceId } = useCurrentWorkspace();
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const { data: packs = [] } = useQuery({
+    ...packsQueryOptions(currentWorkspaceId),
+    enabled: Boolean(currentWorkspaceId),
+  });
+
+  const activePackId = pathname.match(/\/packs\/([^/]+)/)?.[1];
+  const onPackDetail = Boolean(activePackId);
+
+  async function handleCreated(pack: Pack) {
+    if (!currentWorkspaceId) return;
+    await queryClient.invalidateQueries({
+      queryKey: packsQueryOptions(currentWorkspaceId).queryKey,
+    });
+    await navigate({
+      to: "/$workspaceId/packs/$packId",
+      params: { workspaceId: currentWorkspaceId, packId: pack.id },
+    });
+  }
 
   return (
     <TooltipProvider>
-      <SidebarProvider
-        className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
-      >
+      <SidebarProvider className={cn(onPackDetail && "h-svh min-h-0 overflow-hidden")}>
         <CommandPalette />
 
         <Sidebar collapsible="icon">
@@ -72,30 +81,55 @@ export function AppShell({
 
           <SidebarContent>
             <SidebarGroup>
+              <SidebarGroupLabel className="flex items-center justify-between gap-2 font-normal">
+                {currentWorkspaceId ? (
+                  <Link
+                    to="/$workspaceId"
+                    params={{ workspaceId: currentWorkspaceId }}
+                    className={cn(
+                      "truncate text-sidebar-foreground/70 no-underline hover:text-sidebar-foreground",
+                      !activePackId && "text-sidebar-foreground",
+                    )}
+                  >
+                    All packs
+                  </Link>
+                ) : (
+                  <span>All packs</span>
+                )}
+                {currentWorkspaceId ? (
+                  <button
+                    type="button"
+                    aria-label="New pack"
+                    className="rounded-sm p-0.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden"
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    <PlusIcon className="size-3.5" />
+                  </button>
+                ) : null}
+              </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-0.5">
                   {currentWorkspaceId
-                    ? navItems.map((item) => {
-                        const isActive = activeSegment === item.segment;
-
-                        return (
-                          <SidebarMenuItem key={item.to}>
-                            <SidebarMenuButton
-                              render={
-                                <Link
-                                  to={item.to}
-                                  params={{ workspaceId: currentWorkspaceId }}
-                                />
-                              }
-                              isActive={isActive}
-                              tooltip={item.label}
-                              size="sm"
-                            >
-                              {item.label}
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })
+                    ? packs.map((pack) => (
+                        <SidebarMenuItem key={pack.id}>
+                          <SidebarMenuButton
+                            render={
+                              <Link
+                                to="/$workspaceId/packs/$packId"
+                                params={{
+                                  workspaceId: currentWorkspaceId,
+                                  packId: pack.id,
+                                }}
+                              />
+                            }
+                            isActive={activePackId === pack.id}
+                            tooltip={pack.name}
+                            size="sm"
+                          >
+                            <span className="truncate">{pack.name}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))
                     : null}
                 </SidebarMenu>
               </SidebarGroupContent>
@@ -107,28 +141,29 @@ export function AppShell({
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset
-          className={cn(isFlush && "h-full min-h-0 overflow-hidden")}
-        >
+        <SidebarInset className={cn(onPackDetail && "h-full min-h-0 overflow-hidden")}>
           <div className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1 md:hidden">
             <SidebarTrigger />
             <span className="font-pixel text-base leading-none tracking-tight">
               Pwor
             </span>
           </div>
-          {isNotes || isVault || isTasks || isCalendar ? (
+          {onPackDetail ? (
             <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
-          ) : isLogFeed ? (
-            <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-8 pt-10">
-              {children}
-            </div>
           ) : (
-            <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
-              {children}
-            </div>
+            children
           )}
         </SidebarInset>
       </SidebarProvider>
+
+      {currentWorkspaceId ? (
+        <CreatePackDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          workspaceId={currentWorkspaceId}
+          onCreated={handleCreated}
+        />
+      ) : null}
     </TooltipProvider>
   );
 }

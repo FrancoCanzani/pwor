@@ -2,6 +2,8 @@ export * from "./auth";
 export * from "./events";
 export * from "./inbox";
 export * from "./notes";
+export * from "./packs";
+export * from "./sources";
 export * from "./tasks";
 export * from "./vault";
 export * from "./work-log";

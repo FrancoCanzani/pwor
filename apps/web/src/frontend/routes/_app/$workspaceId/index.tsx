@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { WorkspaceDetail } from "@features/workspaces/components/workspace-detail";
+import { PacksPage } from "@features/packs/components/packs-page";
 
 export const Route = createFileRoute("/_app/$workspaceId/")({
-  component: WorkspaceDetailRoute,
+  component: WorkspacePacksRoute,
 });
 
-function WorkspaceDetailRoute() {
-  const { workspaceId } = Route.useParams();
-  return <WorkspaceDetail workspaceId={workspaceId} />;
+function WorkspacePacksRoute() {
+  return <PacksPage />;
 }

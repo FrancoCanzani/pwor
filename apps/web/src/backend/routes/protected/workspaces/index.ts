@@ -6,13 +6,7 @@ import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
-import {
-  note,
-  task,
-  vaultItem,
-  workspace,
-  workspaceInbox,
-} from "../../../db/schema";
+import { workspace, workspaceInbox } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 
 const createWorkspaceSchema = z.object({
@@ -84,42 +78,18 @@ const app = new Hono<AppEnv>()
 
     if (!item) throw new HTTPException(404, { message: "Not found" });
 
-    const [tasks, notes, vaultItems, inboxes] = await Promise.all([
-      db
-        .select()
-        .from(task)
-        .where(and(eq(task.workspaceId, id), eq(task.userId, user.id)))
-        .orderBy(desc(task.createdAt)),
-      db
-        .select({
-          id: note.id,
-          title: note.title,
-          updatedAt: note.updatedAt,
-          createdAt: note.createdAt,
-        })
-        .from(note)
-        .where(and(eq(note.workspaceId, id), eq(note.userId, user.id)))
-        .orderBy(desc(note.updatedAt)),
-      db
-        .select()
-        .from(vaultItem)
-        .where(
-          and(eq(vaultItem.workspaceId, id), eq(vaultItem.userId, user.id)),
-        )
-        .orderBy(desc(vaultItem.createdAt)),
-      db
-        .select()
-        .from(workspaceInbox)
-        .where(
-          and(
-            eq(workspaceInbox.workspaceId, id),
-            eq(workspaceInbox.userId, user.id),
-          ),
-        )
-        .orderBy(desc(workspaceInbox.createdAt)),
-    ]);
+    const inboxes = await db
+      .select()
+      .from(workspaceInbox)
+      .where(
+        and(
+          eq(workspaceInbox.workspaceId, id),
+          eq(workspaceInbox.userId, user.id),
+        ),
+      )
+      .orderBy(desc(workspaceInbox.createdAt));
 
-    return c.json({ ...item, tasks, notes, vaultItems, inboxes });
+    return c.json({ ...item, inboxes });
   })
 
   .patch("/:id", zValidator("json", updateWorkspaceSchema), async (c) => {

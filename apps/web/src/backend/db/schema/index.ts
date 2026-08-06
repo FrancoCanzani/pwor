@@ -2,6 +2,7 @@ export * from "./auth";
 export * from "./events";
 export * from "./inbox";
 export * from "./notes";
+export * from "./packs";
 export * from "./tasks";
 export * from "./vault";
 export * from "./work-log";

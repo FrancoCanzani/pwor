@@ -1,9 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
-import type { NoteListItem } from "@features/notes/api";
-import type { Task } from "@features/tasks/api";
-import type { VaultItem } from "@features/vault/api";
 
 export type Workspace = {
   id: string;
@@ -22,9 +19,6 @@ export type WorkspaceInbox = {
 };
 
 export type WorkspaceDetail = Workspace & {
-  tasks: Task[];
-  notes: NoteListItem[];
-  vaultItems: VaultItem[];
   inboxes: WorkspaceInbox[];
 };
 

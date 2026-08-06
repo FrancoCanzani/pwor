@@ -26,11 +26,14 @@ import {
   deletePackSource,
   packSourceQueryOptions,
   packSourcesQueryOptions,
-  type PackSource,
-  type PackSourceDetail,
   type SourceParseStatus,
 } from "@features/packs/api";
 import { MarkdownView } from "@features/packs/components/markdown-view";
+import { SourceOriginalView } from "@features/packs/components/source-original-view";
+import {
+  formatBytes,
+  sourceKindLabel,
+} from "@features/packs/lib/source-kind";
 
 const STATUS_LABEL: Record<SourceParseStatus, string> = {
   pending: "Parsing",
@@ -38,52 +41,6 @@ const STATUS_LABEL: Record<SourceParseStatus, string> = {
   failed: "Failed",
   skipped: "Skipped",
 };
-
-function formatBytes(size: number | null) {
-  if (size == null || size <= 0) return null;
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatWhen(value: string | null) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function typeLabel(item: Pick<PackSource, "type" | "mimeType">) {
-  if (item.type === "url") return "url";
-  if (item.type === "text") return "text";
-  if (item.mimeType?.startsWith("image/")) return "image";
-  if (item.mimeType === "application/pdf") return "pdf";
-  return item.type;
-}
-
-function isImageSource(item: Pick<PackSource, "mimeType">) {
-  return Boolean(item.mimeType?.startsWith("image/"));
-}
-
-function originalUrl(packId: string, sourceId: string) {
-  return `/api/packs/${packId}/sources/${sourceId}/original`;
-}
-
-function MetaRow({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null;
-  return (
-    <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 text-xs">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-all font-normal text-foreground">{value}</dd>
-    </div>
-  );
-}
 
 export function PackSourcesAside({
   packId,
@@ -130,9 +87,13 @@ export function PackSourcesAside({
               {item.title || item.filename || "Untitled"}
             </div>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <span>{typeLabel(item)}</span>
-              <span>·</span>
-              <span>{STATUS_LABEL[item.parseStatus]}</span>
+              <span>{sourceKindLabel(item)}</span>
+              {item.parseStatus !== "ready" ? (
+                <>
+                  <span>·</span>
+                  <span>{STATUS_LABEL[item.parseStatus]}</span>
+                </>
+              ) : null}
             </div>
           </button>
         );
@@ -151,7 +112,7 @@ export function PackSourcePane({
   onRemoved?: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState<"preview" | "source">("preview");
+  const [mode, setMode] = useState<"original" | "markdown">("original");
   const { data } = useQuery({
     ...packSourceQueryOptions(packId, sourceId),
     refetchInterval: (query) =>
@@ -172,6 +133,9 @@ export function PackSourcePane({
   if (!data) return null;
 
   const hasMarkdown = Boolean(data.extractedMarkdown?.trim());
+  const size = formatBytes(data.size);
+  const kind = sourceKindLabel(data);
+  const showStatus = data.parseStatus !== "ready";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -181,37 +145,56 @@ export function PackSourcePane({
             {data.title || data.filename || "Untitled"}
           </h2>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            {typeLabel(data)} · {STATUS_LABEL[data.parseStatus]}
-            {formatBytes(data.size) ? (
-              <span className="font-nums"> · {formatBytes(data.size)}</span>
+            <span>{kind}</span>
+            {size ? (
+              <span className="font-nums"> · {size}</span>
+            ) : null}
+            {showStatus ? (
+              <span> · {STATUS_LABEL[data.parseStatus]}</span>
+            ) : null}
+            {data.sourceUrl ? (
+              <>
+                {" · "}
+                <a
+                  href={data.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  Link
+                </a>
+              </>
             ) : null}
           </p>
+          {data.parseStatus === "failed" && data.parseError ? (
+            <p className="mt-1 text-[11px] text-destructive">
+              {data.parseError}
+            </p>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {hasMarkdown ? (
-            <div className="mr-1 flex rounded-md border border-border p-0.5">
-              <button
-                type="button"
-                className={cn(
-                  "rounded-sm px-2 py-0.5 text-[11px]",
-                  mode === "preview" ? "bg-muted" : "text-muted-foreground",
-                )}
-                onClick={() => setMode("preview")}
-              >
-                Preview
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "rounded-sm px-2 py-0.5 text-[11px]",
-                  mode === "source" ? "bg-muted" : "text-muted-foreground",
-                )}
-                onClick={() => setMode("source")}
-              >
-                Source
-              </button>
-            </div>
-          ) : null}
+          <div className="mr-1 flex rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              className={cn(
+                "rounded-sm px-2 py-0.5 text-[11px]",
+                mode === "original" ? "bg-muted" : "text-muted-foreground",
+              )}
+              onClick={() => setMode("original")}
+            >
+              Original
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "rounded-sm px-2 py-0.5 text-[11px]",
+                mode === "markdown" ? "bg-muted" : "text-muted-foreground",
+              )}
+              onClick={() => setMode("markdown")}
+            >
+              Markdown
+            </button>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -260,75 +243,23 @@ export function PackSourcePane({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <SourceBody packId={packId} data={data} mode={mode} />
-      </div>
-    </div>
-  );
-}
-
-function SourceBody({
-  packId,
-  data,
-  mode,
-}: {
-  packId: string;
-  data: PackSourceDetail;
-  mode: "preview" | "source";
-}) {
-  const markdown = data.extractedMarkdown?.trim() ?? "";
-  const imageSrc = isImageSource(data)
-    ? originalUrl(packId, data.id)
-    : null;
-
-  return (
-    <div className="flex flex-col gap-6 px-5 py-5">
-      <dl className="flex flex-col gap-1.5 border-b border-border pb-5">
-        <MetaRow label="Title" value={data.title} />
-        <MetaRow label="Type" value={data.type} />
-        <MetaRow label="Filename" value={data.filename} />
-        <MetaRow label="MIME" value={data.mimeType} />
-        <MetaRow label="Size" value={formatBytes(data.size)} />
-        <MetaRow label="URL" value={data.sourceUrl} />
-        <MetaRow label="Status" value={STATUS_LABEL[data.parseStatus]} />
-        <MetaRow label="Parse error" value={data.parseError} />
-        <MetaRow label="Parsed" value={formatWhen(data.parsedAt)} />
-        <MetaRow label="Added" value={formatWhen(data.addedAt)} />
-        <MetaRow label="Created" value={formatWhen(data.createdAt)} />
-        <MetaRow label="Updated" value={formatWhen(data.updatedAt)} />
-      </dl>
-
-      {data.parseStatus === "pending" ? (
-        <p className="text-sm text-muted-foreground">Parsing…</p>
-      ) : null}
-
-      {data.parseStatus === "failed" ? (
-        <p className="text-sm text-destructive">
-          {data.parseError || "Parse failed"}
-        </p>
-      ) : null}
-
-      {imageSrc ? (
-        <div className="overflow-hidden rounded-md border border-border">
-          <img
-            src={imageSrc}
-            alt={data.title || data.filename || "Source image"}
-            className="max-h-[28rem] w-full bg-muted/30 object-contain"
-          />
-        </div>
-      ) : null}
-
-      {markdown ? (
-        mode === "preview" ? (
-          <MarkdownView markdown={markdown} />
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {mode === "original" ? (
+          <div className="h-full min-h-0 p-4">
+            <SourceOriginalView packId={packId} source={data} />
+          </div>
         ) : (
-          <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-muted-foreground">
-            {markdown}
-          </pre>
-        )
-      ) : data.parseStatus === "ready" || data.parseStatus === "skipped" ? (
-        <p className="text-sm text-muted-foreground">No markdown yet.</p>
-      ) : null}
+          <div className="h-full overflow-y-auto px-5 py-5">
+            {data.parseStatus === "pending" ? (
+              <p className="text-sm text-muted-foreground">Parsing…</p>
+            ) : hasMarkdown ? (
+              <MarkdownView markdown={data.extractedMarkdown!} />
+            ) : (
+              <p className="text-sm text-muted-foreground">No markdown yet.</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

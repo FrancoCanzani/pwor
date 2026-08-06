@@ -1,6 +1,6 @@
-import { DotsHorizontalIcon } from "@radix-ui/react-icons";
+import { DotsHorizontalIcon, UploadIcon } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type SubmitEvent } from "react";
 import { toast } from "sonner";
 
@@ -30,22 +30,11 @@ import {
   packSourcesQueryOptions,
   updatePack,
 } from "@features/packs/api";
-import { PackDropZone } from "@features/packs/components/pack-drop-zone";
 import {
   PackSourcePane,
   PackSourcesAside,
 } from "@features/packs/components/pack-source-pane";
-
-function formatUpdated(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+import { PackUploadDialog } from "@features/packs/components/pack-upload-dialog";
 
 export function PackDetailPage({
   workspaceId,
@@ -68,6 +57,7 @@ export function PackDetailPage({
   });
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const rename = useMutation({
     mutationFn: (next: string) => updatePack(packId, { name: next }),
@@ -121,7 +111,6 @@ export function PackDetailPage({
 
   if (!pack) return null;
 
-  const updated = formatUpdated(pack.updatedAt);
   const readyCount = sources.filter((item) => item.parseStatus === "ready")
     .length;
   const pendingCount = sources.filter(
@@ -159,144 +148,150 @@ export function PackDetailPage({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <Link
-            to="/$workspaceId"
-            params={{ workspaceId }}
-            className="text-[11px] text-muted-foreground no-underline hover:text-foreground"
-          >
-            All packs
-          </Link>
-          {editing ? (
-            <form onSubmit={handleRename} className="mt-1 flex max-w-md gap-2">
-              <Input
-                autoFocus
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={rename.isPending}
-              />
-              <Button
-                type="submit"
-                size="sm"
-                className="font-normal"
-                disabled={!name.trim() || rename.isPending}
-              >
-                Save
-              </Button>
+    <div className="flex h-full min-h-0">
+      <aside className="flex h-full w-56 shrink-0 flex-col border-r border-border md:w-64">
+        <div className="shrink-0 border-b border-border px-3 py-3">
+          <div className="flex items-start justify-between gap-1">
+            {editing ? (
+              <form onSubmit={handleRename} className="min-w-0 flex-1">
+                <Input
+                  autoFocus
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  disabled={rename.isPending}
+                  className="h-7 text-xs"
+                  onBlur={() => {
+                    const trimmed = name.trim();
+                    if (trimmed && trimmed !== pack.name) {
+                      rename.mutate(trimmed);
+                    } else {
+                      setEditing(false);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setEditing(false);
+                  }}
+                />
+              </form>
+            ) : (
+              <h1 className="min-w-0 flex-1 truncate text-sm font-normal tracking-tight">
+                {pack.name}
+              </h1>
+            )}
+            <div className="flex shrink-0 items-center">
               <Button
                 type="button"
-                size="sm"
                 variant="ghost"
-                className="font-normal"
-                onClick={() => setEditing(false)}
+                size="icon-sm"
+                aria-label="Add source"
+                onClick={() => setUploadOpen(true)}
               >
-                Cancel
+                <UploadIcon />
               </Button>
-            </form>
-          ) : (
-            <h1 className="mt-0.5 text-base font-normal tracking-tight">
-              {pack.name}
-            </h1>
-          )}
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            <span className="font-nums">{sources.length}</span> sources
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Pack actions"
+                    />
+                  }
+                >
+                  <DotsHorizontalIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="font-normal text-xs"
+                    onClick={startEdit}
+                  >
+                    Rename
+                  </DropdownMenuItem>
+                  <AlertDialog>
+                    <AlertDialogTrigger
+                      render={
+                        <DropdownMenuItem
+                          className="font-normal text-xs text-destructive"
+                          onSelect={(event) => event.preventDefault()}
+                        />
+                      }
+                    >
+                      Delete
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete pack?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This removes the pack and its source links. Shared
+                          originals are kept if other packs still use them.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          variant="destructive"
+                          onClick={() => remove.mutate()}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            <span className="font-nums">{sources.length}</span>{" "}
+            {sources.length === 1 ? "source" : "sources"}
             {readyCount > 0 ? (
               <span className="font-nums"> · {readyCount} ready</span>
             ) : null}
             {pendingCount > 0 ? (
               <span className="font-nums"> · {pendingCount} parsing</span>
             ) : null}
-            {updated ? (
-              <span className="font-nums"> · Updated {updated}</span>
-            ) : null}
           </p>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Pack actions"
-              />
-            }
-          >
-            <DotsHorizontalIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              className="font-normal text-xs"
-              onClick={startEdit}
-            >
-              Rename
-            </DropdownMenuItem>
-            <AlertDialog>
-              <AlertDialogTrigger
-                render={
-                  <DropdownMenuItem
-                    className="font-normal text-xs text-destructive"
-                    onSelect={(event) => event.preventDefault()}
-                  />
-                }
-              >
-                Delete
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete pack?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This removes the pack and its source links. Shared originals
-                    are kept if other packs still use them.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={() => remove.mutate()}
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="shrink-0 border-b border-border px-4 py-3">
-        <PackDropZone packId={packId} />
-      </div>
-
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-56 shrink-0 flex-col overflow-y-auto border-r border-border md:w-64">
-          <div className="sticky top-0 z-10 border-b border-border bg-background px-3 py-2 text-[11px] text-muted-foreground">
-            Sources
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <PackSourcesAside
             packId={packId}
             selectedId={selectedSourceId}
             onSelect={selectSource}
           />
-        </aside>
+        </div>
+      </aside>
 
-        <main className="min-w-0 flex-1">
-          {selectedSourceId ? (
-            <PackSourcePane
-              packId={packId}
-              sourceId={selectedSourceId}
-              onRemoved={clearSource}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center px-6 text-sm text-muted-foreground">
-              Drop something or select a source.
-            </div>
-          )}
-        </main>
-      </div>
+      <main className="min-h-0 min-w-0 flex-1">
+        {selectedSourceId ? (
+          <PackSourcePane
+            packId={packId}
+            sourceId={selectedSourceId}
+            onRemoved={clearSource}
+          />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6">
+            <p className="text-sm text-muted-foreground">
+              Add a source to get started.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              className="font-normal"
+              onClick={() => setUploadOpen(true)}
+            >
+              <UploadIcon className="size-3.5" />
+              Add source
+            </Button>
+          </div>
+        )}
+      </main>
+
+      <PackUploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        packId={packId}
+      />
     </div>
   );
 }

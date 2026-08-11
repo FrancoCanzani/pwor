@@ -36,11 +36,24 @@ export function NotesLayout() {
 
   const createMutation = useMutation({
     mutationFn: () => createNote("", undefined, workspaceId),
-    onSuccess: async (note) => {
-      await queryClient.invalidateQueries({
-        queryKey: ["notes", "list"],
-      });
-      await navigate({
+    onSuccess: (note) => {
+      queryClient.setQueryData(noteQueryOptions(note.id).queryKey, note);
+      queryClient.setQueryData(
+        notesQueryOptions(workspaceId).queryKey,
+        (current: NoteListItem[] | undefined) => {
+          const item: NoteListItem = {
+            id: note.id,
+            title: note.title,
+            workspaceId: note.workspaceId,
+            updatedAt: note.updatedAt,
+            createdAt: note.createdAt,
+          };
+          if (!current) return [item];
+          return [item, ...current.filter((row) => row.id !== note.id)];
+        },
+      );
+      void queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
+      void navigate({
         to: "/$workspaceId/notes/$noteId",
         params: { workspaceId, noteId: note.id },
       });

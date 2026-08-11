@@ -55,5 +55,5 @@
 - Empty states use shadcn `Empty`.
 - App chrome uses shadcn `Sidebar` (brand, nav, user footer dropdown). Keep it minimal — no inset/floating chrome.
 - New users are gated to `/onboarding` until they set a full name. Avatar is optional; missing avatars use [Hashvatar](https://www.hashvatar.com/) from email (soft-squared, not circular).
-- Notes use a CodeMirror live-preview editor (ProseMark / WYSIWYM) — the document stays markdown; syntax marks hide unless the caret is on them; autosave; no toolbar.
+- Notes use a CodeMirror editor with live preview (ProseMark) and a Source toggle (`Mod+Alt+M`) — the document stays markdown; autosave; no toolbar.
 - Homepage is search-first, not a task feed.

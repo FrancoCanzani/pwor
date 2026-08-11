@@ -1,11 +1,16 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 import { prettyJSON } from "hono/pretty-json";
 import { secureHeaders } from "hono/secure-headers";
 
 import { createAuth } from "./lib/auth";
-import { authMiddleware, requireAuth } from "./middleware/auth";
+import {
+  authMiddleware,
+  requireAuthUnlessPublic,
+} from "./middleware/auth";
+import extensionRoutes from "./routes/extension";
 import protectedRoutes from "./routes/protected";
 import { cleanupOrphanNoteImages } from "./routes/protected/notes/cleanup";
 import publicRoutes from "./routes/public";
@@ -16,6 +21,25 @@ const app = new Hono<AppEnv>();
 app.use("*", logger());
 app.use("*", prettyJSON());
 app.use("*", secureHeaders());
+
+app.use("/api/*", async (c, next) => {
+  const corsMiddleware = cors({
+    origin: (value) => {
+      if (!value) return undefined;
+      if (value.startsWith("chrome-extension://")) return value;
+      if (value.startsWith("moz-extension://")) return value;
+      const appUrl = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
+      if (value === appUrl) return value;
+      if (value === "http://localhost:5173") return value;
+      if (value === "http://127.0.0.1:5173") return value;
+      return undefined;
+    },
+    allowHeaders: ["Content-Type", "Authorization", "x-api-key"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+  });
+  return corsMiddleware(c, next);
+});
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
@@ -33,7 +57,8 @@ app.on(["GET", "POST"], "/api/auth/*", (c) =>
 
 app.route("/", publicRoutes);
 
-app.use("/api/*", requireAuth);
+app.use("/api/*", requireAuthUnlessPublic);
+app.route("/api/extension", extensionRoutes);
 app.route("/api", protectedRoutes);
 
 export default {

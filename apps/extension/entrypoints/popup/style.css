@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource/geist-pixel";
+
+:root {
+  --background: #ffffff;
+  --foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --border: #e8e8e8;
+  --input: #e8e8e8;
+  --ring: #a3a3a3;
+  --destructive: oklch(0.577 0.245 27.325);
+  --radius: 0.5rem;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --font-pixel: "Geist Pixel", ui-monospace, monospace;
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --font-pixel: "Geist Pixel", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+}
+
+@utility font-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@layer base {
+  * {
+    @apply border-border antialiased;
+  }
+
+  html,
+  body {
+    @apply m-0 bg-background font-sans font-normal text-foreground;
+    font-size: 13px;
+    width: 320px;
+    min-height: 280px;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+}

@@ -4,20 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SweepEffect } from "@components/sweep-effect";
-import { createNote } from "@features/notes/api";
-import {
-  createVaultSnippet,
-  uploadVaultItem,
-} from "@features/vault/api";
-import {
-  isCodeSnippetFile,
-  isMarkdownFile,
-  languageFromFilename,
-} from "@features/vault/lib/snippet-language";
-import {
-  inferTitleFromRaw,
-  prependFrontmatter,
-} from "@shared/note-frontmatter";
+import { ingestFile } from "@features/vault/lib/ingest-file";
 
 const SWEEP_DURATION_MS = 800;
 
@@ -52,35 +39,17 @@ export function VaultDropZone() {
         list.map(async (file) => {
           const toastId = toast.loading(`Adding ${file.name}…`);
           try {
-            if (isMarkdownFile(file)) {
-              const raw = await file.text();
-              const inferred = inferTitleFromRaw(raw).title;
-              const fallbackTitle = file.name.replace(/\.md$/i, "");
-              const title = inferred || fallbackTitle;
-              const body = inferred
-                ? raw
-                : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-              await createNote(body, title, workspaceId);
+            const result = await ingestFile(file, { workspaceId });
+            if (result.kind === "note") {
               notesChanged = true;
               toast.success(`${file.name} added as note`, { id: toastId });
-              return;
-            }
-
-            if (isCodeSnippetFile(file)) {
-              const content = await file.text();
-              await createVaultSnippet(content, {
-                title: file.name,
-                language: languageFromFilename(file.name),
-                workspaceId,
-              });
+            } else if (result.kind === "snippet") {
               vaultChanged = true;
               toast.success(`${file.name} added as snippet`, { id: toastId });
-              return;
+            } else {
+              vaultChanged = true;
+              toast.success(`${file.name} added`, { id: toastId });
             }
-
-            await uploadVaultItem(file, workspaceId);
-            vaultChanged = true;
-            toast.success(`${file.name} added`, { id: toastId });
           } catch {
             toast.error(`Failed to add ${file.name}`, { id: toastId });
           }

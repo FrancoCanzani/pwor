@@ -1,5 +1,3 @@
-const TWEET_RE =
-  /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
 const URL_RE = /^https?:\/\/\S+$/i;
 
 export type ParsedCapture =
@@ -15,7 +13,7 @@ export function parseCaptureInput(input: string): ParsedCapture {
 
 export function extractUrl(input: string): string | null {
   const trimmed = input.trim();
-  if (!URL_RE.test(trimmed) && !TWEET_RE.test(trimmed)) return null;
+  if (!URL_RE.test(trimmed)) return null;
   try {
     return new URL(trimmed).toString();
   } catch {

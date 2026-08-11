@@ -1,7 +1,12 @@
-import { useHotkey } from "@tanstack/react-hotkeys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type SubmitEvent,
+} from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,39 +20,38 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import {
+  type CreateDialogLaunch,
+  type CreateMode,
+} from "@features/command/create-dialog-context";
 import { createNote } from "@features/notes/api";
 import {
   captureVaultInput,
   createVaultSnippet,
-  uploadVaultItem,
 } from "@features/vault/api";
-import {
-  isCodeSnippetFile,
-  isMarkdownFile,
-  languageFromFilename,
-} from "@features/vault/lib/snippet-language";
+import { ingestFile } from "@features/vault/lib/ingest-file";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-import {
-  inferTitleFromRaw,
-  prependFrontmatter,
-} from "@shared/note-frontmatter";
-
-type CreateMode = "menu" | "snippet" | "capture";
+import { prependFrontmatter } from "@shared/note-frontmatter";
 
 export function CreateDialog({
   open,
   onOpenChange,
+  launch = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  launch?: CreateDialogLaunch | null;
 }) {
   const [mode, setMode] = useState<CreateMode>("menu");
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [snippetTitle, setSnippetTitle] = useState("");
   const [snippetLanguage, setSnippetLanguage] = useState("typescript");
   const [snippetContent, setSnippetContent] = useState("");
   const [captureInput, setCaptureInput] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { id: workspaceId } = useCurrentWorkspace();
@@ -55,13 +59,19 @@ export function CreateDialog({
   useEffect(() => {
     if (!open) {
       setMode("menu");
+      setCategoryId(null);
       setSnippetTitle("");
       setSnippetLanguage("typescript");
       setSnippetContent("");
       setCaptureInput("");
       setUploading(false);
+      setDragging(false);
+      dragDepth.current = 0;
+      return;
     }
-  }, [open]);
+    setMode(launch?.mode ?? "menu");
+    setCategoryId(launch?.categoryId ?? null);
+  }, [open, launch]);
 
   const createNoteMutation = useMutation({
     mutationFn: () => {
@@ -88,6 +98,7 @@ export function CreateDialog({
         title: snippetTitle.trim() || null,
         language: snippetLanguage.trim() || null,
         workspaceId,
+        categoryId,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
@@ -98,7 +109,8 @@ export function CreateDialog({
   });
 
   const captureMutation = useMutation({
-    mutationFn: () => captureVaultInput(captureInput.trim(), workspaceId),
+    mutationFn: () =>
+      captureVaultInput(captureInput.trim(), workspaceId, categoryId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
       toast.success("Added — parsing…");
@@ -118,37 +130,32 @@ export function CreateDialog({
     const list = Array.from(files);
     setUploading(true);
     try {
+      let notesChanged = false;
+      let vaultChanged = false;
       for (const file of list) {
         const toastId = toast.loading(`Adding ${file.name}…`);
         try {
-          if (isMarkdownFile(file)) {
-            const raw = await file.text();
-            const inferred = inferTitleFromRaw(raw).title;
-            const fallbackTitle = file.name.replace(/\.md$/i, "");
-            const title = inferred || fallbackTitle;
-            const body = inferred
-              ? raw
-              : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-            await createNote(body, title, workspaceId);
+          const result = await ingestFile(file, { workspaceId, categoryId });
+          if (result.kind === "note") {
+            notesChanged = true;
             toast.success(`${file.name} added as note`, { id: toastId });
-          } else if (isCodeSnippetFile(file)) {
-            const content = await file.text();
-            await createVaultSnippet(content, {
-              title: file.name,
-              language: languageFromFilename(file.name),
-              workspaceId,
-            });
+          } else if (result.kind === "snippet") {
+            vaultChanged = true;
             toast.success(`${file.name} added as snippet`, { id: toastId });
           } else {
-            await uploadVaultItem(file, workspaceId);
+            vaultChanged = true;
             toast.success(`${file.name} added`, { id: toastId });
           }
         } catch {
           toast.error(`Failed to add ${file.name}`, { id: toastId });
         }
       }
-      await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
-      await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+      if (notesChanged) {
+        await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
+      }
+      if (vaultChanged) {
+        await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+      }
       onOpenChange(false);
     } finally {
       setUploading(false);
@@ -166,6 +173,33 @@ export function CreateDialog({
     event.preventDefault();
     if (!captureInput.trim() || busy) return;
     captureMutation.mutate();
+  }
+
+  function onDragEnter(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current += 1;
+    setDragging(true);
+  }
+
+  function onDragOver(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function onDragLeave(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragging(false);
+  }
+
+  function onDrop(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current = 0;
+    setDragging(false);
+    void handleFiles(event.dataTransfer.files);
   }
 
   return (
@@ -202,7 +236,7 @@ export function CreateDialog({
                     label: "Capture",
                     detail: "Paste a URL, text, or drop files",
                   },
-                ]
+                ] as const
               ).map((item) => (
                 <button
                   key={item.id}
@@ -289,21 +323,42 @@ export function CreateDialog({
               type="button"
               disabled={busy}
               onClick={() => fileRef.current?.click()}
+              onDragEnter={onDragEnter}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
               className={cn(
-                "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-xs text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed px-4 text-xs transition-colors",
+                dragging
+                  ? "border-foreground/40 bg-muted/60 text-foreground"
+                  : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                 busy && "pointer-events-none opacity-50",
               )}
             >
-              {uploading ? "Uploading…" : "Drop files here, or click to choose"}
+              {uploading
+                ? "Uploading…"
+                : dragging
+                  ? "Drop to add"
+                  : "Drop files here, or click to choose"}
             </button>
             <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setMode("menu")}
-              >
-                Back
-              </Button>
+              {launch?.mode === "capture" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setMode("menu")}
+                >
+                  Back
+                </Button>
+              )}
               <Button
                 type="submit"
                 disabled={!captureInput.trim() || busy}
@@ -316,11 +371,4 @@ export function CreateDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-/** Opens CreateDialog via Mod+N. Prefer wiring Mod+N in AppShell instead. */
-export function CreateDialogHost() {
-  const [open, setOpen] = useState(false);
-  useHotkey("Mod+N", () => setOpen(true));
-  return <CreateDialog open={open} onOpenChange={setOpen} />;
 }

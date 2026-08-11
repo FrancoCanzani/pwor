@@ -1,8 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
-import type { NoteListItem } from "@features/notes/api";
-import type { VaultItem } from "@features/vault/api";
 
 export type Workspace = {
   id: string;
@@ -11,11 +9,6 @@ export type Workspace = {
   shader?: string | null;
   createdAt: string;
   updatedAt: string;
-};
-
-export type WorkspaceDetail = Workspace & {
-  notes: NoteListItem[];
-  vaultItems: VaultItem[];
 };
 
 async function fetchWorkspaces(): Promise<Workspace[]> {
@@ -29,17 +22,6 @@ export const workspacesQueryOptions = queryOptions({
   queryKey: ["workspaces", "list"] as const,
   queryFn: fetchWorkspaces,
 });
-
-async function fetchWorkspace(id: string): Promise<WorkspaceDetail> {
-  return parseJson<WorkspaceDetail>(await fetch(`/api/workspaces/${id}`));
-}
-
-export function workspaceQueryOptions(id: string) {
-  return queryOptions({
-    queryKey: ["workspaces", "detail", id] as const,
-    queryFn: () => fetchWorkspace(id),
-  });
-}
 
 export async function createWorkspace(
   name: string,

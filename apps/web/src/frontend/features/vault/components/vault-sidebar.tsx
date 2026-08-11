@@ -32,7 +32,7 @@ import {
   type VaultCategory,
   type VaultItem,
 } from "@features/vault/api";
-import { VaultNewButton } from "@features/vault/components/vault-new-dialog";
+import { VaultNewButton } from "@features/vault/components/vault-new-button";
 import {
   TYPE_FACET_LABEL,
   TYPE_FACET_ORDER,

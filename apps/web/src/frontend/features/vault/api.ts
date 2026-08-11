@@ -215,19 +215,6 @@ export async function deleteVaultItem(id: string): Promise<{ id: string }> {
   );
 }
 
-export async function updateVaultItemProject(
-  id: string,
-  workspaceId: string | null,
-): Promise<VaultItem> {
-  return parseJson<VaultItem>(
-    await fetch(`/api/vault/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspaceId }),
-    }),
-  );
-}
-
 export async function updateVaultItemCategory(
   id: string,
   categoryId: string | null,

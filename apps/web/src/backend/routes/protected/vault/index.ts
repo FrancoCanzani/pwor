@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
+import { resolveAutoSpace } from "../../../lib/auto-space";
 import {
   normalizeVaultKind,
   parseCaptureInput,
@@ -43,7 +44,28 @@ const captureSchema = z.object({
   input: z.string().trim().min(1),
   workspaceId: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
+  /** When true and workspaceId omitted, pick a space from hint / preferences. */
+  autoSpace: z.boolean().optional(),
+  /** Extra text used for auto-space routing (e.g. tweet body). */
+  hint: z.string().trim().max(4000).nullable().optional(),
+  /** Seed tags merged with AI enrichment (e.g. x, bookmark). */
+  tags: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
+  preferredWorkspaceId: z.string().nullable().optional(),
 });
+
+function normalizeSeedTags(tags: string[] | undefined): string[] | null {
+  if (!tags?.length) return null;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of tags) {
+    const tag = raw.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    out.push(tag.slice(0, 40));
+    if (out.length >= 12) break;
+  }
+  return out.length ? out : null;
+}
 
 const createSnippetSchema = z.object({
   content: z.string().min(1),
@@ -214,15 +236,34 @@ const app = new Hono<AppEnv>()
 
   .post("/capture", zValidator("json", captureSchema), async (c) => {
     const user = c.get("user")!;
-    const { input, workspaceId, categoryId } = c.req.valid("json");
+    const {
+      input,
+      workspaceId,
+      categoryId,
+      autoSpace,
+      hint,
+      tags,
+      preferredWorkspaceId,
+    } = c.req.valid("json");
     const db = createDb(c.env.DB);
-    const workspace = workspaceId ?? null;
+
+    let workspace = workspaceId ?? null;
+    if (workspace == null && autoSpace) {
+      workspace = await resolveAutoSpace(
+        c.env,
+        user.id,
+        hint ?? input,
+        preferredWorkspaceId,
+      );
+    }
+
     if (categoryId) {
       await assertCategoryForWorkspace(db, categoryId, user.id, workspace);
     }
 
     const parsed = parseCaptureInput(input);
     const id = crypto.randomUUID();
+    const seedTags = normalizeSeedTags(tags);
 
     if (parsed.type === "url") {
       await db.insert(vaultItem).values({
@@ -231,6 +272,7 @@ const app = new Hono<AppEnv>()
         kind: "link",
         title: parsed.url,
         url: parsed.url,
+        tags: seedTags,
         workspaceId: workspace,
         categoryId: categoryId ?? null,
         parseStatus: "pending",
@@ -244,6 +286,7 @@ const app = new Hono<AppEnv>()
         title: titleFromText(parsed.content),
         content: parsed.content,
         language: parsed.language,
+        tags: seedTags,
         workspaceId: workspace,
         categoryId: categoryId ?? null,
         parseStatus: "ready",
@@ -256,6 +299,7 @@ const app = new Hono<AppEnv>()
         kind: "text",
         title: titleFromText(parsed.content),
         content: parsed.content,
+        tags: seedTags,
         workspaceId: workspace,
         categoryId: categoryId ?? null,
         parseStatus: "pending",

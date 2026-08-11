@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppWorkspaceIdRouteImport } from './routes/_app/$workspaceId'
+import { Route as ExtensionLinkRouteImport } from './routes/extension/link'
 import { Route as AppWorkspaceIdIndexRouteImport } from './routes/_app/$workspaceId/index'
 import { Route as AppWorkspaceIdNotesRouteRouteImport } from './routes/_app/$workspaceId/notes/route'
 import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
@@ -39,6 +40,11 @@ const AppWorkspaceIdRoute = AppWorkspaceIdRouteImport.update({
   id: '/$workspaceId',
   path: '/$workspaceId',
   getParentRoute: () => AppRoute,
+} as any)
+const ExtensionLinkRoute = ExtensionLinkRouteImport.update({
+  id: '/extension/link',
+  path: '/extension/link',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppWorkspaceIdIndexRoute = AppWorkspaceIdIndexRouteImport.update({
   id: '/',
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/$workspaceId': typeof AppWorkspaceIdRouteWithChildren
+  '/extension/link': typeof ExtensionLinkRoute
   '/$workspaceId/notes': typeof AppWorkspaceIdNotesRouteRouteWithChildren
   '/$workspaceId/': typeof AppWorkspaceIdIndexRoute
   '/onboarding/': typeof AppOnboardingIndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/extension/link': typeof ExtensionLinkRoute
   '/': typeof AppIndexRoute
   '/$workspaceId': typeof AppWorkspaceIdIndexRoute
   '/onboarding': typeof AppOnboardingIndexRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/$workspaceId': typeof AppWorkspaceIdRouteWithChildren
+  '/extension/link': typeof ExtensionLinkRoute
   '/_app/': typeof AppIndexRoute
   '/_app/$workspaceId/notes': typeof AppWorkspaceIdNotesRouteRouteWithChildren
   '/_app/$workspaceId/': typeof AppWorkspaceIdIndexRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/$workspaceId'
+    | '/extension/link'
     | '/$workspaceId/notes'
     | '/$workspaceId/'
     | '/onboarding/'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/extension/link'
     | '/'
     | '/$workspaceId'
     | '/onboarding'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/$workspaceId'
+    | '/extension/link'
     | '/_app/'
     | '/_app/$workspaceId/notes'
     | '/_app/$workspaceId/'
@@ -157,6 +169,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ExtensionLinkRoute: typeof ExtensionLinkRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -188,6 +201,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$workspaceId'
       preLoaderRoute: typeof AppWorkspaceIdRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/extension/link': {
+      id: '/extension/link'
+      path: '/extension/link'
+      fullPath: '/extension/link'
+      preLoaderRoute: typeof ExtensionLinkRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/$workspaceId/': {
       id: '/_app/$workspaceId/'
@@ -292,6 +312,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ExtensionLinkRoute: ExtensionLinkRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -145,7 +145,10 @@ export async function enrichVaultItem(
       prompt: bodyParts.join("\n\n"),
     });
 
-    const tags = normalizeTags(object.tags);
+    const tags = normalizeTags([
+      ...(Array.isArray(item.tags) ? item.tags : []),
+      ...object.tags,
+    ]);
 
     await db
       .update(vaultItem)

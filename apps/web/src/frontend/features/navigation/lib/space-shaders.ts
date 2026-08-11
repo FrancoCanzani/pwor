@@ -1,9 +1,19 @@
 import type { ComponentType, CSSProperties } from "react";
 import {
+  Dithering,
   GodRays,
+  GrainGradient,
   MeshGradient,
+  Metaballs,
+  NeuroNoise,
+  PerlinNoise,
+  SimplexNoise,
   SmokeRing,
+  Spiral,
   StaticMeshGradient,
+  StaticRadialGradient,
+  Swirl,
+  Voronoi,
   Warp,
 } from "@paper-design/shaders-react";
 
@@ -146,11 +156,150 @@ export const SPACE_SHADERS: SpaceShaderPreset[] = [
       speed: 0,
     },
   },
+  {
+    id: "neuro",
+    label: "Neuro",
+    Component: NeuroNoise,
+    props: {
+      colorFront: "#c77dff",
+      colorMid: "#7b2cbf",
+      colorBack: "#10002b",
+      brightness: 0.15,
+      contrast: 0.45,
+      speed: 0,
+    },
+  },
+  {
+    id: "grain",
+    label: "Grain",
+    Component: GrainGradient,
+    props: {
+      colorBack: "#0a0000",
+      colors: ["#6f0000", "#0080ff", "#f2ebc9", "#33cc33"],
+      softness: 0.6,
+      intensity: 0.5,
+      noise: 0.35,
+      shape: "corners",
+      speed: 0,
+    },
+  },
+  {
+    id: "vortex",
+    label: "Vortex",
+    Component: Spiral,
+    props: {
+      colorFront: "#80ffdb",
+      colorBack: "#001219",
+      density: 1.2,
+      distortion: 0.35,
+      strokeWidth: 0.4,
+      strokeTaper: 0.3,
+      softness: 0.2,
+      speed: 0,
+    },
+  },
+  {
+    id: "swirl",
+    label: "Swirl",
+    Component: Swirl,
+    props: {
+      colorBack: "#330000",
+      colors: ["#ffd1d1", "#ff8a8a", "#660000"],
+      bandCount: 6,
+      twist: 0.55,
+      softness: 0.3,
+      noise: 0.15,
+      speed: 0,
+    },
+  },
+  {
+    id: "cells",
+    label: "Cells",
+    Component: Voronoi,
+    props: {
+      colors: ["#83c9fb", "#1d3557", "#457b9d"],
+      colorGap: "#e0fbfc",
+      stepsPerColor: 2,
+      gap: 0.04,
+      glow: 0.35,
+      distortion: 0.15,
+      speed: 0,
+    },
+  },
+  {
+    id: "simplex",
+    label: "Simplex",
+    Component: SimplexNoise,
+    props: {
+      colors: ["#4449CF", "#FFD1E0", "#F94446", "#FFD36B"],
+      stepsPerColor: 2,
+      softness: 0.2,
+      speed: 0,
+    },
+  },
+  {
+    id: "plasma",
+    label: "Plasma",
+    Component: Metaballs,
+    props: {
+      colorBack: "#102f84",
+      colors: ["#ffc800", "#ff5500", "#ffc105"],
+      count: 7,
+      size: 0.7,
+      speed: 0,
+    },
+  },
+  {
+    id: "dither",
+    label: "Dither",
+    Component: Dithering,
+    props: {
+      colorFront: "#f4a261",
+      colorBack: "#1d3557",
+      shape: "simplex",
+      type: "4x4",
+      size: 2,
+      speed: 0,
+    },
+  },
+  {
+    id: "perlin",
+    label: "Perlin",
+    Component: PerlinNoise,
+    props: {
+      colorFront: "#e9c46a",
+      colorBack: "#264653",
+      proportion: 0.45,
+      softness: 0.35,
+      octaveCount: 4,
+      persistence: 0.5,
+      lacunarity: 2,
+      speed: 0,
+    },
+  },
+  {
+    id: "radial",
+    label: "Radial",
+    Component: StaticRadialGradient,
+    props: {
+      colorBack: "#2e1f27",
+      colors: ["#d72638", "#3f88c5", "#f49d37"],
+      radius: 0.85,
+      focalDistance: 0.35,
+      mixing: 0.7,
+      distortion: 0.25,
+      grainMixer: 0.12,
+      grainOverlay: 0.08,
+      speed: 0,
+    },
+  },
 ];
 
 export type SpaceShaderId = (typeof SPACE_SHADERS)[number]["id"];
 
-export function isSpaceShaderId(value: string | null | undefined): value is SpaceShaderId {
+export function isSpaceShaderId(
+  value: string | null | undefined,
+): value is SpaceShaderId {
   return SPACE_SHADERS.some((preset) => preset.id === value);
 }
 

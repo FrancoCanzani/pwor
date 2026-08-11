@@ -26,10 +26,10 @@ export function SpaceShaderPicker({
             aria-label={preset.label}
             aria-pressed={selected}
             className={cn(
-              "rounded-md p-0.5 transition-colors",
+              "rounded-sm transition-opacity",
               selected
-                ? "bg-muted ring-1 ring-foreground/20"
-                : "hover:bg-muted/60",
+                ? "ring-1 ring-foreground/40"
+                : "hover:opacity-80",
             )}
           >
             <SpacePic shaderId={preset.id} size="sm" className="size-7" />

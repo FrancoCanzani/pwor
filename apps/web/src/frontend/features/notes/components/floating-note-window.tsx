@@ -104,7 +104,7 @@ export function FloatingNoteHost({
         aria-hidden
         className="pointer-events-none fixed inset-0 z-40 bg-black/10 supports-backdrop-filter:backdrop-blur-[1px]"
       />
-      <FloatingNoteWindow noteId={noteId} onClose={onClose} />
+      <FloatingNoteWindow key={noteId} noteId={noteId} onClose={onClose} />
     </>,
     document.body,
   );

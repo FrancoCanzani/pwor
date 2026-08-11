@@ -20,13 +20,13 @@ Return:
 - title: short plain title (under 80 chars). Prefer page/tweet title when present. Never invent brands you weren't given.
 - summary: 1–2 sentences on what this is and why it matters. Neutral tone.
 - tags: 3–8 short lowercase tags (1–3 words each). Topics, entities, places, brands, themes — not generic filler like "link", "interesting", "article", or the media type.
-- siteKind: for URLs only — "tweet" if it's an X/Twitter post, "site" if it's a web page worth reading as an article/bookmark, otherwise "link". For non-URL items use null.`;
+- siteKind: for URLs only — "site" if it's a web page worth reading as an article/bookmark, otherwise "link". For non-URL items use null.`;
 
 const enrichmentSchema = z.object({
   title: z.string().min(1).max(200),
   summary: z.string().min(1).max(500),
   tags: z.array(z.string().min(1).max(40)).min(1).max(8),
-  siteKind: z.enum(["tweet", "site", "link"]).nullable(),
+  siteKind: z.enum(["site", "link"]).nullable(),
 });
 
 const BODY_CHARS = 6_000;

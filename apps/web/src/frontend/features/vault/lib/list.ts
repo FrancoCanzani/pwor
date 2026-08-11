@@ -106,7 +106,6 @@ export function kindLabel(item: VaultItem): string {
     case "text":
       return "text";
     case "tweet":
-      return "tweet";
     case "link":
       return "link";
     case "site":

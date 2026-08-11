@@ -156,15 +156,15 @@ export function VaultNewDialog({
     >
       <DialogContent showCloseButton className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>New</DialogTitle>
+          <DialogTitle>New item</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Textarea
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste anything — link, tweet, text…"
-            className="min-h-36 resize-none text-sm"
+            placeholder="Paste anything"
+            className="min-h-28 resize-none text-xs placeholder:text-[11px]"
             disabled={busy}
           />
 
@@ -185,7 +185,7 @@ export function VaultNewDialog({
             onDragLeave={onDragLeave}
             onDrop={onDrop}
             className={cn(
-              "flex min-h-24 w-full flex-col items-center justify-center rounded-md border border-dashed px-4 py-6 text-center transition-colors",
+              "flex min-h-28 w-full flex-col items-center justify-center rounded-md border border-dashed px-4 py-6 text-center transition-colors",
               dragging
                 ? "border-foreground/40 bg-muted/60 text-foreground"
                 : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",

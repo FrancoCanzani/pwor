@@ -180,7 +180,7 @@ const app = new Hono<AppEnv>()
       siteName = page.siteName;
       summary = page.description;
       content = [page.description, page.text].filter(Boolean).join("\n\n") || null;
-      resolvedKind = kind === "tweet" ? "tweet" : "site";
+      resolvedKind = "site";
     }
 
     await db.insert(vaultItem).values({

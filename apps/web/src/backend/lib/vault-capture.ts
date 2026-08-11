@@ -1,4 +1,4 @@
-export type CaptureKind = "text" | "link" | "tweet" | "site";
+export type CaptureKind = "text" | "link" | "site";
 
 const TWEET_RE =
   /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
@@ -6,8 +6,8 @@ const URL_RE = /^https?:\/\/\S+$/i;
 
 export function detectCaptureKind(input: string): CaptureKind {
   const trimmed = input.trim();
-  if (TWEET_RE.test(trimmed)) return "tweet";
-  if (URL_RE.test(trimmed)) return "link";
+  // Tweets are links — same capture path, no separate type.
+  if (TWEET_RE.test(trimmed) || URL_RE.test(trimmed)) return "link";
   return "text";
 }
 

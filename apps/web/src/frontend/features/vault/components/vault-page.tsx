@@ -327,7 +327,7 @@ export function VaultPage() {
           description={
             query.trim()
               ? "Try a different search."
-              : "Paste a link, tweet, or text — or upload a file."
+              : "Paste a link or text — or upload a file."
           }
         />
       ) : (

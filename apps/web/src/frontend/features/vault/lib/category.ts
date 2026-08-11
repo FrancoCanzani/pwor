@@ -1,11 +1,10 @@
 import type { VaultItem } from "@features/vault/api";
 
 /** System type filters in the aside — not user categories. */
-export type VaultTypeFacet = "links" | "tweets" | "docs" | "images" | "text";
+export type VaultTypeFacet = "links" | "docs" | "images" | "text";
 
 export const TYPE_FACET_ORDER: VaultTypeFacet[] = [
   "links",
-  "tweets",
   "docs",
   "images",
   "text",
@@ -13,7 +12,6 @@ export const TYPE_FACET_ORDER: VaultTypeFacet[] = [
 
 export const TYPE_FACET_LABEL: Record<VaultTypeFacet, string> = {
   links: "Links",
-  tweets: "Tweets",
   docs: "Docs",
   images: "Images",
   text: "Text",
@@ -22,7 +20,6 @@ export const TYPE_FACET_LABEL: Record<VaultTypeFacet, string> = {
 export function typeFacetOf(item: VaultItem): VaultTypeFacet {
   switch (item.kind) {
     case "tweet":
-      return "tweets";
     case "link":
     case "site":
       return "links";

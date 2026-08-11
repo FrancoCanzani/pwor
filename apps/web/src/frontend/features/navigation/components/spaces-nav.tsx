@@ -19,6 +19,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { useCreateDialog } from "@features/command/create-dialog-context";
 import { SpacePic } from "@features/navigation/components/space-pic";
 import { vaultCategoriesQueryOptions } from "@features/vault/api";
 import {
@@ -29,9 +30,10 @@ import { CreateWorkspaceDialog } from "@features/workspaces/components/create-wo
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
-export function SpacesNav({ onCreate }: { onCreate: () => void }) {
+export function SpacesNav() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { open: openCreate } = useCreateDialog();
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
   const { id: currentId } = useCurrentWorkspace();
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
@@ -79,7 +81,7 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
           type="button"
           variant="new"
           className="h-8 w-full justify-start gap-2 px-2 text-xs font-normal"
-          onClick={onCreate}
+          onClick={() => openCreate()}
         >
           <PlusIcon className="size-3.5" />
           Create new
@@ -216,7 +218,7 @@ function SpaceRow({
                   <Link
                     to="/$workspaceId/vault"
                     params={{ workspaceId: space.id }}
-                    search={{ item: undefined }}
+                    search={{ category: collection.id }}
                     onClick={() => setStoredWorkspaceId(space.id)}
                   />
                 }

@@ -48,6 +48,8 @@ import {
   kindLabel,
   VAULT_SORT_LABEL,
   VAULT_SORT_ORDER,
+  vaultNavFromSearch,
+  vaultNavToSearch,
   type VaultNav,
   type VaultSort,
 } from "@features/vault/lib/list";
@@ -218,7 +220,7 @@ function VaultItemRow({
 export function VaultPage() {
   const isMobile = useIsMobile();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
-  const { item: openItemId } = useSearch({ from: "/_app/$workspaceId/vault/" });
+  const search = useSearch({ from: "/_app/$workspaceId/vault/" });
   const navigate = useNavigate({ from: "/$workspaceId/vault/" });
   const { data } = useQuery(vaultItemsQueryOptions(workspaceId));
   const { data: categories = [] } = useQuery(
@@ -226,7 +228,8 @@ export function VaultPage() {
   );
   const items = data?.items ?? [];
   const totalBytes = data?.totalBytes ?? 0;
-  const [nav, setNav] = useState<VaultNav>({ mode: "all" });
+  const nav = vaultNavFromSearch(search);
+  const openItemId = search.item;
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<VaultSort>("newest");
 
@@ -236,9 +239,22 @@ export function VaultPage() {
       ? (items.find((item) => item.id === openItemId) ?? null)
       : null;
 
+  function setNav(next: VaultNav) {
+    void navigate({
+      search: (prev) => ({
+        item: prev.item,
+        ...vaultNavToSearch(next),
+      }),
+      replace: true,
+    });
+  }
+
   function setViewerOpen(open: boolean, itemId?: string) {
     void navigate({
-      search: () => (open && itemId ? { item: itemId } : {}),
+      search: (prev) => ({
+        ...vaultNavToSearch(vaultNavFromSearch(prev)),
+        ...(open && itemId ? { item: itemId } : {}),
+      }),
       replace: true,
     });
   }

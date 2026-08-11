@@ -1,28 +1,33 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
+import { note, vaultItem } from "../../../db/schema";
+import { classifyIngestFile } from "@shared/ingest-file";
 import {
-  normalizeVaultKind,
+  inferTitleFromRaw,
+  prependFrontmatter,
+} from "@shared/note-frontmatter";
+import {
+  languageFromFilename,
+  languageFromMime,
+} from "@shared/snippet-language";
+import {
   parseCaptureInput,
   titleFromText,
 } from "../../../lib/vault-capture";
-import {
-  isCodeSnippetFile,
-  languageFromFilename,
-  languageFromMime,
-} from "../../../lib/snippet-language";
 import { scheduleVaultEnrichment } from "../../../lib/vault-enrichment";
 import {
   putVaultObject,
   vaultObjectByteSize,
 } from "../../../lib/vault-storage";
-import { vaultCategory, vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
+import categoriesRoutes from "./categories";
+import { assertCategoryForWorkspace, serializeVaultItem } from "./helpers";
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
@@ -52,44 +57,27 @@ const createSnippetSchema = z.object({
   categoryId: z.string().nullable().optional(),
 });
 
-const createCategorySchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  workspaceId: z.string().nullable().optional(),
-});
-
-const updateCategorySchema = z.object({
-  name: z.string().trim().min(1).max(80),
-});
-
-const categoriesQuerySchema = z.object({
-  workspaceId: z.string().optional(),
-});
-
-function serializeVaultItem<T extends { kind: string }>(item: T) {
-  return { ...item, kind: normalizeVaultKind(item.kind) };
-}
-
-async function assertCategoryForWorkspace(
-  db: ReturnType<typeof createDb>,
-  categoryId: string,
-  userId: string,
-  workspaceId: string | null,
-) {
-  const [row] = await db
-    .select({
-      id: vaultCategory.id,
-      workspaceId: vaultCategory.workspaceId,
-    })
-    .from(vaultCategory)
-    .where(ownedBy(vaultCategory.id, categoryId, vaultCategory.userId, userId))
-    .limit(1);
-  if (!row) throw new HTTPException(404, { message: "Category not found" });
-  if ((row.workspaceId ?? null) !== (workspaceId ?? null)) {
-    throw new HTTPException(400, { message: "Category workspace mismatch" });
-  }
-}
+const listColumns = {
+  id: vaultItem.id,
+  kind: vaultItem.kind,
+  title: vaultItem.title,
+  summary: vaultItem.summary,
+  tags: vaultItem.tags,
+  language: vaultItem.language,
+  mimeType: vaultItem.mimeType,
+  url: vaultItem.url,
+  siteName: vaultItem.siteName,
+  categoryId: vaultItem.categoryId,
+  workspaceId: vaultItem.workspaceId,
+  parseStatus: vaultItem.parseStatus,
+  createdAt: vaultItem.createdAt,
+  r2Key: vaultItem.r2Key,
+  content: vaultItem.content,
+};
 
 const app = new Hono<AppEnv>()
+  .route("/categories", categoriesRoutes)
+
   .post("/", async (c) => {
     const user = c.get("user")!;
     const body = await c.req.parseBody();
@@ -110,39 +98,60 @@ const app = new Hono<AppEnv>()
       await assertCategoryForWorkspace(db, categoryId, user.id, workspaceId);
     }
 
-    const id = crypto.randomUUID();
     const contentType = file.type || "application/octet-stream";
+    const ingestKind = classifyIngestFile(file.name, contentType);
 
-    if (isCodeSnippetFile(file.name, contentType)) {
+    if (ingestKind === "note") {
+      const raw = await file.text();
+      const inferred = inferTitleFromRaw(raw).title;
+      const fallbackTitle = file.name.replace(/\.md$/i, "");
+      const title = inferred || fallbackTitle;
+      const noteBody = inferred
+        ? raw
+        : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
+
+      const [created] = await db
+        .insert(note)
+        .values({
+          id: crypto.randomUUID(),
+          userId: user.id,
+          body: noteBody,
+          title,
+          workspaceId,
+        })
+        .returning();
+
+      return c.json({ ...created, ingestKind: "note" as const }, 201);
+    }
+
+    if (ingestKind === "snippet") {
       const content = await file.text();
       const language =
         languageFromFilename(file.name) ||
         languageFromMime(contentType) ||
         null;
 
-      await db.insert(vaultItem).values({
-        id,
-        userId: user.id,
-        kind: "snippet",
-        title: file.name,
-        content,
-        language,
-        mimeType: contentType,
-        workspaceId,
-        categoryId,
-        parseStatus: "ready",
-        parsedAt: new Date(),
-      });
-
       const [created] = await db
-        .select()
-        .from(vaultItem)
-        .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-        .limit(1);
+        .insert(vaultItem)
+        .values({
+          id: crypto.randomUUID(),
+          userId: user.id,
+          kind: "snippet",
+          title: file.name,
+          content,
+          language,
+          mimeType: contentType,
+          workspaceId,
+          categoryId,
+          parseStatus: "ready",
+          parsedAt: new Date(),
+        })
+        .returning();
 
       return c.json(serializeVaultItem(created!), 201);
     }
 
+    const id = crypto.randomUUID();
     const r2Key = `${user.id}/${id}/${file.name}`;
 
     await putVaultObject(
@@ -152,24 +161,21 @@ const app = new Hono<AppEnv>()
       contentType,
     );
 
-    await db.insert(vaultItem).values({
-      id,
-      userId: user.id,
-      title: file.name,
-      r2Key,
-      mimeType: contentType,
-      workspaceId,
-      categoryId,
-      parseStatus: "pending",
-    });
+    const [created] = await db
+      .insert(vaultItem)
+      .values({
+        id,
+        userId: user.id,
+        title: file.name,
+        r2Key,
+        mimeType: contentType,
+        workspaceId,
+        categoryId,
+        parseStatus: "pending",
+      })
+      .returning();
 
     scheduleVaultEnrichment(c.executionCtx, c.env, id);
-
-    const [created] = await db
-      .select()
-      .from(vaultItem)
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
 
     return c.json(serializeVaultItem(created!), 201);
   })
@@ -184,27 +190,23 @@ const app = new Hono<AppEnv>()
       await assertCategoryForWorkspace(db, categoryId, user.id, workspace);
     }
 
-    const id = crypto.randomUUID();
     const resolvedTitle = title?.trim() || titleFromText(content);
 
-    await db.insert(vaultItem).values({
-      id,
-      userId: user.id,
-      kind: "snippet",
-      title: resolvedTitle,
-      content,
-      language: language ?? null,
-      workspaceId: workspace,
-      categoryId: categoryId ?? null,
-      parseStatus: "ready",
-      parsedAt: new Date(),
-    });
-
     const [created] = await db
-      .select()
-      .from(vaultItem)
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
+      .insert(vaultItem)
+      .values({
+        id: crypto.randomUUID(),
+        userId: user.id,
+        kind: "snippet",
+        title: resolvedTitle,
+        content,
+        language: language ?? null,
+        workspaceId: workspace,
+        categoryId: categoryId ?? null,
+        parseStatus: "ready",
+        parsedAt: new Date(),
+      })
+      .returning();
 
     return c.json(serializeVaultItem(created!), 201);
   })
@@ -221,160 +223,36 @@ const app = new Hono<AppEnv>()
     const parsed = parseCaptureInput(input);
     const id = crypto.randomUUID();
 
-    if (parsed.type === "url") {
-      await db.insert(vaultItem).values({
-        id,
-        userId: user.id,
-        kind: "link",
-        title: parsed.url,
-        url: parsed.url,
-        workspaceId: workspace,
-        categoryId: categoryId ?? null,
-        parseStatus: "pending",
-      });
-    } else {
-      await db.insert(vaultItem).values({
-        id,
-        userId: user.id,
-        kind: "text",
-        title: titleFromText(parsed.content),
-        content: parsed.content,
-        workspaceId: workspace,
-        categoryId: categoryId ?? null,
-        parseStatus: "pending",
-      });
-    }
+    const [created] = await db
+      .insert(vaultItem)
+      .values(
+        parsed.type === "url"
+          ? {
+              id,
+              userId: user.id,
+              kind: "link" as const,
+              title: parsed.url,
+              url: parsed.url,
+              workspaceId: workspace,
+              categoryId: categoryId ?? null,
+              parseStatus: "pending" as const,
+            }
+          : {
+              id,
+              userId: user.id,
+              kind: "text" as const,
+              title: titleFromText(parsed.content),
+              content: parsed.content,
+              workspaceId: workspace,
+              categoryId: categoryId ?? null,
+              parseStatus: "pending" as const,
+            },
+      )
+      .returning();
 
     scheduleVaultEnrichment(c.executionCtx, c.env, id);
 
-    const [created] = await db
-      .select()
-      .from(vaultItem)
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
-
     return c.json(serializeVaultItem(created!), 201);
-  })
-
-  .get("/categories", zValidator("query", categoriesQuerySchema), async (c) => {
-    const user = c.get("user")!;
-    const { workspaceId } = c.req.valid("query");
-    const db = createDb(c.env.DB);
-
-    const conditions = [eq(vaultCategory.userId, user.id)];
-    if (workspaceId) {
-      conditions.push(eq(vaultCategory.workspaceId, workspaceId));
-    }
-
-    const items = await db
-      .select()
-      .from(vaultCategory)
-      .where(and(...conditions))
-      .orderBy(asc(vaultCategory.position), asc(vaultCategory.createdAt));
-
-    return c.json({ items });
-  })
-
-  .post("/categories", zValidator("json", createCategorySchema), async (c) => {
-    const user = c.get("user")!;
-    const { name, workspaceId } = c.req.valid("json");
-    const db = createDb(c.env.DB);
-    const id = crypto.randomUUID();
-
-    const existing = await db
-      .select({ position: vaultCategory.position })
-      .from(vaultCategory)
-      .where(
-        and(
-          eq(vaultCategory.userId, user.id),
-          workspaceId
-            ? eq(vaultCategory.workspaceId, workspaceId)
-            : isNull(vaultCategory.workspaceId),
-        ),
-      )
-      .orderBy(desc(vaultCategory.position))
-      .limit(1);
-
-    const position = (existing[0]?.position ?? -1) + 1;
-
-    await db.insert(vaultCategory).values({
-      id,
-      userId: user.id,
-      name,
-      workspaceId: workspaceId ?? null,
-      position,
-    });
-
-    const [created] = await db
-      .select()
-      .from(vaultCategory)
-      .where(ownedBy(vaultCategory.id, id, vaultCategory.userId, user.id))
-      .limit(1);
-
-    return c.json(created, 201);
-  })
-
-  .patch(
-    "/categories/:id",
-    zValidator("json", updateCategorySchema),
-    async (c) => {
-      const user = c.get("user")!;
-      const id = c.req.param("id");
-      const { name } = c.req.valid("json");
-      const db = createDb(c.env.DB);
-
-      const [existing] = await db
-        .select({ id: vaultCategory.id })
-        .from(vaultCategory)
-        .where(ownedBy(vaultCategory.id, id, vaultCategory.userId, user.id))
-        .limit(1);
-
-      if (!existing) {
-        throw new HTTPException(404, { message: "Not found" });
-      }
-
-      await db
-        .update(vaultCategory)
-        .set({ name })
-        .where(ownedBy(vaultCategory.id, id, vaultCategory.userId, user.id));
-
-      const [updated] = await db
-        .select()
-        .from(vaultCategory)
-        .where(ownedBy(vaultCategory.id, id, vaultCategory.userId, user.id))
-        .limit(1);
-
-      return c.json(updated);
-    },
-  )
-
-  .delete("/categories/:id", async (c) => {
-    const user = c.get("user")!;
-    const id = c.req.param("id");
-    const db = createDb(c.env.DB);
-
-    const [existing] = await db
-      .select({ id: vaultCategory.id })
-      .from(vaultCategory)
-      .where(ownedBy(vaultCategory.id, id, vaultCategory.userId, user.id))
-      .limit(1);
-
-    if (!existing) {
-      throw new HTTPException(404, { message: "Not found" });
-    }
-
-    await db
-      .update(vaultItem)
-      .set({ categoryId: null })
-      .where(
-        and(eq(vaultItem.userId, user.id), eq(vaultItem.categoryId, id)),
-      );
-
-    await db
-      .delete(vaultCategory)
-      .where(ownedBy(vaultCategory.id, id, vaultCategory.userId, user.id));
-
-    return c.json({ id });
   })
 
   .get("/", zValidator("query", listQuerySchema), async (c) => {
@@ -386,25 +264,27 @@ const app = new Hono<AppEnv>()
     if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
 
     const rows = await db
-      .select()
+      .select(listColumns)
       .from(vaultItem)
       .where(and(...conditions))
       .orderBy(desc(vaultItem.createdAt));
 
-    const items = rows.map(serializeVaultItem);
-
     const sizes = await Promise.all(
-      items.map(async (item) => {
-        if (item.r2Key) {
-          return vaultObjectByteSize(c.env.VAULT_BUCKET, item.r2Key);
+      rows.map(async (row) => {
+        if (row.r2Key) {
+          return vaultObjectByteSize(c.env.VAULT_BUCKET, row.r2Key);
         }
-        if (item.content) {
-          return new TextEncoder().encode(item.content).byteLength;
+        if (row.content) {
+          return new TextEncoder().encode(row.content).byteLength;
         }
         return 0;
       }),
     );
     const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
+
+    const items = rows.map(({ content: _content, r2Key: _r2Key, ...item }) =>
+      serializeVaultItem(item),
+    );
 
     return c.json({ items, totalBytes });
   })
@@ -440,19 +320,14 @@ const app = new Hono<AppEnv>()
       );
     }
 
-    await db
+    const [updated] = await db
       .update(vaultItem)
       .set({
         ...(workspaceId !== undefined ? { workspaceId } : {}),
         ...(categoryId !== undefined ? { categoryId } : {}),
       })
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id));
-
-    const [updated] = await db
-      .select()
-      .from(vaultItem)
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
+      .returning();
 
     return c.json(serializeVaultItem(updated!));
   })
@@ -463,7 +338,10 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
 
     const [item] = await db
-      .select()
+      .select({
+        id: vaultItem.id,
+        r2Key: vaultItem.r2Key,
+      })
       .from(vaultItem)
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
@@ -500,7 +378,10 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
 
     const [item] = await db
-      .select()
+      .select({
+        r2Key: vaultItem.r2Key,
+        mimeType: vaultItem.mimeType,
+      })
       .from(vaultItem)
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);

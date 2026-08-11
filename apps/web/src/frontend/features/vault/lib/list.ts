@@ -1,5 +1,6 @@
 import type { VaultItem } from "@features/vault/api";
 import {
+  TYPE_FACET_ORDER,
   typeFacetOf,
   type VaultTypeFacet,
 } from "@features/vault/lib/category";
@@ -20,6 +21,47 @@ export type VaultNav =
   | { mode: "uncategorized" }
   | { mode: "type"; type: VaultTypeFacet }
   | { mode: "category"; categoryId: string };
+
+/** URL search fields that encode vault nav (item is independent). */
+export type VaultNavSearch = {
+  category?: string;
+  type?: VaultTypeFacet;
+  uncategorized?: true;
+};
+
+export function isVaultTypeFacet(value: string): value is VaultTypeFacet {
+  return (TYPE_FACET_ORDER as string[]).includes(value);
+}
+
+export function vaultNavFromSearch(search: VaultNavSearch): VaultNav {
+  if (search.category) {
+    return { mode: "category", categoryId: search.category };
+  }
+  if (search.type && isVaultTypeFacet(search.type)) {
+    return { mode: "type", type: search.type };
+  }
+  if (search.uncategorized) {
+    return { mode: "uncategorized" };
+  }
+  return { mode: "all" };
+}
+
+export function vaultNavToSearch(nav: VaultNav): VaultNavSearch {
+  switch (nav.mode) {
+    case "all":
+      return {};
+    case "uncategorized":
+      return { uncategorized: true };
+    case "type":
+      return { type: nav.type };
+    case "category":
+      return { category: nav.categoryId };
+    default: {
+      const _exhaustive: never = nav;
+      return _exhaustive;
+    }
+  }
+}
 
 export function formatVaultDate(value: string): string {
   const date = new Date(value);

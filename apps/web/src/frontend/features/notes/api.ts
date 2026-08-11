@@ -100,13 +100,6 @@ export async function updateNote(
   return parseJson<Note>(res);
 }
 
-export async function updateNoteProject(
-  id: string,
-  workspaceId: string | null,
-): Promise<Note> {
-  return updateNote(id, { workspaceId });
-}
-
 export async function deleteNote(id: string): Promise<void> {
   await parseJson<{ ok: boolean }>(
     await fetch(`/api/notes/${id}`, { method: "DELETE" }),

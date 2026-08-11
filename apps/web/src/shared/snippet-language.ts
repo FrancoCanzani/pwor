@@ -48,8 +48,11 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   zig: "zig",
 };
 
-const CODE_EXTENSIONS = new Set(
-  Object.keys(EXT_TO_LANGUAGE).filter((ext) => ext !== "md" && ext !== "markdown"),
+/** File extensions that become code snippets (not notes, not generic files). */
+export const SNIPPET_EXTENSIONS = new Set(
+  Object.keys(EXT_TO_LANGUAGE).filter(
+    (ext) => ext !== "md" && ext !== "markdown",
+  ),
 );
 
 export function extensionOf(filename: string): string | null {
@@ -66,24 +69,9 @@ export function languageFromFilename(filename: string): string | null {
   return EXT_TO_LANGUAGE[ext] ?? null;
 }
 
-/** Code files become snippets; markdown is handled separately as notes. */
-export function isCodeSnippetFile(filename: string, mimeType?: string | null): boolean {
-  const ext = extensionOf(filename);
-  if (ext && CODE_EXTENSIONS.has(ext)) return true;
-  if (!mimeType) return false;
-  const normalized = mimeType.toLowerCase().split(";")[0]?.trim() ?? "";
-  return (
-    normalized === "application/javascript" ||
-    normalized === "text/javascript" ||
-    normalized === "application/typescript" ||
-    normalized === "text/x-python" ||
-    normalized === "text/x-rust" ||
-    normalized === "text/x-go" ||
-    normalized === "application/x-sh"
-  );
-}
-
-export function languageFromMime(mimeType: string | null | undefined): string | null {
+export function languageFromMime(
+  mimeType: string | null | undefined,
+): string | null {
   if (!mimeType) return null;
   const normalized = mimeType.toLowerCase().split(";")[0]?.trim() ?? "";
   switch (normalized) {
@@ -104,7 +92,40 @@ export function languageFromMime(mimeType: string | null | undefined): string | 
     case "application/x-sh":
     case "text/x-shellscript":
       return "shell";
+    case "text/markdown":
+      return "markdown";
     default:
       return null;
   }
+}
+
+/** Code files become snippets; markdown is handled separately as notes. */
+export function isCodeSnippetFile(
+  filename: string,
+  mimeType?: string | null,
+): boolean {
+  const ext = extensionOf(filename);
+  if (ext && SNIPPET_EXTENSIONS.has(ext)) return true;
+  if (!mimeType) return false;
+  const normalized = mimeType.toLowerCase().split(";")[0]?.trim() ?? "";
+  return (
+    normalized === "application/javascript" ||
+    normalized === "text/javascript" ||
+    normalized === "application/typescript" ||
+    normalized === "text/x-python" ||
+    normalized === "text/x-rust" ||
+    normalized === "text/x-go" ||
+    normalized === "application/x-sh"
+  );
+}
+
+export function isMarkdownFile(
+  filename: string,
+  mimeType?: string | null,
+): boolean {
+  const ext = extensionOf(filename);
+  if (ext === "md" || ext === "markdown") return true;
+  if (!mimeType) return false;
+  const normalized = mimeType.toLowerCase().split(";")[0]?.trim() ?? "";
+  return normalized === "text/markdown";
 }

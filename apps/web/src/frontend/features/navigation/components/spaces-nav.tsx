@@ -1,15 +1,9 @@
 import { CaretDownIcon, CaretRightIcon, PlusIcon } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -17,6 +11,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { SpacePic } from "@features/navigation/components/space-pic";
@@ -35,7 +32,6 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
   const { id: currentId } = useCurrentWorkspace();
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
-  const [spacesOpen, setSpacesOpen] = useState(false);
 
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -61,7 +57,6 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
   async function handleCreated(space: Workspace) {
     setStoredWorkspaceId(space.id);
     setCreateSpaceOpen(false);
-    setSpacesOpen(true);
     await queryClient.invalidateQueries({
       queryKey: workspacesQueryOptions.queryKey,
       exact: true,
@@ -77,7 +72,7 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
       <SidebarGroup className="px-2 pt-1">
         <Button
           type="button"
-          variant="new"
+          variant="outline"
           className="h-8 w-full justify-start gap-2 px-2 text-xs font-normal"
           onClick={onCreate}
         >
@@ -91,19 +86,9 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
 
       <SidebarGroup>
         <SidebarGroupLabel className="flex items-center gap-1 px-2 font-normal">
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-center gap-1 text-left text-sidebar-foreground/70 hover:text-sidebar-foreground"
-            aria-expanded={spacesOpen}
-            onClick={() => setSpacesOpen((open) => !open)}
-          >
-            {spacesOpen ? (
-              <CaretDownIcon className="size-3 shrink-0" />
-            ) : (
-              <CaretRightIcon className="size-3 shrink-0" />
-            )}
-            <span className="truncate">Spaces</span>
-          </button>
+          <span className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-wide text-sidebar-foreground/70">
+            Spaces
+          </span>
           <button
             type="button"
             className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
@@ -114,20 +99,18 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
           </button>
         </SidebarGroupLabel>
 
-        {spacesOpen ? (
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5">
-              {ordered.map((space) => (
-                <SpaceRow
-                  key={space.id}
-                  space={space}
-                  isActive={space.id === activeSpaceId}
-                  onSelect={() => selectSpace(space.id)}
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        ) : null}
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-0.5">
+            {ordered.map((space) => (
+              <SpaceRow
+                key={space.id}
+                space={space}
+                isActive={space.id === activeSpaceId}
+                onSelect={() => selectSpace(space.id)}
+              />
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
       </SidebarGroup>
 
       <CreateWorkspaceDialog
@@ -148,16 +131,38 @@ function SpaceRow({
   isActive: boolean;
   onSelect: () => void;
 }) {
+  const [open, setOpen] = useState(isActive);
+  const search = useRouterState({
+    select: (state) => state.location.search as { category?: string },
+  });
   const { data: collections = [] } = useQuery({
     ...vaultCategoriesQueryOptions(space.id),
-    enabled: isActive,
+    enabled: open,
   });
+
+  useEffect(() => {
+    if (isActive) setOpen(true);
+  }, [isActive]);
 
   const label = space.name.trim() || "Untitled";
 
   return (
     <SidebarMenuItem>
       <div className="flex w-full items-center gap-0.5">
+        <button
+          type="button"
+          className="flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          aria-expanded={open}
+          aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? (
+            <CaretDownIcon className="size-3" />
+          ) : (
+            <CaretRightIcon className="size-3" />
+          )}
+        </button>
+
         <SidebarMenuButton
           isActive={isActive}
           size="sm"
@@ -168,65 +173,35 @@ function SpaceRow({
           <SpacePic shaderId={space.shader} />
           <span className="truncate">{label}</span>
         </SidebarMenuButton>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                )}
-                aria-label={`${label} views`}
-              />
-            }
-          >
-            <CaretDownIcon className="size-3" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="right" className="min-w-36">
-            <DropdownMenuItem
-              className="font-normal text-xs"
-              render={
-                <Link
-                  to="/$workspaceId"
-                  params={{ workspaceId: space.id }}
-                  onClick={() => setStoredWorkspaceId(space.id)}
-                />
-              }
-            >
-              All
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="font-normal text-xs"
-              render={
-                <Link
-                  to="/$workspaceId/notes"
-                  params={{ workspaceId: space.id }}
-                  onClick={() => setStoredWorkspaceId(space.id)}
-                />
-              }
-            >
-              Notes
-            </DropdownMenuItem>
-            {collections.map((collection) => (
-              <DropdownMenuItem
-                key={collection.id}
-                className="font-normal text-xs"
-                render={
-                  <Link
-                    to="/$workspaceId/vault"
-                    params={{ workspaceId: space.id }}
-                    search={{ item: undefined }}
-                    onClick={() => setStoredWorkspaceId(space.id)}
-                  />
-                }
-              >
-                {collection.name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
+
+      {open ? (
+        <SidebarMenuSub className="mx-2 ml-4 border-sidebar-border/60">
+          {collections.map((collection) => {
+            const active =
+              isActive && search.category === collection.id;
+            return (
+              <SidebarMenuSubItem key={collection.id}>
+                <SidebarMenuSubButton
+                  size="sm"
+                  isActive={active}
+                  className={cn("font-normal", active && "data-active:bg-sidebar-accent")}
+                  render={
+                    <Link
+                      to="/$workspaceId/vault"
+                      params={{ workspaceId: space.id }}
+                      search={{ category: collection.id }}
+                      onClick={() => setStoredWorkspaceId(space.id)}
+                    />
+                  }
+                >
+                  <span className="truncate">{collection.name}</span>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            );
+          })}
+        </SidebarMenuSub>
+      ) : null}
     </SidebarMenuItem>
   );
 }

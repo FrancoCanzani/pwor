@@ -1,7 +1,7 @@
 import { CaretSortIcon, DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -218,7 +218,7 @@ function VaultItemRow({
 export function VaultPage() {
   const isMobile = useIsMobile();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
-  const { item: openItemId } = useSearch({ from: "/_app/$workspaceId/vault/" });
+  const search = useSearch({ from: "/_app/$workspaceId/vault/" });
   const navigate = useNavigate({ from: "/$workspaceId/vault/" });
   const { data } = useQuery(vaultItemsQueryOptions(workspaceId));
   const { data: categories = [] } = useQuery(
@@ -226,9 +226,20 @@ export function VaultPage() {
   );
   const items = data?.items ?? [];
   const totalBytes = data?.totalBytes ?? 0;
-  const [nav, setNav] = useState<VaultNav>({ mode: "all" });
+  const [nav, setNav] = useState<VaultNav>(() =>
+    search.category
+      ? { mode: "category", categoryId: search.category }
+      : { mode: "all" },
+  );
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<VaultSort>("newest");
+  const openItemId = search.item;
+
+  useEffect(() => {
+    if (search.category) {
+      setNav({ mode: "category", categoryId: search.category });
+    }
+  }, [search.category]);
 
   const filtered = filterAndSortVaultItems(items, { nav, query, sort });
   const openItem =
@@ -238,7 +249,21 @@ export function VaultPage() {
 
   function setViewerOpen(open: boolean, itemId?: string) {
     void navigate({
-      search: () => (open && itemId ? { item: itemId } : {}),
+      search: (prev) => ({
+        category: prev.category,
+        ...(open && itemId ? { item: itemId } : {}),
+      }),
+      replace: true,
+    });
+  }
+
+  function handleNavChange(next: VaultNav) {
+    setNav(next);
+    void navigate({
+      search: (prev) => ({
+        item: prev.item,
+        ...(next.mode === "category" ? { category: next.categoryId } : {}),
+      }),
       replace: true,
     });
   }
@@ -361,7 +386,7 @@ export function VaultPage() {
       categories={categories}
       totalBytes={totalBytes}
       nav={nav}
-      onNavChange={setNav}
+      onNavChange={handleNavChange}
     />
   );
 

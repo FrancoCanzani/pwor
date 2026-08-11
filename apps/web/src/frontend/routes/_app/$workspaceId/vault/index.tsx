@@ -3,9 +3,10 @@ import { z } from "zod";
 
 import { VaultPage } from "@features/vault/components/vault-page";
 
-/** `?item=<id>` opens that item's viewer, so a vault item is linkable. */
+/** `?item=` opens viewer; `?category=` selects a vault category. */
 const vaultSearchSchema = z.object({
   item: z.string().optional(),
+  category: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_app/$workspaceId/vault/")({

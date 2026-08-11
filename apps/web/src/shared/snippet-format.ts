@@ -108,6 +108,22 @@ export function titleFromSnippet(
   return truncateTitle(firstLine);
 }
 
+/** True when a stored title is just pasted source (first line / markup). */
+export function isRawCodeTitle(
+  title: string | null | undefined,
+  content: string,
+): boolean {
+  const t = title?.trim() ?? "";
+  if (!t) return true;
+  const firstLine = content.trim().split("\n")[0]?.trim() ?? "";
+  if (firstLine && (t === firstLine || t === `${firstLine.slice(0, 60).trim()}…`)) {
+    return true;
+  }
+  if (/^[{[<#!/`]/.test(t)) return true;
+  if (/className\s*=/.test(t) || /\(.*\)\s*=>/.test(t)) return true;
+  return false;
+}
+
 export function titleFromText(content: string): string {
   const line = content.trim().split(/\n/)[0] ?? content.trim();
   return line.length > 60 ? `${line.slice(0, 60).trim()}…` : line;

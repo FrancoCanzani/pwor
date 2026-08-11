@@ -24,6 +24,12 @@ import { SheetViewer } from "@features/vault/components/sheet-viewer";
 import { SnippetViewer } from "@features/vault/components/snippet-viewer";
 import { isTextPreviewable } from "@features/vault/lib/preview";
 import { isSheetPreviewable } from "@features/vault/lib/sheet";
+import { inferLanguageFromContent } from "@shared/infer-language";
+import {
+  dedentCode,
+  isRawCodeTitle,
+  titleFromSnippet,
+} from "@shared/snippet-format";
 
 const SNIPPET_SAVE_MS = 500;
 
@@ -175,32 +181,7 @@ export function VaultViewer({
   const savedLanguageRef = useRef<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
-
-  useEffect(() => {
-    if (!open || !isSnippet) {
-      dirtyRef.current = false;
-      setSnippetContent(null);
-      return;
-    }
-    if (detailPending || textContent === null) return;
-    if (dirtyRef.current) return;
-    const nextTitle = displayItem.title ?? "";
-    const nextLanguage = displayItem.language;
-    setTitleDraft(nextTitle);
-    setSnippetContent(textContent);
-    setSnippetLanguage(nextLanguage);
-    savedTitleRef.current = nextTitle;
-    savedContentRef.current = textContent;
-    savedLanguageRef.current = nextLanguage;
-  }, [
-    open,
-    isSnippet,
-    detailPending,
-    item.id,
-    displayItem.title,
-    displayItem.language,
-    textContent,
-  ]);
+  const repairedIdRef = useRef<string | null>(null);
 
   const saveSnippet = useMutation({
     mutationFn: (patch: {
@@ -228,6 +209,80 @@ export function VaultViewer({
     },
     onError: () => toast.error("Couldn’t save snippet"),
   });
+  const saveSnippetMutate = saveSnippet.mutate;
+  const saveSnippetMutateRef = useRef(saveSnippetMutate);
+  saveSnippetMutateRef.current = saveSnippetMutate;
+
+  useEffect(() => {
+    if (!open || !isSnippet) {
+      dirtyRef.current = false;
+      repairedIdRef.current = null;
+      setSnippetContent(null);
+      return;
+    }
+    if (detailPending || textContent === null) return;
+    if (dirtyRef.current) return;
+
+    const normalizedContent = dedentCode(textContent);
+    const inferredLanguage = inferLanguageFromContent(normalizedContent);
+    const storedLanguage = displayItem.language;
+    let nextLanguage = storedLanguage ?? inferredLanguage;
+    if (inferredLanguage) {
+      if (!storedLanguage) {
+        nextLanguage = inferredLanguage;
+      } else if (
+        storedLanguage === "html" &&
+        (inferredLanguage === "jsx" || inferredLanguage === "tsx")
+      ) {
+        nextLanguage = inferredLanguage;
+      } else if (
+        storedLanguage === "javascript" &&
+        inferredLanguage === "jsx"
+      ) {
+        nextLanguage = inferredLanguage;
+      } else if (
+        storedLanguage === "typescript" &&
+        inferredLanguage === "tsx"
+      ) {
+        nextLanguage = inferredLanguage;
+      }
+    }
+
+    const storedTitle = displayItem.title ?? "";
+    const nextTitle = isRawCodeTitle(storedTitle, normalizedContent)
+      ? titleFromSnippet(normalizedContent, nextLanguage)
+      : storedTitle;
+
+    setTitleDraft(nextTitle);
+    setSnippetContent(normalizedContent);
+    setSnippetLanguage(nextLanguage);
+    savedTitleRef.current = nextTitle;
+    savedContentRef.current = normalizedContent;
+    savedLanguageRef.current = nextLanguage;
+
+    if (repairedIdRef.current === item.id) return;
+    repairedIdRef.current = item.id;
+
+    const patch: {
+      title?: string | null;
+      content?: string;
+      language?: string | null;
+    } = {};
+    if (nextTitle !== storedTitle) patch.title = nextTitle;
+    if (normalizedContent !== textContent) patch.content = normalizedContent;
+    if (nextLanguage !== storedLanguage) patch.language = nextLanguage;
+    if (Object.keys(patch).length > 0) {
+      saveSnippetMutateRef.current(patch);
+    }
+  }, [
+    open,
+    isSnippet,
+    detailPending,
+    item.id,
+    displayItem.title,
+    displayItem.language,
+    textContent,
+  ]);
 
   function scheduleSnippetSave(next: {
     title?: string;
@@ -301,7 +356,7 @@ export function VaultViewer({
                   scheduleSnippetSave({ title: next });
                 }}
                 placeholder="Snippet title"
-                className="h-8 border-0 px-0 text-sm shadow-none focus-visible:ring-0"
+                className="h-8 pr-8 text-sm font-normal"
                 aria-label="Snippet title"
               />
             </>

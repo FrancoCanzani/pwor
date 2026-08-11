@@ -17,6 +17,7 @@ import {
 } from "@features/vault/api";
 import { PdfViewer } from "@features/vault/components/pdf-viewer";
 import { SheetViewer } from "@features/vault/components/sheet-viewer";
+import { SnippetViewer } from "@features/vault/components/snippet-viewer";
 import { isTextPreviewable } from "@features/vault/lib/preview";
 import { isSheetPreviewable } from "@features/vault/lib/sheet";
 
@@ -106,6 +107,7 @@ export function VaultViewer({
   onOpenChange: (open: boolean) => void;
 }) {
   const isTextItem = item.kind === "text";
+  const isSnippet = item.kind === "snippet";
   const isLinkLike = item.kind === "link";
   const fileUrl = `/api/vault/${item.id}/file`;
   const isImage = item.mimeType?.startsWith("image/") ?? false;
@@ -119,7 +121,7 @@ export function VaultViewer({
 
   const { data: detail } = useQuery({
     ...vaultItemQueryOptions(item.id),
-    enabled: open && (isTextItem || isLinkLike),
+    enabled: open && (isTextItem || isLinkLike || isSnippet),
   });
 
   const { data: fileText } = useQuery({
@@ -132,7 +134,7 @@ export function VaultViewer({
     enabled: open && isSheet,
   });
 
-  const textContent = isTextItem
+  const textContent = isTextItem || isSnippet
     ? (detail?.content?.trim() || null)
     : isLinkLike
       ? (detail?.content?.trim() ||
@@ -147,6 +149,7 @@ export function VaultViewer({
         summary: detail.summary ?? item.summary,
         tags: detail.tags ?? item.tags,
         url: detail.url ?? item.url,
+        language: detail.language ?? item.language,
       }
     : item;
 
@@ -164,7 +167,14 @@ export function VaultViewer({
           </DialogTitle>
         </DialogHeader>
 
-        {isLinkLike ? (
+        {isSnippet ? (
+          textContent !== null ? (
+            <SnippetViewer
+              content={textContent}
+              language={displayItem.language}
+            />
+          ) : null
+        ) : isLinkLike ? (
           <LinkPreview item={displayItem} content={textContent} />
         ) : isTextItem || isTextFile ? (
           <TextPreview

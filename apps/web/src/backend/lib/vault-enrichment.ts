@@ -59,6 +59,18 @@ export async function enrichVaultItem(
   let item = initial;
   const kind = normalizeVaultKind(item.kind);
 
+  if (kind === "snippet") {
+    await db
+      .update(vaultItem)
+      .set({
+        parseStatus: "ready",
+        parseError: null,
+        parsedAt: new Date(),
+      })
+      .where(eq(vaultItem.id, vaultItemId));
+    return;
+  }
+
   if (kind === "link" && item.url) {
     const page = await fetchPageMetadata(item.url);
     const title = page.title || item.title || item.url;

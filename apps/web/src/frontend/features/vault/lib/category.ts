@@ -1,9 +1,15 @@
 import type { VaultItem } from "@features/vault/api";
 
-/** System type filters in the aside — not user categories. */
-export type VaultTypeFacet = "links" | "docs" | "images" | "text";
+/** System type filters in the aside — not user collections. */
+export type VaultTypeFacet =
+  | "links"
+  | "docs"
+  | "images"
+  | "text"
+  | "snippets";
 
 export const TYPE_FACET_ORDER: VaultTypeFacet[] = [
+  "snippets",
   "links",
   "docs",
   "images",
@@ -15,6 +21,7 @@ export const TYPE_FACET_LABEL: Record<VaultTypeFacet, string> = {
   docs: "Docs",
   images: "Images",
   text: "Text",
+  snippets: "Snippets",
 };
 
 export function typeFacetOf(item: VaultItem): VaultTypeFacet {
@@ -23,6 +30,8 @@ export function typeFacetOf(item: VaultItem): VaultTypeFacet {
       return "links";
     case "text":
       return "text";
+    case "snippet":
+      return "snippets";
     case "file":
       if (item.mimeType?.startsWith("image/")) return "images";
       return "docs";

@@ -106,6 +106,8 @@ export function kindLabel(item: VaultItem): string {
   switch (item.kind) {
     case "text":
       return "text";
+    case "snippet":
+      return item.language ?? "snippet";
     case "link":
       return item.siteName ? "site" : "link";
     case "file":

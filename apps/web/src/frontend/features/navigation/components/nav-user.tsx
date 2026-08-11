@@ -85,7 +85,7 @@ export function NavUser({ user }: { user: ShellUser }) {
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+              <DropdownMenuLabel>Spaces</DropdownMenuLabel>
               {workspaces.map((workspace) => (
                 <DropdownMenuItem
                   key={workspace.id}
@@ -105,7 +105,7 @@ export function NavUser({ user }: { user: ShellUser }) {
                 onClick={() => setCreateOpen(true)}
               >
                 <PlusIcon className="size-3" />
-                New workspace
+                New space
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

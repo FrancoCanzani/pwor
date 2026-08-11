@@ -119,13 +119,14 @@ export function titleFromText(content: string): string {
 }
 
 /** Stored kinds only. Legacy DB values `site` / `tweet` normalize to `link`. */
-export type VaultStoredKind = "file" | "link" | "text";
+export type VaultStoredKind = "file" | "link" | "text" | "snippet";
 
 export function normalizeVaultKind(kind: string): VaultStoredKind {
   switch (kind) {
     case "file":
     case "link":
     case "text":
+    case "snippet":
       return kind;
     case "site":
     case "tweet":

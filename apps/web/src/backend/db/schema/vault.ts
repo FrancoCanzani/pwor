@@ -34,14 +34,15 @@ export const vaultItem = sqliteTable("vault_item", {
   categoryId: text("category_id").references(() => vaultCategory.id, {
     onDelete: "set null",
   }),
-  // "link" remains for legacy rows only — creation and listing no longer use it.
-  kind: text("kind", { enum: ["file", "link", "text"] })
+  kind: text("kind", { enum: ["file", "link", "text", "snippet"] })
     .notNull()
     .default("file"),
   title: text("title"),
   summary: text("summary"),
   /** Freeform AI tags — topics, entities, places, themes. Not a fixed enum. */
   tags: text("tags", { mode: "json" }).$type<string[]>(),
+  /** Language id for snippets (e.g. typescript, python). */
+  language: text("language"),
   r2Key: text("r2_key"),
   mimeType: text("mime_type"),
   url: text("url"),

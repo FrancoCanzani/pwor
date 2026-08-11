@@ -48,7 +48,7 @@ export function CreateWorkspaceDialog({
     >
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>New workspace</DialogTitle>
+          <DialogTitle>New space</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Input
@@ -60,7 +60,7 @@ export function CreateWorkspaceDialog({
           />
           {create.isError ? (
             <p className="text-xs text-destructive">
-              Couldn’t create workspace.
+              Couldn’t create space.
             </p>
           ) : null}
           <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0">

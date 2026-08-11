@@ -1,33 +1,25 @@
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
+import { CreateDialog } from "@features/command/components/create-dialog";
+import { SpacesNav } from "@features/navigation/components/spaces-nav";
 import {
   NavUser,
   type ShellUser,
 } from "@features/navigation/components/nav-user";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-
-const navItems = [
-  { to: "/$workspaceId/notes", segment: "notes", label: "Notes" },
-  { to: "/$workspaceId/vault", segment: "vault", label: "Vault" },
-] as const;
 
 export function AppShell({
   user,
@@ -39,12 +31,12 @@ export function AppShell({
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const activeSegment = pathname.split("/")[2];
-  const isNotes = activeSegment === "notes";
-  const isVault = activeSegment === "vault";
-  const isFlush = isNotes || isVault;
+  const segments = pathname.split("/").filter(Boolean);
+  const isSettings = segments[0] === "settings";
+  const isFlush = !isSettings;
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const { id: currentWorkspaceId } = useCurrentWorkspace();
+  useHotkey("Mod+N", () => setCreateOpen(true));
 
   return (
     <TooltipProvider>
@@ -52,6 +44,7 @@ export function AppShell({
         className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
       >
         <CommandPalette />
+        <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
 
         <Sidebar collapsible="icon">
           <SidebarHeader className="h-12 flex-row items-center gap-0 p-2">
@@ -64,35 +57,7 @@ export function AppShell({
           </SidebarHeader>
 
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-0.5">
-                  {currentWorkspaceId
-                    ? navItems.map((item) => {
-                        const isActive = activeSegment === item.segment;
-
-                        return (
-                          <SidebarMenuItem key={item.to}>
-                            <SidebarMenuButton
-                              render={
-                                <Link
-                                  to={item.to}
-                                  params={{ workspaceId: currentWorkspaceId }}
-                                />
-                              }
-                              isActive={isActive}
-                              tooltip={item.label}
-                              size="sm"
-                            >
-                              {item.label}
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        );
-                      })
-                    : null}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            <SpacesNav onCreate={() => setCreateOpen(true)} />
           </SidebarContent>
 
           <SidebarFooter>

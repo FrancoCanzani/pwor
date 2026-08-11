@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { WorkspaceDetail } from "@features/workspaces/components/workspace-detail";
+import { SpaceLibraryPage } from "@features/spaces/components/space-library-page";
 
 export const Route = createFileRoute("/_app/$workspaceId/")({
-  component: WorkspaceDetailRoute,
+  component: SpaceLibraryRoute,
 });
 
-function WorkspaceDetailRoute() {
-  const { workspaceId } = Route.useParams();
-  return <WorkspaceDetail workspaceId={workspaceId} />;
+function SpaceLibraryRoute() {
+  return <SpaceLibraryPage />;
 }

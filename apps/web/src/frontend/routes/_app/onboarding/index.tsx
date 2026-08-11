@@ -65,13 +65,13 @@ function WorkspaceStep() {
     <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <div className="flex flex-col gap-2">
         <Label
-          htmlFor="workspace-name"
+          htmlFor="space-name"
           className="text-xs text-muted-foreground"
         >
-          Workspace name
+          Space name
         </Label>
         <Input
-          id="workspace-name"
+          id="space-name"
           autoFocus
           autoComplete="off"
           placeholder="Work, Life, Freelance…"
@@ -190,7 +190,7 @@ function OnboardingPage() {
         <p className="mb-6 text-xs leading-normal text-muted-foreground">
           {step === "profile"
             ? "Tell us your name. Avatar is optional."
-            : "Give your first workspace a name — Work, Life, whatever fits."}
+            : "Give your first space a name — Work, Life, whatever fits."}
         </p>
 
         {step === "workspace" ? (

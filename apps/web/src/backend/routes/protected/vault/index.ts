@@ -11,6 +11,11 @@ import {
   parseCaptureInput,
   titleFromText,
 } from "../../../lib/vault-capture";
+import {
+  isCodeSnippetFile,
+  languageFromFilename,
+  languageFromMime,
+} from "../../../lib/snippet-language";
 import { scheduleVaultEnrichment } from "../../../lib/vault-enrichment";
 import {
   putVaultObject,
@@ -35,6 +40,14 @@ const updateVaultItemSchema = z
 
 const captureSchema = z.object({
   input: z.string().trim().min(1),
+  workspaceId: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
+});
+
+const createSnippetSchema = z.object({
+  content: z.string().min(1),
+  title: z.string().trim().min(1).max(200).nullable().optional(),
+  language: z.string().trim().min(1).max(40).nullable().optional(),
   workspaceId: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
 });
@@ -98,8 +111,39 @@ const app = new Hono<AppEnv>()
     }
 
     const id = crypto.randomUUID();
-    const r2Key = `${user.id}/${id}/${file.name}`;
     const contentType = file.type || "application/octet-stream";
+
+    if (isCodeSnippetFile(file.name, contentType)) {
+      const content = await file.text();
+      const language =
+        languageFromFilename(file.name) ||
+        languageFromMime(contentType) ||
+        null;
+
+      await db.insert(vaultItem).values({
+        id,
+        userId: user.id,
+        kind: "snippet",
+        title: file.name,
+        content,
+        language,
+        mimeType: contentType,
+        workspaceId,
+        categoryId,
+        parseStatus: "ready",
+        parsedAt: new Date(),
+      });
+
+      const [created] = await db
+        .select()
+        .from(vaultItem)
+        .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+        .limit(1);
+
+      return c.json(serializeVaultItem(created!), 201);
+    }
+
+    const r2Key = `${user.id}/${id}/${file.name}`;
 
     await putVaultObject(
       c.env.VAULT_BUCKET,
@@ -120,6 +164,41 @@ const app = new Hono<AppEnv>()
     });
 
     scheduleVaultEnrichment(c.executionCtx, c.env, id);
+
+    const [created] = await db
+      .select()
+      .from(vaultItem)
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+      .limit(1);
+
+    return c.json(serializeVaultItem(created!), 201);
+  })
+
+  .post("/snippet", zValidator("json", createSnippetSchema), async (c) => {
+    const user = c.get("user")!;
+    const { content, title, language, workspaceId, categoryId } =
+      c.req.valid("json");
+    const db = createDb(c.env.DB);
+    const workspace = workspaceId ?? null;
+    if (categoryId) {
+      await assertCategoryForWorkspace(db, categoryId, user.id, workspace);
+    }
+
+    const id = crypto.randomUUID();
+    const resolvedTitle = title?.trim() || titleFromText(content);
+
+    await db.insert(vaultItem).values({
+      id,
+      userId: user.id,
+      kind: "snippet",
+      title: resolvedTitle,
+      content,
+      language: language ?? null,
+      workspaceId: workspace,
+      categoryId: categoryId ?? null,
+      parseStatus: "ready",
+      parsedAt: new Date(),
+    });
 
     const [created] = await db
       .select()

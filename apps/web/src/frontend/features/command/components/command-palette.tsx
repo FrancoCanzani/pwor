@@ -20,6 +20,7 @@ import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-worksp
 /** Every destination shares a single `{ workspaceId }` param, which keeps
  *  `navigate` type-safe across the union. Note detail is handled separately. */
 const NAV_ITEMS = [
+  { to: "/$workspaceId", label: "Library" },
   { to: "/$workspaceId/notes", label: "Notes" },
   { to: "/$workspaceId/vault", label: "Vault" },
 ] as const;
@@ -92,7 +93,7 @@ export function CommandPalette() {
             run: () =>
               select(workspace.id, () =>
                 navigate({
-                  to: "/$workspaceId/notes",
+                  to: "/$workspaceId",
                   params: { workspaceId: workspace.id },
                 }),
               ),

@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 
-export type VaultItemKind = "file" | "link" | "text";
+export type VaultItemKind = "file" | "link" | "text" | "snippet";
 
 export type VaultParseStatus = "pending" | "ready" | "failed" | "skipped";
 
@@ -12,6 +12,7 @@ export type VaultItem = {
   title: string | null;
   summary: string | null;
   tags: string[] | null;
+  language: string | null;
   mimeType: string | null;
   url: string | null;
   siteName: string | null;
@@ -53,6 +54,7 @@ export function vaultItemsQueryOptions(workspaceId?: string) {
 export type VaultItemDetail = VaultItem & {
   content: string | null;
   extractedMarkdown: string | null;
+  language: string | null;
 };
 
 async function fetchVaultItem(id: string): Promise<VaultItemDetail> {
@@ -161,6 +163,35 @@ export async function uploadVaultItem(
 
   return parseJson<{ id: string }>(
     await fetch("/api/vault", { method: "POST", body: formData }),
+  );
+}
+
+export async function createVaultSnippet(
+  content: string,
+  {
+    title,
+    language,
+    workspaceId,
+    categoryId,
+  }: {
+    title?: string | null;
+    language?: string | null;
+    workspaceId?: string | null;
+    categoryId?: string | null;
+  } = {},
+): Promise<VaultItem> {
+  return parseJson<VaultItem>(
+    await fetch("/api/vault/snippet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content,
+        title,
+        language,
+        workspaceId,
+        categoryId,
+      }),
+    }),
   );
 }
 

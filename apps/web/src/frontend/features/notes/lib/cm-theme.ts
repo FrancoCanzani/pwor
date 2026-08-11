@@ -1,9 +1,18 @@
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+} from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { type Extension, EditorState } from "@codemirror/state";
 import {
   EditorView,
+  keymap,
   placeholder as placeholderExt,
 } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
 import { GFM } from "@lezer/markdown";
 import {
   prosemarkBaseThemeSetup,
@@ -17,13 +26,66 @@ import {
   type WikiLinkEditorOptions,
 } from "@features/notes/lib/cm-wiki-links";
 
-/** Map ProseMark tokens onto Pwor theme vars; preview uses Geist Sans. */
-export const pworProsemarkTheme = EditorView.theme({
+export type NoteEditorMode = "preview" | "source";
+
+const sourceHighlight = HighlightStyle.define([
+  { tag: tags.heading, fontWeight: "700", color: "var(--foreground)" },
+  { tag: tags.heading1, fontSize: "1.35em", lineHeight: "1.3" },
+  { tag: tags.heading2, fontSize: "1.15em", lineHeight: "1.35" },
+  { tag: tags.heading3, fontSize: "1.05em" },
+  { tag: tags.strong, fontWeight: "700" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+  { tag: tags.link, color: "var(--muted-foreground)" },
+  { tag: tags.url, color: "var(--muted-foreground)" },
+  { tag: tags.monospace, color: "var(--muted-foreground)" },
+  { tag: tags.processingInstruction, color: "var(--muted-foreground)" },
+  { tag: tags.meta, color: "var(--muted-foreground)" },
+  { tag: tags.comment, color: "var(--muted-foreground)" },
+  { tag: tags.quote, color: "var(--muted-foreground)", fontStyle: "italic" },
+  { tag: tags.list, color: "var(--foreground)" },
+]);
+
+const baseChromeTheme = EditorView.theme({
   "&": {
     height: "100%",
-    fontSize: "15px",
     backgroundColor: "transparent",
     color: "var(--foreground)",
+  },
+  ".cm-line": { padding: "0" },
+  "&.cm-focused": { outline: "none" },
+  ".cm-cursor, .cm-dropCursor": {
+    borderLeftColor: "var(--foreground)",
+  },
+  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
+    {
+      backgroundColor: "var(--muted) !important",
+    },
+  ".cm-activeLine": { backgroundColor: "transparent" },
+  ".cm-gutters": { display: "none" },
+  ".cm-placeholder": {
+    color: "var(--muted-foreground)",
+    fontStyle: "normal",
+  },
+});
+
+const sourceTheme = EditorView.theme({
+  "&": { fontSize: "14px" },
+  ".cm-scroller": {
+    fontFamily: "var(--font-mono)",
+    lineHeight: "1.65",
+    fontWeight: "400",
+  },
+  ".cm-content": {
+    padding: "0",
+    caretColor: "var(--foreground)",
+    fontFamily: "var(--font-mono)",
+  },
+});
+
+const previewTheme = EditorView.theme({
+  "&": {
+    fontSize: "15px",
     "--pm-cursor-color": "var(--foreground)",
     "--pm-header-mark-color": "var(--muted-foreground)",
     "--pm-link-color": "var(--foreground)",
@@ -44,29 +106,6 @@ export const pworProsemarkTheme = EditorView.theme({
     padding: "0",
     caretColor: "var(--foreground)",
     fontFamily: "var(--font-sans)",
-  },
-  ".cm-line": {
-    padding: "0",
-  },
-  "&.cm-focused": {
-    outline: "none",
-  },
-  ".cm-cursor, .cm-dropCursor": {
-    borderLeftColor: "var(--foreground)",
-  },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
-    {
-      backgroundColor: "var(--muted) !important",
-    },
-  ".cm-activeLine": {
-    backgroundColor: "transparent",
-  },
-  ".cm-gutters": {
-    display: "none",
-  },
-  ".cm-placeholder": {
-    color: "var(--muted-foreground)",
-    fontStyle: "normal",
   },
 });
 
@@ -158,28 +197,51 @@ function createImageUploadHandler(
   });
 }
 
+function modeExtensions(mode: NoteEditorMode): Extension[] {
+  if (mode === "source") {
+    return [
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      markdown({
+        base: markdownLanguage,
+        extensions: [GFM],
+      }),
+      syntaxHighlighting(sourceHighlight),
+      baseChromeTheme,
+      sourceTheme,
+      EditorView.lineWrapping,
+    ];
+  }
+
+  return [
+    markdown({
+      base: markdownLanguage,
+      extensions: [GFM, ...prosemarkMarkdownSyntaxExtensions],
+    }),
+    prosemarkBasicSetup(),
+    prosemarkBaseThemeSetup(),
+    baseChromeTheme,
+    previewTheme,
+  ];
+}
+
 export function createNoteEditorState({
   doc,
+  mode = "preview",
   placeholder,
   onChange,
   uploadImage,
   wikiLinks,
 }: {
   doc: string;
+  mode?: NoteEditorMode;
   placeholder?: string;
   onChange: (value: string) => void;
   uploadImage?: (file: File) => Promise<{ url: string }>;
   wikiLinks?: WikiLinkEditorOptions;
 }) {
   const extensions: Extension[] = [
-    markdown({
-      base: markdownLanguage,
-      // Skip @codemirror/language-data — loading every grammar freezes large notes.
-      extensions: [GFM, ...prosemarkMarkdownSyntaxExtensions],
-    }),
-    prosemarkBasicSetup(),
-    prosemarkBaseThemeSetup(),
-    pworProsemarkTheme,
+    ...modeExtensions(mode),
     placeholder ? placeholderExt(placeholder) : [],
     createHtmlPasteHandler(),
     uploadImage ? createImageUploadHandler(uploadImage) : [],

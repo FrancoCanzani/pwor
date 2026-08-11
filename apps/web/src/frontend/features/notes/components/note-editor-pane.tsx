@@ -3,6 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
@@ -19,8 +20,20 @@ import {
   type NoteListItem,
 } from "@features/notes/api";
 import { NoteEditor } from "@features/notes/components/note-editor";
+import type { NoteEditorMode } from "@features/notes/lib/cm-theme";
 
 const SAVE_DEBOUNCE_MS = 500;
+const EDITOR_MODE_KEY = "pwor-note-editor-mode";
+
+function readEditorMode(): NoteEditorMode {
+  try {
+    const raw = localStorage.getItem(EDITOR_MODE_KEY);
+    if (raw === "source" || raw === "preview") return raw;
+  } catch {
+    // privacy / unavailable storage
+  }
+  return "preview";
+}
 
 export function NoteEditorPane({ noteId }: { noteId: string }) {
   const queryClient = useQueryClient();
@@ -30,6 +43,7 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
   const { data: notes = [] } = useQuery(notesQueryOptions(workspaceId));
 
   const [title, setTitle] = useState("");
+  const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error" | "conflict"
   >("idle");
@@ -45,6 +59,23 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
   const conflictRef = useRef(false);
   const noteIdRef = useRef(noteId);
   noteIdRef.current = noteId;
+
+  function setEditorMode(next: NoteEditorMode) {
+    setMode(next);
+    try {
+      localStorage.setItem(EDITOR_MODE_KEY, next);
+    } catch {
+      // privacy / unavailable storage
+    }
+  }
+
+  function toggleEditorMode() {
+    setEditorMode(mode === "preview" ? "source" : "preview");
+  }
+
+  useHotkey("Mod+Alt+M", () => toggleEditorMode(), {
+    enabled: note != null && saveState !== "conflict",
+  });
 
   useEffect(() => {
     savedBodyRef.current = null;
@@ -259,13 +290,24 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
             >
               Reload
             </Button>
-          ) : null}
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto shrink-0 px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground"
+              onClick={toggleEditorMode}
+              title="Toggle source / preview (⌘⌥M)"
+            >
+              {mode === "preview" ? "Source" : "Preview"}
+            </Button>
+          )}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-4 pb-20 md:px-8">
         <div className="mx-auto w-full max-w-3xl">
           <NoteEditor
-            key={`${note.id}:${editorNonce}`}
+            key={`${note.id}:${mode}:${editorNonce}`}
+            mode={mode}
             initialDoc={latestBodyRef.current ?? note.body}
             onChange={handleBodyChange}
             uploadImage={(file) => uploadNoteImage(noteId, file)}

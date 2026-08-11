@@ -3,7 +3,10 @@ import { useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 import type { WikiLinkEditorOptions } from "@features/notes/lib/cm-wiki-links";
-import { createNoteEditorState } from "@features/notes/lib/cm-theme";
+import {
+  createNoteEditorState,
+  type NoteEditorMode,
+} from "@features/notes/lib/cm-theme";
 import type { NoteTitleRef } from "@features/notes/lib/wiki-links";
 
 function notesFingerprint(notes: readonly NoteTitleRef[] | undefined): string {
@@ -13,6 +16,7 @@ function notesFingerprint(notes: readonly NoteTitleRef[] | undefined): string {
 
 export function NoteEditor({
   initialDoc,
+  mode = "preview",
   placeholder = "Start writing…",
   onChange,
   uploadImage,
@@ -21,6 +25,7 @@ export function NoteEditor({
   autoFocus = true,
 }: {
   initialDoc: string;
+  mode?: NoteEditorMode;
   placeholder?: string;
   onChange: (value: string) => void;
   uploadImage?: (file: File) => Promise<{ url: string }>;
@@ -44,6 +49,7 @@ export function NoteEditor({
     const view = new EditorView({
       state: createNoteEditorState({
         doc: initialDoc,
+        mode,
         placeholder,
         onChange: (value) => onChangeRef.current(value),
         uploadImage: uploadImageRef.current
@@ -69,7 +75,8 @@ export function NoteEditor({
       viewRef.current = null;
       view.destroy();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- remount via key={noteId}
+    // Remount when note or mode changes (parent key includes both).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fingerprint = notesFingerprint(
@@ -85,6 +92,7 @@ export function NoteEditor({
     <div
       ref={hostRef}
       data-note-editor
+      data-editor-mode={mode}
       className={cn(
         "min-h-[60vh] w-full [&_.cm-editor]:min-h-[60vh]",
         className,

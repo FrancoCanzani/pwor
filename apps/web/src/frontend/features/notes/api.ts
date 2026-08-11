@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
+import { toEpochMs } from "@shared/time";
 
 export type NoteListItem = {
   id: string;
@@ -26,12 +27,7 @@ export class NoteConflictError extends Error {
   }
 }
 
-export function toEpochMs(value: string | Date | number): number {
-  if (typeof value === "number") return value;
-  if (value instanceof Date) return value.getTime();
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? Number.NaN : parsed;
-}
+export { toEpochMs };
 
 async function fetchNotes(workspaceId?: string): Promise<NoteListItem[]> {
   const params = new URLSearchParams();

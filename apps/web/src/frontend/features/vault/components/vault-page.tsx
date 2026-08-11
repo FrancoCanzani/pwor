@@ -51,32 +51,17 @@ import {
   type VaultNav,
   type VaultSort,
 } from "@features/vault/lib/list";
-import { isSheetPreviewable } from "@features/vault/lib/sheet";
-
-function itemKindLabel(item: VaultItem): string {
-  if (item.kind === "file" && isSheetPreviewable(item.mimeType, item.title)) {
-    return "sheet";
-  }
-  return kindLabel(item);
-}
 
 function VaultItemRow({
   item,
   categories,
+  onOpen,
 }: {
   item: VaultItem;
   categories: { id: string; name: string }[];
+  onOpen: (item: VaultItem) => void;
 }) {
   const queryClient = useQueryClient();
-  const { item: openItemId } = useSearch({ from: "/_app/$workspaceId/vault/" });
-  const navigate = useNavigate({ from: "/$workspaceId/vault/" });
-
-  const viewerOpen = openItemId === item.id;
-  const setViewerOpen = (open: boolean) =>
-    navigate({
-      search: () => (open ? { item: item.id } : {}),
-      replace: true,
-    });
 
   const remove = useMutation({
     mutationFn: () => deleteVaultItem(item.id),
@@ -105,12 +90,12 @@ function VaultItemRow({
       <button
         type="button"
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
-        onClick={() => setViewerOpen(true)}
+        onClick={() => onOpen(item)}
       >
         <span className="flex min-w-0 items-baseline gap-2">
           <span className="truncate text-sm">{item.title ?? "Untitled"}</span>
           <span className="shrink-0 text-xs text-muted-foreground">
-            {itemKindLabel(item)}
+            {kindLabel(item)}
           </span>
           {item.parseStatus === "pending" ? (
             <span className="shrink-0 text-xs text-muted-foreground">
@@ -132,8 +117,6 @@ function VaultItemRow({
         ) : null}
       </button>
 
-      <VaultViewer item={item} open={viewerOpen} onOpenChange={setViewerOpen} />
-
       <div className="flex shrink-0 items-center gap-3">
         <span className="font-nums text-xs text-muted-foreground">
           {formatVaultDate(item.createdAt)}
@@ -149,7 +132,7 @@ function VaultItemRow({
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 className="font-normal text-xs"
-                onClick={() => setViewerOpen(true)}
+                onClick={() => onOpen(item)}
               >
                 Open
               </DropdownMenuItem>
@@ -235,6 +218,8 @@ function VaultItemRow({
 export function VaultPage() {
   const isMobile = useIsMobile();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
+  const { item: openItemId } = useSearch({ from: "/_app/$workspaceId/vault/" });
+  const navigate = useNavigate({ from: "/$workspaceId/vault/" });
   const { data } = useQuery(vaultItemsQueryOptions(workspaceId));
   const { data: categories = [] } = useQuery(
     vaultCategoriesQueryOptions(workspaceId),
@@ -246,6 +231,17 @@ export function VaultPage() {
   const [sort, setSort] = useState<VaultSort>("newest");
 
   const filtered = filterAndSortVaultItems(items, { nav, query, sort });
+  const openItem =
+    openItemId != null
+      ? (items.find((item) => item.id === openItemId) ?? null)
+      : null;
+
+  function setViewerOpen(open: boolean, itemId?: string) {
+    void navigate({
+      search: () => (open && itemId ? { item: itemId } : {}),
+      replace: true,
+    });
+  }
 
   const emptyTitle = (() => {
     if (query.trim()) return "No matches";
@@ -337,6 +333,7 @@ export function VaultPage() {
               key={item.id}
               item={item}
               categories={categories}
+              onOpen={(next) => setViewerOpen(true, next.id)}
             />
           ))}
         </ul>
@@ -348,6 +345,13 @@ export function VaultPage() {
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {toolbar}
       {list}
+      {openItem ? (
+        <VaultViewer
+          item={openItem}
+          open
+          onOpenChange={(open) => setViewerOpen(open, openItem.id)}
+        />
+      ) : null}
     </div>
   );
 

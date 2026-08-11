@@ -21,7 +21,7 @@ import {
   type NoteListItem,
 } from "@features/notes/api";
 import { NotesList } from "@features/notes/components/notes-list";
-import { EMPTY_NOTE_BODY } from "../../../../shared/note-frontmatter";
+import { EMPTY_NOTE_BODY } from "@shared/note-frontmatter";
 
 export function NotesLayout() {
   const navigate = useNavigate();

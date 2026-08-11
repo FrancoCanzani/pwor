@@ -19,9 +19,7 @@ export const TYPE_FACET_LABEL: Record<VaultTypeFacet, string> = {
 
 export function typeFacetOf(item: VaultItem): VaultTypeFacet {
   switch (item.kind) {
-    case "tweet":
     case "link":
-    case "site":
       return "links";
     case "text":
       return "text";

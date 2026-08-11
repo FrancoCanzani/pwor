@@ -25,6 +25,7 @@ export default defineConfig({
       "@lib": path.resolve(__dirname, "./src/frontend/lib"),
       "@routes": path.resolve(__dirname, "./src/frontend/routes"),
       "@components": path.resolve(__dirname, "./src/frontend/components"),
+      "@shared": path.resolve(__dirname, "./src/shared"),
     },
   },
   build: {

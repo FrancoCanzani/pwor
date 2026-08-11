@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -7,9 +7,8 @@ import { z } from "zod";
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import {
-  detectCaptureKind,
-  extractUrl,
-  fetchPageMetadata,
+  normalizeVaultKind,
+  parseCaptureInput,
   titleFromText,
 } from "../../../lib/vault-capture";
 import { scheduleVaultEnrichment } from "../../../lib/vault-enrichment";
@@ -19,8 +18,6 @@ import {
 } from "../../../lib/vault-storage";
 import { vaultCategory, vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
-
-const ACTIVE_KINDS = ["file", "link", "text", "tweet", "site"] as const;
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
@@ -36,12 +33,6 @@ const updateVaultItemSchema = z
     (value) => value.workspaceId !== undefined || value.categoryId !== undefined,
     { message: "workspaceId or categoryId is required" },
   );
-
-const createTextSchema = z.object({
-  content: z.string().trim().min(1),
-  workspaceId: z.string().nullable().optional(),
-  categoryId: z.string().nullable().optional(),
-});
 
 const captureSchema = z.object({
   input: z.string().trim().min(1),
@@ -62,17 +53,28 @@ const categoriesQuerySchema = z.object({
   workspaceId: z.string().optional(),
 });
 
-async function assertCategoryOwned(
+function serializeVaultItem<T extends { kind: string }>(item: T) {
+  return { ...item, kind: normalizeVaultKind(item.kind) };
+}
+
+async function assertCategoryForWorkspace(
   db: ReturnType<typeof createDb>,
   categoryId: string,
   userId: string,
+  workspaceId: string | null,
 ) {
   const [row] = await db
-    .select({ id: vaultCategory.id })
+    .select({
+      id: vaultCategory.id,
+      workspaceId: vaultCategory.workspaceId,
+    })
     .from(vaultCategory)
     .where(ownedBy(vaultCategory.id, categoryId, vaultCategory.userId, userId))
     .limit(1);
   if (!row) throw new HTTPException(404, { message: "Category not found" });
+  if ((row.workspaceId ?? null) !== (workspaceId ?? null)) {
+    throw new HTTPException(400, { message: "Category workspace mismatch" });
+  }
 }
 
 const app = new Hono<AppEnv>()
@@ -92,7 +94,9 @@ const app = new Hono<AppEnv>()
     }
 
     const db = createDb(c.env.DB);
-    if (categoryId) await assertCategoryOwned(db, categoryId, user.id);
+    if (categoryId) {
+      await assertCategoryForWorkspace(db, categoryId, user.id, workspaceId);
+    }
 
     const id = crypto.randomUUID();
     const r2Key = `${user.id}/${id}/${file.name}`;
@@ -124,78 +128,44 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    return c.json(created, 201);
-  })
-
-  .post("/text", zValidator("json", createTextSchema), async (c) => {
-    const user = c.get("user")!;
-    const { content, workspaceId, categoryId } = c.req.valid("json");
-    const db = createDb(c.env.DB);
-    if (categoryId) await assertCategoryOwned(db, categoryId, user.id);
-
-    const id = crypto.randomUUID();
-    const title = titleFromText(content);
-
-    await db.insert(vaultItem).values({
-      id,
-      userId: user.id,
-      kind: "text",
-      title,
-      content,
-      workspaceId: workspaceId ?? null,
-      categoryId: categoryId ?? null,
-      parseStatus: "pending",
-    });
-
-    scheduleVaultEnrichment(c.executionCtx, c.env, id);
-
-    const [created] = await db
-      .select()
-      .from(vaultItem)
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
-
-    return c.json(created, 201);
+    return c.json(serializeVaultItem(created!), 201);
   })
 
   .post("/capture", zValidator("json", captureSchema), async (c) => {
     const user = c.get("user")!;
     const { input, workspaceId, categoryId } = c.req.valid("json");
     const db = createDb(c.env.DB);
-    if (categoryId) await assertCategoryOwned(db, categoryId, user.id);
-
-    const kind = detectCaptureKind(input);
-    const url = extractUrl(input);
-    const id = crypto.randomUUID();
-
-    let title = titleFromText(input);
-    let siteName: string | null = null;
-    let content: string | null = kind === "text" ? input.trim() : null;
-    let summary: string | null = null;
-    let resolvedKind = kind;
-
-    if (url && kind !== "text") {
-      const page = await fetchPageMetadata(url);
-      title = page.title || url;
-      siteName = page.siteName;
-      summary = page.description;
-      content = [page.description, page.text].filter(Boolean).join("\n\n") || null;
-      resolvedKind = "site";
+    const workspace = workspaceId ?? null;
+    if (categoryId) {
+      await assertCategoryForWorkspace(db, categoryId, user.id, workspace);
     }
 
-    await db.insert(vaultItem).values({
-      id,
-      userId: user.id,
-      kind: resolvedKind,
-      title,
-      summary,
-      content,
-      url,
-      siteName,
-      workspaceId: workspaceId ?? null,
-      categoryId: categoryId ?? null,
-      parseStatus: "pending",
-    });
+    const parsed = parseCaptureInput(input);
+    const id = crypto.randomUUID();
+
+    if (parsed.type === "url") {
+      await db.insert(vaultItem).values({
+        id,
+        userId: user.id,
+        kind: "link",
+        title: parsed.url,
+        url: parsed.url,
+        workspaceId: workspace,
+        categoryId: categoryId ?? null,
+        parseStatus: "pending",
+      });
+    } else {
+      await db.insert(vaultItem).values({
+        id,
+        userId: user.id,
+        kind: "text",
+        title: titleFromText(parsed.content),
+        content: parsed.content,
+        workspaceId: workspace,
+        categoryId: categoryId ?? null,
+        parseStatus: "pending",
+      });
+    }
 
     scheduleVaultEnrichment(c.executionCtx, c.env, id);
 
@@ -205,7 +175,7 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    return c.json(created, 201);
+    return c.json(serializeVaultItem(created!), 201);
   })
 
   .get("/categories", zValidator("query", categoriesQuerySchema), async (c) => {
@@ -334,18 +304,17 @@ const app = new Hono<AppEnv>()
     const { workspaceId, inboxItemId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
-    const conditions = [
-      eq(vaultItem.userId, user.id),
-      inArray(vaultItem.kind, [...ACTIVE_KINDS]),
-    ];
+    const conditions = [eq(vaultItem.userId, user.id)];
     if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
     if (inboxItemId) conditions.push(eq(vaultItem.inboxItemId, inboxItemId));
 
-    const items = await db
+    const rows = await db
       .select()
       .from(vaultItem)
       .where(and(...conditions))
       .orderBy(desc(vaultItem.createdAt));
+
+    const items = rows.map(serializeVaultItem);
 
     let totalBytes = 0;
     if (!inboxItemId) {
@@ -373,7 +342,10 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
 
     const [existing] = await db
-      .select({ id: vaultItem.id })
+      .select({
+        id: vaultItem.id,
+        workspaceId: vaultItem.workspaceId,
+      })
       .from(vaultItem)
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
@@ -382,7 +354,17 @@ const app = new Hono<AppEnv>()
       throw new HTTPException(404, { message: "Not found" });
     }
 
-    if (categoryId) await assertCategoryOwned(db, categoryId, user.id);
+    const nextWorkspaceId =
+      workspaceId !== undefined ? workspaceId : existing.workspaceId;
+
+    if (categoryId) {
+      await assertCategoryForWorkspace(
+        db,
+        categoryId,
+        user.id,
+        nextWorkspaceId ?? null,
+      );
+    }
 
     await db
       .update(vaultItem)
@@ -398,7 +380,7 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    return c.json(updated);
+    return c.json(serializeVaultItem(updated!));
   })
 
   .delete("/:id", async (c) => {
@@ -435,7 +417,7 @@ const app = new Hono<AppEnv>()
       throw new HTTPException(404, { message: "Not found" });
     }
 
-    return c.json(item);
+    return c.json(serializeVaultItem(item));
   })
 
   .get("/:id/file", async (c) => {

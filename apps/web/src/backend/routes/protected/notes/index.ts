@@ -12,7 +12,8 @@ import {
   EMPTY_NOTE_BODY,
   inferTitleFromRaw,
   normalizeNoteTitle,
-} from "../../../../shared/note-frontmatter";
+} from "@shared/note-frontmatter";
+import { toEpochMs } from "@shared/time";
 import { deleteNoteImagesFromR2 } from "./cleanup";
 import {
   isAllowedNoteImage,
@@ -60,13 +61,6 @@ function normalizeTitle(title: string | null | undefined) {
 
 function titleFromBody(body: string): string | null {
   return normalizeNoteTitle(inferTitleFromRaw(body).title);
-}
-
-function toEpochMs(value: string | number | Date): number {
-  if (typeof value === "number") return value;
-  if (value instanceof Date) return value.getTime();
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? Number.NaN : parsed;
 }
 
 async function assertOwnedWorkspace(

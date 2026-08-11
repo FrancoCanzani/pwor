@@ -3,6 +3,7 @@ import {
   typeFacetOf,
   type VaultTypeFacet,
 } from "@features/vault/lib/category";
+import { isSheetPreviewable } from "@features/vault/lib/sheet";
 
 export type VaultSort = "newest" | "oldest" | "name";
 
@@ -105,14 +106,12 @@ export function kindLabel(item: VaultItem): string {
   switch (item.kind) {
     case "text":
       return "text";
-    case "tweet":
     case "link":
-      return "link";
-    case "site":
-      return "site";
+      return item.siteName ? "site" : "link";
     case "file":
       if (item.mimeType?.startsWith("image/")) return "image";
       if (item.mimeType === "application/pdf") return "pdf";
+      if (isSheetPreviewable(item.mimeType, item.title)) return "sheet";
       return "file";
     default: {
       const _exhaustive: never = item.kind;

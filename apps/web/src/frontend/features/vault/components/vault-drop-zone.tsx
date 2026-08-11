@@ -8,7 +8,7 @@ import { createNote } from "@features/notes/api";
 import {
   inferTitleFromRaw,
   prependFrontmatter,
-} from "../../../../shared/note-frontmatter";
+} from "@shared/note-frontmatter";
 import { uploadVaultItem } from "@features/vault/api";
 
 const SWEEP_DURATION_MS = 800;

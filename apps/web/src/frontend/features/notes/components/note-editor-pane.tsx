@@ -1,33 +1,18 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  NoteConflictError,
   noteQueryOptions,
   notesQueryOptions,
-  toEpochMs,
-  updateNote,
   uploadNoteImage,
-  type Note,
-  type NoteListItem,
 } from "@features/notes/api";
 import { NoteEditor } from "@features/notes/components/note-editor";
 import type { NoteEditorMode } from "@features/notes/lib/cm-theme";
-import {
-  inferTitleFromRaw,
-  materializeNoteBody,
-  normalizeNoteTitle,
-  parseNoteDocument,
-} from "../../../../shared/note-frontmatter";
+import { useNoteDocumentSave } from "@features/notes/lib/use-note-document-save";
 
-const SAVE_DEBOUNCE_MS = 500;
 const EDITOR_MODE_KEY = "pwor-note-editor-mode";
 
 function readEditorMode(): NoteEditorMode {
@@ -41,28 +26,20 @@ function readEditorMode(): NoteEditorMode {
 }
 
 export function NoteEditorPane({ noteId }: { noteId: string }) {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const { data: note, error } = useQuery(noteQueryOptions(noteId));
   const { data: notes = [] } = useQuery(notesQueryOptions(workspaceId));
-
   const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
-  const [saveState, setSaveState] = useState<
-    "idle" | "saving" | "saved" | "error" | "conflict"
-  >("idle");
-  const [editorNonce, setEditorNonce] = useState(0);
-  const [tags, setTags] = useState<string[]>([]);
 
-  const latestBodyRef = useRef<string | null>(null);
-  const savedBodyRef = useRef<string | null>(null);
-  const savedTitleRef = useRef<string | null>(null);
-  const baseUpdatedAtRef = useRef<string | Date | number | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savingRef = useRef(false);
-  const conflictRef = useRef(false);
-  const noteIdRef = useRef(noteId);
-  noteIdRef.current = noteId;
+  const {
+    saveState,
+    tags,
+    editorNonce,
+    handleBodyChange,
+    reloadFromServer,
+    initialDoc,
+  } = useNoteDocumentSave({ noteId, workspaceId, note });
 
   function setEditorMode(next: NoteEditorMode) {
     setMode(next);
@@ -80,174 +57,6 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
   useHotkey("Mod+Alt+M", () => toggleEditorMode(), {
     enabled: note != null && saveState !== "conflict",
   });
-
-  useEffect(() => {
-    savedBodyRef.current = null;
-    savedTitleRef.current = null;
-    latestBodyRef.current = null;
-    baseUpdatedAtRef.current = null;
-    conflictRef.current = false;
-    setTags([]);
-    setSaveState("idle");
-    if (timerRef.current) clearTimeout(timerRef.current);
-  }, [noteId]);
-
-  useEffect(() => {
-    if (!note) return;
-    if (savedBodyRef.current === null) {
-      const body = materializeNoteBody(note.body, note.title);
-      savedBodyRef.current = body;
-      latestBodyRef.current = body;
-      savedTitleRef.current = normalizeNoteTitle(
-        inferTitleFromRaw(body).title,
-      );
-      setTags(parseNoteDocument(body).tags);
-    }
-    if (baseUpdatedAtRef.current === null) {
-      baseUpdatedAtRef.current = note.updatedAt;
-    }
-  }, [note]);
-
-  function applySavedNote(updated: Note) {
-    savedBodyRef.current = updated.body;
-    savedTitleRef.current = updated.title ?? null;
-    baseUpdatedAtRef.current = updated.updatedAt;
-    conflictRef.current = false;
-    setTags(parseNoteDocument(updated.body).tags);
-    queryClient.setQueryData(noteQueryOptions(noteId).queryKey, updated);
-    queryClient.setQueryData(
-      notesQueryOptions(workspaceId).queryKey,
-      (current: NoteListItem[] | undefined) => {
-        if (!current) return current;
-        const next = current.map((item) =>
-          item.id === updated.id
-            ? {
-                id: updated.id,
-                title: updated.title,
-                workspaceId: updated.workspaceId,
-                updatedAt: updated.updatedAt,
-                createdAt: updated.createdAt,
-              }
-            : item,
-        );
-        return [...next].sort((a, b) => {
-          const aTime = new Date(a.updatedAt).getTime();
-          const bTime = new Date(b.updatedAt).getTime();
-          return bTime - aTime;
-        });
-      },
-    );
-    setSaveState("saved");
-  }
-
-  const saveMutation = useMutation({
-    mutationFn: (patch: {
-      body?: string;
-      title?: string | null;
-      expectedUpdatedAt: string | Date | number;
-    }) => updateNote(noteId, patch),
-    onSuccess: (updated) => applySavedNote(updated),
-    onError: (err) => {
-      if (err instanceof NoteConflictError) {
-        conflictRef.current = true;
-        queryClient.setQueryData(noteQueryOptions(noteId).queryKey, err.note);
-        setSaveState("conflict");
-        return;
-      }
-      setSaveState("error");
-    },
-  });
-
-  async function flushSave() {
-    if (conflictRef.current || savingRef.current) return;
-    if (noteIdRef.current !== noteId) return;
-
-    const body = latestBodyRef.current;
-    const expectedUpdatedAt = baseUpdatedAtRef.current;
-    if (body === null || expectedUpdatedAt == null) return;
-
-    const nextTitle = normalizeNoteTitle(inferTitleFromRaw(body).title);
-    const bodyChanged = body !== savedBodyRef.current;
-    const titleChanged = nextTitle !== savedTitleRef.current;
-    if (!bodyChanged && !titleChanged) return;
-
-    savingRef.current = true;
-    setSaveState("saving");
-    try {
-      await saveMutation.mutateAsync({
-        body,
-        title: nextTitle,
-        expectedUpdatedAt: toEpochMs(expectedUpdatedAt),
-      });
-    } catch {
-    } finally {
-      savingRef.current = false;
-      if (
-        !conflictRef.current &&
-        noteIdRef.current === noteId &&
-        latestBodyRef.current !== null &&
-        (latestBodyRef.current !== savedBodyRef.current ||
-          normalizeNoteTitle(inferTitleFromRaw(latestBodyRef.current).title) !==
-            savedTitleRef.current)
-      ) {
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => {
-          void flushSave();
-        }, SAVE_DEBOUNCE_MS);
-      }
-    }
-  }
-
-  const flushSaveRef = useRef(flushSave);
-  flushSaveRef.current = flushSave;
-
-  useEffect(() => {
-    function onHide() {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      void flushSaveRef.current();
-    }
-
-    function onVisibility() {
-      if (document.visibilityState === "hidden") onHide();
-    }
-
-    window.addEventListener("pagehide", onHide);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.removeEventListener("pagehide", onHide);
-      document.removeEventListener("visibilitychange", onVisibility);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      void flushSaveRef.current();
-    };
-  }, [noteId]);
-
-  function scheduleSave() {
-    if (conflictRef.current) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      void flushSave();
-    }, SAVE_DEBOUNCE_MS);
-  }
-
-  function handleBodyChange(value: string) {
-    latestBodyRef.current = value;
-    setTags(parseNoteDocument(value).tags);
-    scheduleSave();
-  }
-
-  function reloadFromServer() {
-    if (!note) return;
-    if (timerRef.current) clearTimeout(timerRef.current);
-    conflictRef.current = false;
-    const body = materializeNoteBody(note.body, note.title);
-    savedBodyRef.current = body;
-    latestBodyRef.current = body;
-    savedTitleRef.current = normalizeNoteTitle(inferTitleFromRaw(body).title);
-    baseUpdatedAtRef.current = note.updatedAt;
-    setTags(parseNoteDocument(body).tags);
-    setSaveState("idle");
-    setEditorNonce((n) => n + 1);
-  }
 
   if (!note) {
     if (error) {
@@ -305,7 +114,7 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
           <NoteEditor
             key={`${note.id}:${mode}:${editorNonce}`}
             mode={mode}
-            initialDoc={latestBodyRef.current ?? materializeNoteBody(note.body, note.title)}
+            initialDoc={initialDoc()}
             onChange={handleBodyChange}
             uploadImage={(file) => uploadNoteImage(noteId, file)}
             wikiLinks={{

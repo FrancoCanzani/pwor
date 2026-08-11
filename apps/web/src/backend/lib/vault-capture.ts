@@ -1,14 +1,16 @@
-export type CaptureKind = "text" | "link" | "site";
-
 const TWEET_RE =
   /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
 const URL_RE = /^https?:\/\/\S+$/i;
 
-export function detectCaptureKind(input: string): CaptureKind {
+export type ParsedCapture =
+  | { type: "url"; url: string }
+  | { type: "text"; content: string };
+
+export function parseCaptureInput(input: string): ParsedCapture {
   const trimmed = input.trim();
-  // Tweets are links — same capture path, no separate type.
-  if (TWEET_RE.test(trimmed) || URL_RE.test(trimmed)) return "link";
-  return "text";
+  const url = extractUrl(trimmed);
+  if (url) return { type: "url", url };
+  return { type: "text", content: trimmed };
 }
 
 export function extractUrl(input: string): string | null {
@@ -114,4 +116,21 @@ export async function fetchPageMetadata(url: string): Promise<FetchedPage> {
 export function titleFromText(content: string): string {
   const line = content.trim().split(/\n/)[0] ?? content.trim();
   return line.length > 60 ? `${line.slice(0, 60).trim()}…` : line;
+}
+
+/** Stored kinds only. Legacy DB values `site` / `tweet` normalize to `link`. */
+export type VaultStoredKind = "file" | "link" | "text";
+
+export function normalizeVaultKind(kind: string): VaultStoredKind {
+  switch (kind) {
+    case "file":
+    case "link":
+    case "text":
+      return kind;
+    case "site":
+    case "tweet":
+      return "link";
+    default:
+      return "file";
+  }
 }

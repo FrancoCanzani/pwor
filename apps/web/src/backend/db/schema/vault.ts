@@ -38,7 +38,7 @@ export const vaultItem = sqliteTable("vault_item", {
   inboxItemId: text("inbox_item_id").references(() => inboxItem.id, {
     onDelete: "set null",
   }),
-  kind: text("kind", { enum: ["file", "link", "text", "tweet", "site"] })
+  kind: text("kind", { enum: ["file", "link", "text"] })
     .notNull()
     .default("file"),
   title: text("title"),

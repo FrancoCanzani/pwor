@@ -20,8 +20,10 @@ import {
   displayTitle,
   filterNotesByQuery,
   findWikiLinks,
+  notesFingerprint,
   type NoteTitleRef,
   resolveWikiLinkTarget,
+  WIKI_LINK_RE,
 } from "@features/notes/lib/wiki-links";
 
 export type WikiLinkEditorOptions = {
@@ -32,7 +34,7 @@ export type WikiLinkEditorOptions = {
 
 function wikiLinkDecorator(options: WikiLinkEditorOptions) {
   return new MatchDecorator({
-    regexp: /\[\[([^\]|#\n]+?)(?:#([^\]|\n]*?))?(?:\|([^\]\n]*?))?\]\]/g,
+    regexp: new RegExp(WIKI_LINK_RE.source, "g"),
     decoration: (match) => {
       const target = match[1]?.trim() ?? "";
       if (!target) return null;
@@ -66,13 +68,6 @@ function linkAt(view: EditorView, clientX: number, clientY: number) {
   );
 }
 
-function notesFingerprint(options: WikiLinkEditorOptions): string {
-  return options
-    .getNotes()
-    .map((note) => `${note.id}:${note.title ?? ""}`)
-    .join("\0");
-}
-
 function createWikiLinkPlugin(options: WikiLinkEditorOptions) {
   const decorator = wikiLinkDecorator(options);
   return ViewPlugin.fromClass(
@@ -81,12 +76,12 @@ function createWikiLinkPlugin(options: WikiLinkEditorOptions) {
       fingerprint: string;
 
       constructor(view: EditorView) {
-        this.fingerprint = notesFingerprint(options);
+        this.fingerprint = notesFingerprint(options.getNotes());
         this.decorations = decorator.createDeco(view);
       }
 
       update(update: ViewUpdate) {
-        const nextFingerprint = notesFingerprint(options);
+        const nextFingerprint = notesFingerprint(options.getNotes());
         if (
           update.docChanged ||
           update.viewportChanged ||

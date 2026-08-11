@@ -13,7 +13,8 @@
       "@features/*": ["./src/frontend/features/*"],
       "@lib/*": ["./src/frontend/lib/*"],
       "@routes/*": ["./src/frontend/routes/*"],
-      "@components/*": ["./src/frontend/components/*"]
+      "@components/*": ["./src/frontend/components/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": ["src", "worker-configuration.d.ts"]

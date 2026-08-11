@@ -7,12 +7,7 @@ import {
   createNoteEditorState,
   type NoteEditorMode,
 } from "@features/notes/lib/cm-theme";
-import type { NoteTitleRef } from "@features/notes/lib/wiki-links";
-
-function notesFingerprint(notes: readonly NoteTitleRef[] | undefined): string {
-  if (!notes) return "";
-  return notes.map((note) => `${note.id}:${note.title ?? ""}`).join("\0");
-}
+import { notesFingerprint } from "@features/notes/lib/wiki-links";
 
 export function NoteEditor({
   initialDoc,

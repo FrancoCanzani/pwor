@@ -1,5 +1,5 @@
-import { CaretSortIcon, CheckIcon, PlusIcon } from "@radix-ui/react-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CaretSortIcon, PlusIcon } from "@radix-ui/react-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -8,7 +8,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -38,24 +37,19 @@ export function NavUser({ user }: { user: ShellUser }) {
   const label = user.name.trim() || user.email;
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
-  const { id: currentId, name: currentName } = useCurrentWorkspace();
-  const workspaceLabel = currentName || "Untitled";
-
-  const selectWorkspace = (id: string) => {
-    setStoredWorkspaceId(id);
-    void navigate({
-      to: "/$workspaceId",
-      params: { workspaceId: id },
-    });
-  };
+  const { name: currentName } = useCurrentWorkspace();
+  const spaceLabel = currentName || "Untitled";
 
   async function handleWorkspaceCreated(workspace: Workspace) {
+    setStoredWorkspaceId(workspace.id);
     await queryClient.invalidateQueries({
       queryKey: workspacesQueryOptions.queryKey,
       exact: true,
     });
-    selectWorkspace(workspace.id);
+    await navigate({
+      to: "/$workspaceId",
+      params: { workspaceId: workspace.id },
+    });
   }
 
   return (
@@ -73,7 +67,7 @@ export function NavUser({ user }: { user: ShellUser }) {
             <div className="grid flex-1 text-left text-xs leading-tight">
               <span className="truncate font-normal">{label}</span>
               <span className="truncate text-muted-foreground">
-                {workspaceLabel}
+                {spaceLabel}
               </span>
             </div>
             <CaretSortIcon className="ml-auto" />
@@ -85,21 +79,6 @@ export function NavUser({ user }: { user: ShellUser }) {
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Spaces</DropdownMenuLabel>
-              {workspaces.map((workspace) => (
-                <DropdownMenuItem
-                  key={workspace.id}
-                  className="font-normal text-xs"
-                  onClick={() => selectWorkspace(workspace.id)}
-                >
-                  {workspace.id === currentId ? (
-                    <CheckIcon className="size-3" />
-                  ) : null}
-                  <span className="truncate">
-                    {workspace.name.trim() || "Untitled"}
-                  </span>
-                </DropdownMenuItem>
-              ))}
               <DropdownMenuItem
                 className="font-normal text-xs"
                 onClick={() => setCreateOpen(true)}
@@ -107,15 +86,15 @@ export function NavUser({ user }: { user: ShellUser }) {
                 <PlusIcon className="size-3" />
                 New space
               </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
               <DropdownMenuItem
                 className="font-normal text-xs"
                 render={<Link to="/settings" />}
               >
                 Settings
               </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
               <DropdownMenuItem
                 variant="destructive"
                 className="font-normal text-xs"

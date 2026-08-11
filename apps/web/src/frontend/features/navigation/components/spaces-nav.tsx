@@ -1,4 +1,4 @@
-import { CaretDownIcon, CaretRightIcon, PlusIcon } from "@radix-ui/react-icons";
+import { PlusIcon } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -15,6 +15,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { SpacePic } from "@features/navigation/components/space-pic";
 import { vaultCategoriesQueryOptions } from "@features/vault/api";
 import {
   workspacesQueryOptions,
@@ -30,19 +31,20 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
   const { id: currentId } = useCurrentWorkspace();
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const activeSpaceId = pathname.split("/")[1] || currentId;
+  const segments = pathname.split("/").filter(Boolean);
+  const activeSpaceId = segments[0] || currentId;
+  const activeLeaf = segments[1]; // notes | vault | undefined (library)
 
   const ordered = useMemo(() => {
-    if (!currentId) return spaces;
-    const current = spaces.find((space) => space.id === currentId);
-    const rest = spaces.filter((space) => space.id !== currentId);
+    if (!activeSpaceId) return spaces;
+    const current = spaces.find((space) => space.id === activeSpaceId);
+    const rest = spaces.filter((space) => space.id !== activeSpaceId);
     return current ? [current, ...rest] : spaces;
-  }, [spaces, currentId]);
+  }, [spaces, activeSpaceId]);
 
   function selectSpace(id: string) {
     setStoredWorkspaceId(id);
@@ -98,20 +100,13 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
           <SidebarMenu className="gap-0.5">
             {ordered.map((space) => {
               const isActive = space.id === activeSpaceId;
-              const isOpen = expanded[space.id] ?? isActive;
 
               return (
                 <SpaceRow
                   key={space.id}
                   space={space}
                   isActive={isActive}
-                  isOpen={isOpen}
-                  onToggle={() =>
-                    setExpanded((prev) => ({
-                      ...prev,
-                      [space.id]: !isOpen,
-                    }))
-                  }
+                  activeLeaf={isActive ? activeLeaf : undefined}
                   onSelect={() => selectSpace(space.id)}
                 />
               );
@@ -132,47 +127,37 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
 function SpaceRow({
   space,
   isActive,
-  isOpen,
-  onToggle,
+  activeLeaf,
   onSelect,
 }: {
   space: Workspace;
   isActive: boolean;
-  isOpen: boolean;
-  onToggle: () => void;
+  activeLeaf: string | undefined;
   onSelect: () => void;
 }) {
   const { data: collections = [] } = useQuery({
     ...vaultCategoriesQueryOptions(space.id),
-    enabled: isOpen,
+    enabled: isActive,
   });
+
+  const label = space.name.trim() || "Untitled";
+  const onLibrary = isActive && !activeLeaf;
+  const onNotes = isActive && activeLeaf === "notes";
 
   return (
     <SidebarMenuItem>
-      <div className="flex w-full items-center gap-0.5">
-        <button
-          type="button"
-          className="flex size-6 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
-          aria-label={isOpen ? "Collapse space" : "Expand space"}
-          onClick={onToggle}
-        >
-          {isOpen ? (
-            <CaretDownIcon className="size-3" />
-          ) : (
-            <CaretRightIcon className="size-3" />
-          )}
-        </button>
-        <SidebarMenuButton
-          isActive={isActive}
-          size="sm"
-          className="min-w-0 flex-1 font-normal"
-          onClick={onSelect}
-        >
-          <span className="truncate">{space.name.trim() || "Untitled"}</span>
-        </SidebarMenuButton>
-      </div>
+      <SidebarMenuButton
+        isActive={isActive}
+        size="sm"
+        className="font-normal"
+        tooltip={label}
+        onClick={onSelect}
+      >
+        <SpacePic spaceId={space.id} />
+        <span className="truncate">{label}</span>
+      </SidebarMenuButton>
 
-      {isOpen ? (
+      {isActive ? (
         <SidebarMenuSub className="ml-3 border-l border-border/60">
           <SidebarMenuSubItem>
             <SidebarMenuSubButton
@@ -182,7 +167,7 @@ function SpaceRow({
                   params={{ workspaceId: space.id }}
                 />
               }
-              isActive={isActive}
+              isActive={onLibrary}
               size="sm"
               className="font-normal"
             >
@@ -197,6 +182,7 @@ function SpaceRow({
                   params={{ workspaceId: space.id }}
                 />
               }
+              isActive={onNotes}
               size="sm"
               className="font-normal"
             >

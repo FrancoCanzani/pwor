@@ -6,7 +6,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -17,6 +19,8 @@ import {
   noteQueryOptions,
   notesQueryOptions,
   uploadNoteImage,
+  type Note,
+  type NoteListItem,
 } from "@features/notes/api";
 import { NoteEditor } from "@features/notes/components/note-editor";
 import { useFloatingNote } from "@features/notes/floating-note-context";
@@ -50,6 +54,33 @@ function defaultPosition() {
   return { x, y };
 }
 
+function displayTitle(title: string | null | undefined): string {
+  const trimmed = title?.trim();
+  if (!trimmed || trimmed === "tags: []") return "Untitled";
+  return trimmed;
+}
+
+function seedNotesList(
+  queryClient: ReturnType<typeof useQueryClient>,
+  workspaceId: string,
+  note: Note,
+) {
+  const item: NoteListItem = {
+    id: note.id,
+    title: note.title,
+    workspaceId: note.workspaceId,
+    updatedAt: note.updatedAt,
+    createdAt: note.createdAt,
+  };
+  queryClient.setQueryData(
+    notesQueryOptions(workspaceId).queryKey,
+    (current: NoteListItem[] | undefined) => {
+      if (!current) return [item];
+      return [item, ...current.filter((row) => row.id !== note.id)];
+    },
+  );
+}
+
 export function FloatingNoteHost({
   noteId,
   onClose,
@@ -62,6 +93,7 @@ export function FloatingNoteHost({
   const { id: workspaceId } = useCurrentWorkspace();
   const queryClient = useQueryClient();
   const creatingRef = useRef(false);
+  const draftBodyRef = useRef(EMPTY_NOTE_BODY);
   const onCloseRef = useRef(onClose);
   const onOpenedRef = useRef(onOpened);
   onCloseRef.current = onClose;
@@ -70,9 +102,18 @@ export function FloatingNoteHost({
   useEffect(() => {
     if (noteId || !workspaceId || creatingRef.current) return;
     creatingRef.current = true;
-    void createNote(EMPTY_NOTE_BODY, null, workspaceId)
-      .then(async (note) => {
-        await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
+    draftBodyRef.current = EMPTY_NOTE_BODY;
+
+    void createNote(EMPTY_NOTE_BODY, "Untitled", workspaceId)
+      .then((note) => {
+        const body = draftBodyRef.current;
+        const seeded: Note = {
+          ...note,
+          body,
+          title: displayTitle(note.title),
+        };
+        queryClient.setQueryData(noteQueryOptions(note.id).queryKey, seeded);
+        seedNotesList(queryClient, workspaceId, seeded);
         onOpenedRef.current(note.id);
       })
       .catch(() => {
@@ -84,47 +125,44 @@ export function FloatingNoteHost({
       });
   }, [noteId, workspaceId, queryClient]);
 
-  if (!noteId) {
-    return createPortal(
-      <div
-        className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center"
-        aria-live="polite"
-      >
-        <p className="rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-          Opening…
-        </p>
-      </div>,
-      document.body,
-    );
-  }
-
   return createPortal(
     <>
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-40 bg-black/10 supports-backdrop-filter:backdrop-blur-[1px]"
       />
-      <FloatingNoteWindow key={noteId} noteId={noteId} onClose={onClose} />
+      {noteId ? (
+        <FloatingNoteWindow key={noteId} noteId={noteId} onClose={onClose} />
+      ) : (
+        <FloatingNoteDraft
+          draftBodyRef={draftBodyRef}
+          onClose={onClose}
+        />
+      )}
     </>,
     document.body,
   );
 }
 
-function FloatingNoteWindow({
-  noteId,
+function FloatingNoteChrome({
+  title,
+  saveLabel,
   onClose,
+  onToggleMode,
+  mode,
+  conflict,
+  onReload,
+  children,
 }: {
-  noteId: string;
+  title: string;
+  saveLabel: string | null;
   onClose: () => void;
+  onToggleMode?: () => void;
+  mode?: NoteEditorMode;
+  conflict?: boolean;
+  onReload?: () => void;
+  children: ReactNode;
 }) {
-  const { openNote } = useFloatingNote();
-  const { id: workspaceId } = useCurrentWorkspace();
-  const { data: note, error } = useQuery(noteQueryOptions(noteId));
-  const { data: notes = [] } = useQuery({
-    ...notesQueryOptions(workspaceId ?? undefined),
-    enabled: Boolean(workspaceId),
-  });
-  const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
   const [pos, setPos] = useState(defaultPosition);
   const shellRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -135,19 +173,6 @@ function FloatingNoteWindow({
     originY: number;
   } | null>(null);
 
-  const {
-    saveState,
-    tags,
-    editorNonce,
-    handleBodyChange,
-    reloadFromServer,
-    initialDoc,
-  } = useNoteDocumentSave({
-    noteId,
-    workspaceId: workspaceId ?? "",
-    note,
-  });
-
   useLayoutEffect(() => {
     const shell = shellRef.current;
     if (!shell || shell.dataset.sized === "1") return;
@@ -155,23 +180,6 @@ function FloatingNoteWindow({
     shell.style.height = `${DEFAULT_HEIGHT}px`;
     shell.dataset.sized = "1";
   }, []);
-
-  function setEditorMode(next: NoteEditorMode) {
-    setMode(next);
-    try {
-      localStorage.setItem(EDITOR_MODE_KEY, next);
-    } catch {
-      // privacy / unavailable storage
-    }
-  }
-
-  function toggleEditorMode() {
-    setEditorMode(mode === "preview" ? "source" : "preview");
-  }
-
-  useHotkey("Mod+Alt+M", () => toggleEditorMode(), {
-    enabled: note != null && saveState !== "conflict",
-  });
 
   useHotkey("Escape", () => onClose(), { enabled: true });
 
@@ -212,8 +220,6 @@ function FloatingNoteWindow({
     }
   }
 
-  const title = note?.title?.trim() || "Untitled";
-
   return (
     <div
       ref={shellRef}
@@ -228,48 +234,42 @@ function FloatingNoteWindow({
       }}
     >
       <div
-        className="flex h-9 shrink-0 cursor-grab items-center gap-2 border-b border-border/40 px-2 active:cursor-grabbing"
+        className="flex h-8 shrink-0 cursor-grab items-center gap-2 border-b border-border/40 px-2 active:cursor-grabbing"
         onPointerDown={onDragPointerDown}
         onPointerMove={onDragPointerMove}
         onPointerUp={onDragPointerUp}
         onPointerCancel={onDragPointerUp}
       >
-        <span className="min-w-0 flex-1 truncate text-xs font-normal">
+        <span className="min-w-0 flex-1 truncate text-[11px] font-normal">
           {title}
         </span>
-        <span className="shrink-0 text-[11px] text-muted-foreground">
-          {saveState === "saving"
-            ? "Saving…"
-            : saveState === "saved"
-              ? "Saved"
-              : saveState === "error"
-                ? "Save failed"
-                : saveState === "conflict"
-                  ? "Edited elsewhere"
-                  : null}
-        </span>
-        {saveState === "conflict" ? (
+        {saveLabel ? (
+          <span className="shrink-0 text-[10px] text-muted-foreground">
+            {saveLabel}
+          </span>
+        ) : null}
+        {conflict ? (
           <Button
             type="button"
             variant="ghost"
-            className="h-auto shrink-0 px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground"
-            onClick={reloadFromServer}
+            className="h-auto shrink-0 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
+            onClick={onReload}
             onPointerDown={(e) => e.stopPropagation()}
           >
             Reload
           </Button>
-        ) : (
+        ) : onToggleMode && mode ? (
           <Button
             type="button"
             variant="ghost"
-            className="h-auto shrink-0 px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground"
-            onClick={toggleEditorMode}
+            className="h-auto shrink-0 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
+            onClick={onToggleMode}
             onPointerDown={(e) => e.stopPropagation()}
             title="Toggle source / preview (⌘⌥M)"
           >
             {mode === "preview" ? "Source" : "Preview"}
           </Button>
-        )}
+        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -283,41 +283,162 @@ function FloatingNoteWindow({
         </Button>
       </div>
 
-      {tags.length > 0 ? (
-        <div className="shrink-0 truncate border-b border-border/40 px-3 py-1.5 text-[11px] text-muted-foreground">
-          {tags.join(" · ")}
-        </div>
-      ) : null}
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-4">
-        {!note ? (
-          error ? (
-            <p className="text-xs text-destructive">Note not found.</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          )
-        ) : (
-          <NoteEditor
-            key={`${note.id}:${mode}:${editorNonce}`}
-            mode={mode}
-            initialDoc={initialDoc()}
-            onChange={handleBodyChange}
-            uploadImage={(file) => uploadNoteImage(noteId, file)}
-            className="min-h-full [&_.cm-editor]:min-h-[12rem]"
-            wikiLinks={
-              workspaceId
-                ? {
-                    currentNoteId: noteId,
-                    getNotes: () => notes,
-                    onOpenNote: (targetId) => {
-                      openNote(targetId);
-                    },
-                  }
-                : undefined
-            }
-          />
-        )}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-2 pb-3 text-[13px]">
+        {children}
       </div>
     </div>
+  );
+}
+
+function FloatingNoteDraft({
+  draftBodyRef,
+  onClose,
+}: {
+  draftBodyRef: MutableRefObject<string>;
+  onClose: () => void;
+}) {
+  const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
+  const [body, setBody] = useState(EMPTY_NOTE_BODY);
+
+  function setEditorMode(next: NoteEditorMode) {
+    setMode(next);
+    try {
+      localStorage.setItem(EDITOR_MODE_KEY, next);
+    } catch {
+      // privacy / unavailable storage
+    }
+  }
+
+  useHotkey("Mod+Alt+M", () => {
+    setEditorMode(mode === "preview" ? "source" : "preview");
+  });
+
+  return (
+    <FloatingNoteChrome
+      title="Untitled"
+      saveLabel={null}
+      onClose={onClose}
+      mode={mode}
+      onToggleMode={() =>
+        setEditorMode(mode === "preview" ? "source" : "preview")
+      }
+    >
+      <NoteEditor
+        key={`draft:${mode}`}
+        mode={mode}
+        initialDoc={body}
+        onChange={(value) => {
+          setBody(value);
+          draftBodyRef.current = value;
+        }}
+        className="min-h-full text-[13px] [&_.cm-editor]:min-h-[12rem]"
+      />
+    </FloatingNoteChrome>
+  );
+}
+
+function FloatingNoteWindow({
+  noteId,
+  onClose,
+}: {
+  noteId: string;
+  onClose: () => void;
+}) {
+  const { openNote } = useFloatingNote();
+  const { id: workspaceId } = useCurrentWorkspace();
+  const queryClient = useQueryClient();
+  const cached = queryClient.getQueryData<Note>(
+    noteQueryOptions(noteId).queryKey,
+  );
+  const { data: note, error } = useQuery({
+    ...noteQueryOptions(noteId),
+    initialData: cached,
+    initialDataUpdatedAt: queryClient.getQueryState(
+      noteQueryOptions(noteId).queryKey,
+    )?.dataUpdatedAt,
+  });
+  const { data: notes = [] } = useQuery({
+    ...notesQueryOptions(workspaceId ?? undefined),
+    enabled: Boolean(workspaceId),
+  });
+  const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
+
+  const {
+    saveState,
+    editorNonce,
+    handleBodyChange,
+    reloadFromServer,
+    initialDoc,
+  } = useNoteDocumentSave({
+    noteId,
+    workspaceId: workspaceId ?? "",
+    note,
+  });
+
+  function setEditorMode(next: NoteEditorMode) {
+    setMode(next);
+    try {
+      localStorage.setItem(EDITOR_MODE_KEY, next);
+    } catch {
+      // privacy / unavailable storage
+    }
+  }
+
+  function toggleEditorMode() {
+    setEditorMode(mode === "preview" ? "source" : "preview");
+  }
+
+  useHotkey("Mod+Alt+M", () => toggleEditorMode(), {
+    enabled: note != null && saveState !== "conflict",
+  });
+
+  const listTitle = notes.find((item) => item.id === noteId)?.title;
+  const title = displayTitle(note?.title ?? listTitle);
+
+  const saveLabel =
+    saveState === "saving"
+      ? "Saving…"
+      : saveState === "saved"
+        ? "Saved"
+        : saveState === "error"
+          ? "Save failed"
+          : saveState === "conflict"
+            ? "Edited elsewhere"
+            : null;
+
+  return (
+    <FloatingNoteChrome
+      title={title}
+      saveLabel={saveLabel}
+      onClose={onClose}
+      mode={mode}
+      onToggleMode={toggleEditorMode}
+      conflict={saveState === "conflict"}
+      onReload={reloadFromServer}
+    >
+      {note ? (
+        <NoteEditor
+          key={`${note.id}:${mode}:${editorNonce}`}
+          mode={mode}
+          initialDoc={initialDoc()}
+          onChange={handleBodyChange}
+          uploadImage={(file) => uploadNoteImage(noteId, file)}
+          className="min-h-full text-[13px] [&_.cm-editor]:min-h-[12rem]"
+          wikiLinks={
+            workspaceId
+              ? {
+                  currentNoteId: noteId,
+                  getNotes: () => notes,
+                  onOpenNote: (targetId) => {
+                    openNote(targetId);
+                  },
+                }
+              : undefined
+          }
+        />
+      ) : error ? (
+        <p className="text-xs text-destructive">Note not found.</p>
+      ) : null}
+    </FloatingNoteChrome>
   );
 }

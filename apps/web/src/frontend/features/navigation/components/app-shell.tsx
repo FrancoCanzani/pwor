@@ -1,5 +1,6 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
 import {
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import { CreateDialog } from "@features/command/components/create-dialog";
 import { CreateDialogProvider } from "@features/command/create-dialog-context";
+import { noteQueryOptions } from "@features/notes/api";
 import { FloatingNoteHost } from "@features/notes/components/floating-note-window";
 import { FloatingNoteProvider } from "@features/notes/floating-note-context";
 import { SpacesNav } from "@features/navigation/components/spaces-nav";
@@ -39,6 +41,7 @@ export function AppShell({
   const isSettings = segments[0] === "settings";
   const isFlush = !isSettings;
   const { id: workspaceId } = useCurrentWorkspace();
+  const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [floatingOpen, setFloatingOpen] = useState(false);
   const [floatingNoteId, setFloatingNoteId] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export function AppShell({
 
   function openNote(noteId: string) {
     if (!workspaceId) return;
+    void queryClient.prefetchQuery(noteQueryOptions(noteId));
     setFloatingNoteId(noteId);
     setFloatingOpen(true);
   }

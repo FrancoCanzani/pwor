@@ -70,7 +70,7 @@ const baseChromeTheme = EditorView.theme({
 });
 
 const sourceTheme = EditorView.theme({
-  "&": { fontSize: "14px" },
+  "&": { fontSize: "12px" },
   ".cm-scroller": {
     fontFamily: "var(--font-mono)",
     lineHeight: "1.65",
@@ -85,7 +85,7 @@ const sourceTheme = EditorView.theme({
 
 const previewTheme = EditorView.theme({
   "&": {
-    fontSize: "15px",
+    fontSize: "13px",
     "--pm-cursor-color": "var(--foreground)",
     "--pm-header-mark-color": "var(--muted-foreground)",
     "--pm-link-color": "var(--foreground)",

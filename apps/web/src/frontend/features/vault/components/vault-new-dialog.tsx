@@ -75,8 +75,8 @@ export function VaultNewDialog({
   onOpenChange: (open: boolean) => void;
   categoryId?: string | null;
 }) {
-  const [input, setInput] = useState("");
   const [title, setTitle] = useState("");
+  const [input, setInput] = useState("");
   const [titleTouched, setTitleTouched] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -113,7 +113,9 @@ export function VaultNewDialog({
           categoryId: categoryId ?? null,
         });
       }
-      return captureVaultInput(trimmed, workspaceId, categoryId ?? null);
+      return captureVaultInput(trimmed, workspaceId, categoryId ?? null, {
+        title: title.trim() || null,
+      });
     },
     onSuccess: () => {
       toast.success(codeMode ? "Snippet added" : "Added to Vault — parsing…");
@@ -150,7 +152,9 @@ export function VaultNewDialog({
               });
               toast.success(`${file.name} added as snippet`, { id: toastId });
             } else {
-              await uploadVaultItem(file, workspaceId, categoryId ?? null);
+              await uploadVaultItem(file, workspaceId, categoryId ?? null, {
+                title: list.length === 1 ? title.trim() || null : null,
+              });
               toast.success(`${file.name} added to Vault`, { id: toastId });
             }
           } catch {
@@ -204,8 +208,8 @@ export function VaultNewDialog({
       open={open}
       onOpenChange={(next) => {
         if (!next) {
-          setInput("");
           setTitle("");
+          setInput("");
           setTitleTouched(false);
           setDragging(false);
           dragDepth.current = 0;
@@ -230,7 +234,18 @@ export function VaultNewDialog({
               disabled={busy}
               aria-label="Snippet title"
             />
-          ) : null}
+          ) : (
+            <Input
+              value={title}
+              onChange={(e) => {
+                setTitleTouched(true);
+                setTitle(e.target.value);
+              }}
+              placeholder="Title (optional)"
+              className="h-8 text-xs placeholder:text-[11px]"
+              disabled={busy}
+            />
+          )}
           <Textarea
             autoFocus
             value={input}

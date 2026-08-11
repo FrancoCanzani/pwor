@@ -48,16 +48,41 @@ CREATE TABLE `verification` (
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `inbox_item` (
+CREATE TABLE `apikey` (
 	`id` text PRIMARY KEY NOT NULL,
-	`user_id` text NOT NULL,
-	`workspace_id` text,
-	`from_address` text NOT NULL,
-	`subject` text,
-	`body` text DEFAULT '' NOT NULL,
+	`config_id` text DEFAULT 'default' NOT NULL,
+	`name` text,
+	`start` text,
+	`reference_id` text NOT NULL,
+	`prefix` text,
+	`key` text NOT NULL,
+	`refill_interval` integer,
+	`refill_amount` integer,
+	`last_refill_at` integer,
+	`enabled` integer DEFAULT true,
+	`rate_limit_enabled` integer DEFAULT true,
+	`rate_limit_time_window` integer,
+	`rate_limit_max` integer,
+	`request_count` integer DEFAULT 0,
+	`remaining` integer,
+	`last_request` integer,
+	`expires_at` integer,
+	`permissions` text,
+	`metadata` text,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`workspace_id`) REFERENCES `project`(`id`) ON UPDATE no action ON DELETE set null
+	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+	FOREIGN KEY (`reference_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `extension_pairing` (
+	`id` text PRIMARY KEY NOT NULL,
+	`secret_hash` text NOT NULL,
+	`user_id` text,
+	`api_key` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`expires_at` integer NOT NULL,
+	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `note` (
@@ -83,15 +108,12 @@ CREATE TABLE `note_image` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `task` (
+CREATE TABLE `vault_category` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
 	`project_id` text,
-	`title` text NOT NULL,
-	`due_at` integer,
-	`status` text DEFAULT 'open' NOT NULL,
-	`source_type` text,
-	`source_id` text,
+	`name` text NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
@@ -102,31 +124,26 @@ CREATE TABLE `vault_item` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
 	`project_id` text,
+	`category_id` text,
 	`kind` text DEFAULT 'file' NOT NULL,
 	`title` text,
+	`summary` text,
+	`tags` text,
+	`language` text,
 	`r2_key` text,
 	`mime_type` text,
 	`url` text,
 	`site_name` text,
 	`content` text,
+	`extracted_markdown` text,
+	`parse_status` text,
+	`parse_error` text,
+	`parsed_at` integer,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`project_id`) REFERENCES `project`(`id`) ON UPDATE no action ON DELETE set null
-);
---> statement-breakpoint
-CREATE TABLE `work_log` (
-	`id` text PRIMARY KEY NOT NULL,
-	`user_id` text NOT NULL,
-	`day` text NOT NULL,
-	`body` text DEFAULT '' NOT NULL,
-	`drafted_at` integer,
-	`source_task_count` integer DEFAULT 0 NOT NULL,
-	`source_note_count` integer DEFAULT 0 NOT NULL,
-	`sources` text,
-	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`project_id`) REFERENCES `project`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`category_id`) REFERENCES `vault_category`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE TABLE `project` (
@@ -134,21 +151,9 @@ CREATE TABLE `project` (
 	`user_id` text NOT NULL,
 	`name` text NOT NULL,
 	`description` text,
+	`shader` text DEFAULT 'nebula' NOT NULL,
 	`status` text DEFAULT 'active' NOT NULL,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
---> statement-breakpoint
-CREATE TABLE `workspace_inbox` (
-	`id` text PRIMARY KEY NOT NULL,
-	`workspace_id` text NOT NULL,
-	`user_id` text NOT NULL,
-	`token` text NOT NULL,
-	`label` text,
-	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-	FOREIGN KEY (`workspace_id`) REFERENCES `project`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `workspace_inbox_token_unique` ON `workspace_inbox` (`token`);

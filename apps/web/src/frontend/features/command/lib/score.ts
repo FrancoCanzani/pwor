@@ -1,12 +1,6 @@
 const WORD_BOUNDARY = /[\s\-_/]/;
 
-/**
- * Subsequence match — every query character must appear in `text`, in order.
- * Contiguous runs and word-boundary hits score higher, so "cal" ranks
- * "Calendar" above "Work log" and "nt" ranks "New task" above "Notes".
- *
- * Returns null when the text doesn't match at all.
- */
+/** Subsequence match with bonus scoring for contiguous runs and word-boundary hits; null when it doesn't match. */
 export function fuzzyScore(text: string, query: string): number | null {
   if (!query) return 0;
 

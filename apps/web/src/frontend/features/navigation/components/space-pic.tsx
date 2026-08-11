@@ -32,10 +32,6 @@ function fallbackGradient(preset: SpaceShaderPreset): string {
   return `linear-gradient(135deg, ${front}, ${back})`;
 }
 
-/**
- * Space pic from a Paper shader preset. Captures at a fixed offscreen WebGL
- * size, then freezes to PNG so the sidebar doesn’t keep a context open per row.
- */
 export function SpacePic({
   shaderId = DEFAULT_SPACE_SHADER,
   className,
@@ -47,7 +43,7 @@ export function SpacePic({
 }) {
   const preset = getSpaceShader(shaderId);
   const sizeClass =
-    size === "lg" ? "size-16" : size === "md" ? "size-10" : "size-4";
+    size === "lg" ? "size-16" : size === "md" ? "size-5" : "size-4";
   const key = cacheKey(preset.id);
   const [src, setSrc] = useState<string | null>(() => cache.get(key) ?? null);
   const [failed, setFailed] = useState(false);
@@ -131,7 +127,7 @@ export function SpacePic({
           src={src}
           alt=""
           draggable={false}
-          className="size-full object-cover"
+          className="size-full object-cover object-left"
         />
       ) : (
         <span

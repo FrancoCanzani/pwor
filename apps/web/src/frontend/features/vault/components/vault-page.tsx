@@ -40,7 +40,8 @@ import {
   vaultItemsQueryOptions,
   type VaultItem,
 } from "@features/vault/api";
-import { VaultSidebar } from "@features/vault/components/vault-sidebar";
+import { VaultCategorySidebar } from "@features/vault/components/vault-category-sidebar";
+import { VaultRenameDialog } from "@features/vault/components/vault-rename-dialog";
 import { VaultViewer } from "@features/vault/components/vault-viewer";
 import {
   filterAndSortVaultItems,
@@ -62,6 +63,7 @@ function VaultItemRow({
   onOpen: (item: VaultItem) => void;
 }) {
   const queryClient = useQueryClient();
+  const [renameOpen, setRenameOpen] = useState(false);
 
   const remove = useMutation({
     mutationFn: () => deleteVaultItem(item.id),
@@ -135,6 +137,12 @@ function VaultItemRow({
                 onClick={() => onOpen(item)}
               >
                 Open
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="font-normal text-xs"
+                onClick={() => setRenameOpen(true)}
+              >
+                Rename
               </DropdownMenuItem>
               {item.url ? (
                 <DropdownMenuItem
@@ -210,6 +218,12 @@ function VaultItemRow({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <VaultRenameDialog
+          item={item}
+          open={renameOpen}
+          onOpenChange={setRenameOpen}
+        />
       </div>
     </li>
   );
@@ -381,7 +395,7 @@ export function VaultPage() {
   );
 
   const sidebar = (
-    <VaultSidebar
+    <VaultCategorySidebar
       items={items}
       categories={categories}
       totalBytes={totalBytes}

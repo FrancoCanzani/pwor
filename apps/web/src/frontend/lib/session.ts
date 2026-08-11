@@ -11,7 +11,6 @@ export const sessionQueryOptions = queryOptions({
   staleTime: 60_000,
 });
 
-/** Replace the cached session with a forced network read. */
 export async function refreshSession(queryClient: QueryClient) {
   await queryClient.cancelQueries({ queryKey: sessionQueryOptions.queryKey });
   queryClient.removeQueries({ queryKey: sessionQueryOptions.queryKey });

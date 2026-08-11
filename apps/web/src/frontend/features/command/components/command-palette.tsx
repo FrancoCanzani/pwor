@@ -18,8 +18,7 @@ import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 import { useFloatingNote } from "@features/notes/floating-note-context";
 
-/** Every destination shares a single `{ workspaceId }` param, which keeps
- *  `navigate` type-safe across the union. Note detail opens the sketchbook. */
+/** Every destination shares a single `{ workspaceId }` param, keeping `navigate` type-safe across the union. */
 const NAV_ITEMS = [
   { to: "/$workspaceId", label: "Library" },
   { to: "/$workspaceId/vault", label: "Vault" },

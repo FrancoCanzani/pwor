@@ -1,4 +1,3 @@
-/** Map file extensions to CodeMirror / display language ids. */
 const EXT_TO_LANGUAGE: Record<string, string> = {
   js: "javascript",
   mjs: "javascript",

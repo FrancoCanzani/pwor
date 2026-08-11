@@ -1,6 +1,6 @@
 import { ChevronRightIcon, DotsHorizontalIcon } from "@radix-ui/react-icons";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useHotkey } from "@tanstack/react-hotkeys";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -208,7 +208,7 @@ function CategoryRow({
   );
 }
 
-export function VaultSidebar({
+export function VaultCategorySidebar({
   items,
   categories,
   totalBytes,
@@ -262,11 +262,9 @@ export function VaultSidebar({
     onError: () => toast.error("Couldn’t create category"),
   });
 
-  const activeCategoryId =
-    nav.mode === "category" ? nav.categoryId : null;
+  const activeCategoryId = nav.mode === "category" ? nav.categoryId : null;
 
-  const typeLabel =
-    nav.mode === "type" ? TYPE_FACET_LABEL[nav.type] : "Types";
+  const typeLabel = nav.mode === "type" ? TYPE_FACET_LABEL[nav.type] : "Types";
 
   return (
     <aside

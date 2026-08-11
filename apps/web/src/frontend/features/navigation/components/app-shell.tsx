@@ -1,6 +1,6 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { Link, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
 import {
@@ -17,14 +17,14 @@ import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import { CreateDialog } from "@features/command/components/create-dialog";
 import { CreateDialogProvider } from "@features/command/create-dialog-context";
-import { noteQueryOptions } from "@features/notes/api";
-import { FloatingNoteHost } from "@features/notes/components/floating-note-window";
-import { FloatingNoteProvider } from "@features/notes/floating-note-context";
-import { SpacesNav } from "@features/navigation/components/spaces-nav";
 import {
   NavUser,
   type ShellUser,
 } from "@features/navigation/components/nav-user";
+import { SpacesNav } from "@features/navigation/components/spaces-nav";
+import { noteQueryOptions } from "@features/notes/api";
+import { FloatingNoteHost } from "@features/notes/components/floating-note-window";
+import { FloatingNoteProvider } from "@features/notes/floating-note-context";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
 export function AppShell({

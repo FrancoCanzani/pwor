@@ -19,6 +19,7 @@ export type VaultItem = {
   categoryId: string | null;
   workspaceId: string | null;
   parseStatus: VaultParseStatus | null;
+  sizeBytes?: number | null;
   createdAt: string;
 };
 
@@ -155,11 +156,13 @@ export async function uploadVaultItem(
   file: File,
   workspaceId?: string | null,
   categoryId?: string | null,
+  options?: { title?: string | null },
 ): Promise<{ id: string }> {
   const formData = new FormData();
   formData.append("file", file);
   if (workspaceId) formData.append("workspaceId", workspaceId);
   if (categoryId) formData.append("categoryId", categoryId);
+  if (options?.title) formData.append("title", options.title);
 
   return parseJson<{ id: string }>(
     await fetch("/api/vault", { method: "POST", body: formData }),
@@ -199,12 +202,18 @@ export async function captureVaultInput(
   input: string,
   workspaceId?: string | null,
   categoryId?: string | null,
+  options?: { title?: string | null },
 ): Promise<VaultItem> {
   return parseJson<VaultItem>(
     await fetch("/api/vault/capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input, workspaceId, categoryId }),
+      body: JSON.stringify({
+        input,
+        title: options?.title || undefined,
+        workspaceId,
+        categoryId,
+      }),
     }),
   );
 }
@@ -224,6 +233,19 @@ export async function updateVaultItemProject(
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId }),
+    }),
+  );
+}
+
+export async function renameVaultItem(
+  id: string,
+  title: string,
+): Promise<VaultItem> {
+  return parseJson<VaultItem>(
+    await fetch(`/api/vault/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
     }),
   );
 }

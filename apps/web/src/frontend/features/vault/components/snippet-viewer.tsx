@@ -79,9 +79,18 @@ const snippetTheme = EditorView.theme({
     },
 });
 
+// language-data's default `javascript()` loader doesn't enable JSX, so JSX/TSX
+// snippets parse (and highlight) badly through it — load @codemirror/lang-javascript
+// directly with jsx enabled instead.
 async function languageSupport(language: string | null) {
   if (!language) return [];
   const needle = language.toLowerCase();
+
+  if (needle === "javascript" || needle === "typescript") {
+    const { javascript } = await import("@codemirror/lang-javascript");
+    return [javascript({ jsx: true, typescript: needle === "typescript" })];
+  }
+
   const match = languages.find(
     (entry) =>
       entry.name.toLowerCase() === needle ||

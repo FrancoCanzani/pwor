@@ -54,7 +54,6 @@ function defaultPosition() {
   return { x, y };
 }
 
-/** UI-only label when the note has no real title yet. */
 function displayTitle(title: string | null | undefined): string {
   return noteDisplayTitle(title);
 }

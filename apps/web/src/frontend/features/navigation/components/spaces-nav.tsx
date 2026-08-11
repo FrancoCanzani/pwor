@@ -141,7 +141,7 @@ function SpaceRow({
   onSelect: () => void;
 }) {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(isActive);
+  const [open, setOpen] = useState(true);
   const search = useRouterState({
     select: (state) => state.location.search as { item?: string },
   });

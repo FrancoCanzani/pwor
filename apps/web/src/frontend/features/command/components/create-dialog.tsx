@@ -42,6 +42,7 @@ export function CreateDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const [captureTitle, setCaptureTitle] = useState("");
   const [captureInput, setCaptureInput] = useState("");
   const [title, setTitle] = useState("");
   const [titleTouched, setTitleTouched] = useState(false);
@@ -57,6 +58,7 @@ export function CreateDialog({
 
   useEffect(() => {
     if (!open) {
+      setCaptureTitle("");
       setCaptureInput("");
       setTitle("");
       setTitleTouched(false);
@@ -87,7 +89,9 @@ export function CreateDialog({
           workspaceId,
         });
       }
-      return captureVaultInput(trimmed, workspaceId);
+      return captureVaultInput(trimmed, workspaceId, null, {
+        title: captureTitle.trim() || null,
+      });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
@@ -173,7 +177,15 @@ export function CreateDialog({
               disabled={busy}
               aria-label="Snippet title"
             />
-          ) : null}
+          ) : (
+            <Input
+              value={captureTitle}
+              onChange={(e) => setCaptureTitle(e.target.value)}
+              placeholder="Title (optional)"
+              className="h-8 text-xs placeholder:text-[11px]"
+              disabled={busy}
+            />
+          )}
           <Textarea
             autoFocus
             value={captureInput}

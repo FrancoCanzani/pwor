@@ -1,1 +1,0 @@
-ALTER TABLE `vault_item` ADD `inbox_item_id` text REFERENCES inbox_item(id);

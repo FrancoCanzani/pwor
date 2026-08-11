@@ -32,7 +32,6 @@ function extensionOf(title: string | null): string | null {
   return title.slice(title.lastIndexOf(".") + 1).toLowerCase();
 }
 
-/** Whether a vault file should open in the sheet preview. */
 export function isSheetPreviewable(
   mimeType: string | null,
   title: string | null,
@@ -80,7 +79,6 @@ function normalizeSheet(
   return { name, headers, rows };
 }
 
-/** Parse a spreadsheet ArrayBuffer into preview tables (client-side). */
 export async function parseSheetWorkbook(
   buffer: ArrayBuffer,
 ): Promise<SheetWorkbook> {

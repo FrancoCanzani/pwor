@@ -57,8 +57,9 @@ import {
   vaultItemsQueryOptions,
   type VaultItem,
 } from "@features/vault/api";
+import { VaultRenameDialog } from "@features/vault/components/vault-rename-dialog";
 import { VaultViewer } from "@features/vault/components/vault-viewer";
-import { kindLabel } from "@features/vault/lib/list";
+import { formatBytes } from "@features/vault/lib/size";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { toEpochMs } from "@shared/time";
 
@@ -72,6 +73,9 @@ type LibraryRow = {
   searchText: string;
   uploadedAt: number;
   kind: "note" | "vault";
+  tags: string[];
+  sizeBytes: number | null;
+  pending: boolean;
   note?: NoteListItem;
   item?: VaultItem;
 };
@@ -84,6 +88,14 @@ const FILTERS: { id: LibraryKind; label: string }[] = [
   { id: "files", label: "Files" },
   { id: "text", label: "Text" },
 ];
+
+const FACET_TYPE_LABEL: Record<Exclude<LibraryKind, "all">, string> = {
+  notes: "Note",
+  snippets: "Snippet",
+  links: "Link",
+  files: "File",
+  text: "Text",
+};
 
 const spaceLibraryFeatures = tableFeatures({
   columnFilteringFeature,
@@ -107,28 +119,44 @@ function SortableHeader({
   header,
   children,
   className,
+  align = "start",
 }: {
   header: Header<typeof spaceLibraryFeatures, LibraryRow, unknown>;
   children: ReactNode;
   className?: string;
+  align?: "start" | "end";
 }) {
   const sorted = header.column.getIsSorted();
+  const icon =
+    sorted === "asc" ? (
+      <CaretUpIcon className="size-3 shrink-0" />
+    ) : sorted === "desc" ? (
+      <CaretDownIcon className="size-3 shrink-0" />
+    ) : (
+      <CaretSortIcon className="size-3 shrink-0 opacity-50" />
+    );
+
   return (
     <button
       type="button"
       className={
         className ??
-        "inline-flex items-center gap-1 text-[11px] font-normal text-muted-foreground hover:text-foreground"
+        (align === "end"
+          ? "inline-flex w-full items-center justify-end gap-1 text-sm font-normal text-muted-foreground hover:text-foreground"
+          : "inline-flex items-center gap-1 text-sm font-normal text-muted-foreground hover:text-foreground")
       }
       onClick={header.column.getToggleSortingHandler()}
     >
-      {children}
-      {sorted === "asc" ? (
-        <CaretUpIcon className="size-3" />
-      ) : sorted === "desc" ? (
-        <CaretDownIcon className="size-3" />
+      {align === "end" ? (
+        <>
+          {icon}
+          {children}
+        </>
       ) : (
-        <CaretSortIcon className="size-3 opacity-50" />
+        <>
+          {children}
+          {icon}
+        </>
       )}
     </button>
   );
@@ -142,6 +170,7 @@ function LibraryRowActions({
   onView: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [renameOpen, setRenameOpen] = useState(false);
 
   const remove = useMutation({
     mutationFn: async () => {
@@ -186,6 +215,14 @@ function LibraryRowActions({
           >
             View
           </DropdownMenuItem>
+          {row.kind === "vault" && row.item ? (
+            <DropdownMenuItem
+              className="font-normal text-xs"
+              onClick={() => setRenameOpen(true)}
+            >
+              Rename
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
           <AlertDialogTrigger
             render={
@@ -218,6 +255,14 @@ function LibraryRowActions({
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
+
+      {row.kind === "vault" && row.item ? (
+        <VaultRenameDialog
+          item={row.item}
+          open={renameOpen}
+          onOpenChange={setRenameOpen}
+        />
+      ) : null}
     </AlertDialog>
   );
 }
@@ -255,10 +300,13 @@ export function SpaceLibraryPage() {
         key: `note:${note.id}`,
         kind: "note",
         title,
-        typeLabel: "note",
+        typeLabel: FACET_TYPE_LABEL.notes,
         facet: "notes",
         searchText: title.toLowerCase(),
         uploadedAt: toEpochMs(note.createdAt),
+        tags: [],
+        sizeBytes: null,
+        pending: false,
         note,
       });
     }
@@ -287,10 +335,13 @@ export function SpaceLibraryPage() {
         key: `vault:${item.id}`,
         kind: "vault",
         title,
-        typeLabel: kindLabel(item),
+        typeLabel: FACET_TYPE_LABEL[facet],
         facet,
         searchText,
         uploadedAt: toEpochMs(item.createdAt),
+        tags: item.tags ?? [],
+        sizeBytes: item.sizeBytes ?? null,
+        pending: item.parseStatus === "pending",
         item,
       });
     }
@@ -326,8 +377,25 @@ export function SpaceLibraryPage() {
       header: ({ header }) => (
         <SortableHeader header={header}>Name</SortableHeader>
       ),
-      cell: ({ getValue }) => (
-        <span className="min-w-0 truncate text-xs">{getValue<string>()}</span>
+      cell: ({ row: { original: row } }) => (
+        <div
+          className={
+            row.pending
+              ? "flex min-w-0 flex-col gap-0.5 animate-pulse"
+              : "flex min-w-0 flex-col gap-0.5"
+          }
+        >
+          <span className="min-w-0 truncate text-sm">{row.title}</span>
+          {row.tags.length > 0 ? (
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+              {row.tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="shrink-0 capitalize">
+                  {tag}
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </div>
       ),
       enableGlobalFilter: true,
     },
@@ -335,10 +403,12 @@ export function SpaceLibraryPage() {
       id: "type",
       accessorKey: "typeLabel",
       header: ({ header }) => (
-        <SortableHeader header={header}>Type</SortableHeader>
+        <SortableHeader header={header} align="end">
+          Type
+        </SortableHeader>
       ),
       cell: ({ getValue }) => (
-        <span className="text-[11px] tracking-wide text-muted-foreground uppercase">
+        <span className="block text-xs text-muted-foreground capitalize">
           {getValue<string>()}
         </span>
       ),
@@ -349,17 +419,29 @@ export function SpaceLibraryPage() {
       enableGlobalFilter: false,
     },
     {
+      id: "size",
+      accessorKey: "sizeBytes",
+      header: ({ header }) => (
+        <SortableHeader header={header} align="end">
+          Size
+        </SortableHeader>
+      ),
+      cell: ({ getValue }) => (
+        <span className="block font-nums text-xs whitespace-nowrap text-muted-foreground">
+          {formatBytes(getValue<number | null>())}
+        </span>
+      ),
+      enableGlobalFilter: false,
+    },
+    {
       accessorKey: "uploadedAt",
       header: ({ header }) => (
-        <SortableHeader
-          header={header}
-          className="inline-flex w-full items-center justify-end gap-0.5 text-[11px] font-normal text-muted-foreground hover:text-foreground"
-        >
+        <SortableHeader header={header} align="end">
           Uploaded
         </SortableHeader>
       ),
       cell: ({ getValue }) => (
-        <span className="font-nums text-[11px] text-muted-foreground">
+        <span className="block font-nums text-xs whitespace-nowrap text-muted-foreground">
           {formatUploadDate(getValue<number>())}
         </span>
       ),
@@ -512,12 +594,14 @@ export function SpaceLibraryPage() {
                           key={header.id}
                           className={
                             id === "uploadedAt"
-                              ? "w-[5.25rem] py-2 text-right"
-                              : id === "type"
-                                ? "w-20 py-2 text-left"
-                                : id === "actions"
-                                  ? "w-8 py-2"
-                                  : "py-2 text-left"
+                              ? "h-8 w-32 px-2 text-right"
+                              : id === "size"
+                                ? "h-8 w-16 px-2 text-right"
+                                : id === "type"
+                                  ? "h-8 w-20 px-2 text-right"
+                                  : id === "actions"
+                                    ? "h-8 w-8 px-2"
+                                    : "h-8 px-2 text-left"
                           }
                         >
                           {header.isPlaceholder ? null : (
@@ -543,12 +627,14 @@ export function SpaceLibraryPage() {
                           key={cell.id}
                           className={
                             id === "uploadedAt"
-                              ? "py-2.5 text-right"
-                              : id === "type"
-                                ? "py-2.5 pr-3"
-                                : id === "actions"
-                                  ? "py-2.5 text-right"
-                                  : "min-w-0 py-2.5 pr-3"
+                              ? "min-h-8 px-2 py-1.5 text-right align-middle"
+                              : id === "size"
+                                ? "min-h-8 px-2 py-1.5 text-right align-middle"
+                                : id === "type"
+                                  ? "min-h-8 px-2 py-1.5 text-right align-middle"
+                                  : id === "actions"
+                                    ? "min-h-8 px-2 py-1.5 text-right align-middle"
+                                    : "min-h-8 min-w-0 px-2 py-1.5 align-middle"
                           }
                         >
                           <table.FlexRender cell={cell} />

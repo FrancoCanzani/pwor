@@ -50,7 +50,9 @@ export function inferLanguageFromContent(content: string): string | null {
   if (/\b(def |elif |self\.|None\b|True\b|False\b|import\s+\w+)/.test(sample)) {
     return "python";
   }
-  if (/\b(fn\s+\w+|let\s+mut\b|impl\s+|pub\s+(fn|struct|enum)\b)/.test(sample)) {
+  if (
+    /\b(fn\s+\w+|let\s+mut\b|impl\s+|pub\s+(fn|struct|enum)\b)/.test(sample)
+  ) {
     return "rust";
   }
   if (/\b(func\s+\w+|package\s+main\b|:=)/.test(sample)) return "go";
@@ -70,7 +72,6 @@ export function inferLanguageFromContent(content: string): string | null {
   return null;
 }
 
-/** True when pasted text looks like source rather than prose. */
 export function looksLikeCode(content: string): boolean {
   const trimmed = content.trim();
   if (!trimmed) return false;

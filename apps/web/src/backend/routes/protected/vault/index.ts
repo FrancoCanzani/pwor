@@ -52,6 +52,7 @@ const updateVaultItemSchema = z
 
 const captureSchema = z.object({
   input: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(200).optional(),
   workspaceId: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   /** When true and workspaceId omitted, pick a space from hint / preferences. */
@@ -133,6 +134,10 @@ const app = new Hono<AppEnv>()
       typeof body.categoryId === "string" && body.categoryId.length > 0
         ? body.categoryId
         : null;
+    const titleOverride =
+      typeof body.title === "string" && body.title.trim().length > 0
+        ? body.title.trim().slice(0, 200)
+        : null;
 
     if (!(file instanceof File)) {
       throw new HTTPException(400, { message: "file is required" });
@@ -158,15 +163,16 @@ const app = new Hono<AppEnv>()
         id,
         userId: user.id,
         kind: "snippet",
-        title: file.name,
+        title: titleOverride ?? file.name,
         content,
         language,
         mimeType: contentType,
         workspaceId,
         categoryId,
-        parseStatus: "ready",
-        parsedAt: new Date(),
+        parseStatus: "pending",
       });
+
+      scheduleVaultEnrichment(c.executionCtx, c.env, id);
 
       const [created] = await db
         .select()
@@ -189,7 +195,7 @@ const app = new Hono<AppEnv>()
     await db.insert(vaultItem).values({
       id,
       userId: user.id,
-      title: file.name,
+      title: titleOverride ?? file.name,
       r2Key,
       mimeType: contentType,
       workspaceId,
@@ -237,9 +243,10 @@ const app = new Hono<AppEnv>()
       language: resolvedLanguage,
       workspaceId: workspace,
       categoryId: categoryId ?? null,
-      parseStatus: "ready",
-      parsedAt: new Date(),
+      parseStatus: "pending",
     });
+
+    scheduleVaultEnrichment(c.executionCtx, c.env, id);
 
     const [created] = await db
       .select()
@@ -254,6 +261,7 @@ const app = new Hono<AppEnv>()
     const user = c.get("user")!;
     const {
       input,
+      title,
       workspaceId,
       categoryId,
       autoSpace,
@@ -286,7 +294,7 @@ const app = new Hono<AppEnv>()
         id,
         userId: user.id,
         kind: "link",
-        title: parsed.url,
+        title: title || parsed.url,
         url: parsed.url,
         tags: seedTags,
         workspaceId: workspace,
@@ -305,15 +313,15 @@ const app = new Hono<AppEnv>()
         tags: seedTags,
         workspaceId: workspace,
         categoryId: categoryId ?? null,
-        parseStatus: "ready",
-        parsedAt: new Date(),
+        parseStatus: "pending",
       });
+      scheduleVaultEnrichment(c.executionCtx, c.env, id);
     } else {
       await db.insert(vaultItem).values({
         id,
         userId: user.id,
         kind: "text",
-        title: titleFromText(parsed.content),
+        title: title || titleFromText(parsed.content),
         content: parsed.content,
         tags: seedTags,
         workspaceId: workspace,
@@ -467,10 +475,8 @@ const app = new Hono<AppEnv>()
       .where(and(...conditions))
       .orderBy(desc(vaultItem.createdAt));
 
-    const items = rows.map(serializeVaultItem);
-
     const sizes = await Promise.all(
-      items.map(async (item) => {
+      rows.map(async (item) => {
         if (item.r2Key) {
           return vaultObjectByteSize(c.env.VAULT_BUCKET, item.r2Key);
         }
@@ -481,6 +487,11 @@ const app = new Hono<AppEnv>()
       }),
     );
     const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
+
+    const items = rows.map((row, index) => ({
+      ...serializeVaultItem(row),
+      sizeBytes: sizes[index] ?? 0,
+    }));
 
     return c.json({ items, totalBytes });
   })
@@ -588,7 +599,13 @@ const app = new Hono<AppEnv>()
       throw new HTTPException(404, { message: "Not found" });
     }
 
-    return c.json(serializeVaultItem(item));
+    const sizeBytes = item.r2Key
+      ? await vaultObjectByteSize(c.env.VAULT_BUCKET, item.r2Key)
+      : item.content
+        ? new TextEncoder().encode(item.content).byteLength
+        : 0;
+
+    return c.json({ ...serializeVaultItem(item), sizeBytes });
   })
 
   .get("/:id/file", async (c) => {

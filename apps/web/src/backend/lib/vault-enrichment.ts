@@ -10,11 +10,7 @@ import { extractVaultItemMarkdown } from "./vault-markdown";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-/**
- * AI tags are freeform semantic labels — not a fixed taxonomy.
- * Prefer concrete nouns: topics, people, places, brands, themes.
- * Examples: tokyo, product design, hiring, react, fundraising.
- */
+/** Tags are freeform semantic labels, not a fixed taxonomy — prefer concrete nouns (topics, people, places, brands). */
 const ENRICHMENT_SYSTEM_PROMPT = `You enrich a saved vault item for later search and recall.
 
 Return:
@@ -29,6 +25,12 @@ const enrichmentSchema = z.object({
 });
 
 const BODY_CHARS = 6_000;
+
+function filenameFromR2Key(r2Key: string | null): string | null {
+  if (!r2Key) return null;
+  const name = r2Key.slice(r2Key.lastIndexOf("/") + 1);
+  return name || null;
+}
 
 function normalizeTags(tags: string[]): string[] {
   const seen = new Set<string>();
@@ -58,18 +60,6 @@ export async function enrichVaultItem(
 
   let item = initial;
   const kind = normalizeVaultKind(item.kind);
-
-  if (kind === "snippet") {
-    await db
-      .update(vaultItem)
-      .set({
-        parseStatus: "ready",
-        parseError: null,
-        parsedAt: new Date(),
-      })
-      .where(eq(vaultItem.id, vaultItemId));
-    return;
-  }
 
   if (kind === "link" && item.url) {
     const page = await fetchPageMetadata(item.url);
@@ -117,6 +107,7 @@ export async function enrichVaultItem(
     item.url ? `URL: ${item.url}` : null,
     item.siteName ? `Site: ${item.siteName}` : null,
     item.kind ? `Kind: ${normalizeVaultKind(item.kind)}` : null,
+    item.language ? `Language: ${item.language}` : null,
     item.content ? `Content:\n${item.content.slice(0, BODY_CHARS)}` : null,
     item.extractedMarkdown
       ? `Extracted:\n${item.extractedMarkdown.slice(0, BODY_CHARS)}`
@@ -150,10 +141,22 @@ export async function enrichVaultItem(
       ...object.tags,
     ]);
 
+    const aiTitle = object.title.trim() || item.title;
+    const filename =
+      kind === "file"
+        ? filenameFromR2Key(item.r2Key)
+        : kind === "snippet" && initial.mimeType
+          ? initial.title
+          : null;
+    const title =
+      filename && !aiTitle?.includes(filename)
+        ? `${aiTitle} (${filename})`
+        : aiTitle;
+
     await db
       .update(vaultItem)
       .set({
-        title: object.title.trim() || item.title,
+        title,
         summary: object.summary.trim(),
         tags,
         kind,

@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "customer",
@@ -40,6 +39,7 @@
         "@better-auth/api-key": "^1.6.26",
         "@codemirror/autocomplete": "^6.20.3",
         "@codemirror/commands": "^6.10.4",
+        "@codemirror/lang-javascript": "^6.2.5",
         "@codemirror/lang-markdown": "^6.5.1",
         "@codemirror/language": "^6.12.4",
         "@codemirror/language-data": "^6.5.2",

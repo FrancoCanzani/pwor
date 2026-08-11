@@ -50,7 +50,6 @@ const TEXT_APPLICATION_TYPES = new Set([
   "application/x-httpd-php",
 ]);
 
-/** Whether a vault file can be shown as plain text in the viewer. */
 export function isTextPreviewable(
   mimeType: string | null,
   title: string | null,

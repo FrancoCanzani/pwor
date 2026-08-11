@@ -1,3 +1,4 @@
+import { CopyIcon, Cross2Icon } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -5,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -12,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
+  renameVaultItem,
   updateVaultItem,
   vaultFileTextQueryOptions,
   vaultItemQueryOptions,
@@ -22,6 +25,7 @@ import {
 import { PdfViewer } from "@features/vault/components/pdf-viewer";
 import { SheetViewer } from "@features/vault/components/sheet-viewer";
 import { SnippetViewer } from "@features/vault/components/snippet-viewer";
+import { kindLabel } from "@features/vault/lib/list";
 import { isTextPreviewable } from "@features/vault/lib/preview";
 import { isSheetPreviewable } from "@features/vault/lib/sheet";
 import { inferLanguageFromContent } from "@shared/infer-language";
@@ -119,6 +123,17 @@ export function VaultViewer({
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  const rename = useMutation({
+    mutationFn: (value: string) => renameVaultItem(item.id, value),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+    },
+    onError: () => toast.error("Couldn’t rename"),
+  });
+
   const isTextItem = item.kind === "text";
   const isSnippet = item.kind === "snippet";
   const isLinkLike = item.kind === "link";
@@ -173,7 +188,6 @@ export function VaultViewer({
       }
     : item;
 
-  const [titleDraft, setTitleDraft] = useState("");
   const [snippetContent, setSnippetContent] = useState<string | null>(null);
   const [snippetLanguage, setSnippetLanguage] = useState<string | null>(null);
   const savedTitleRef = useRef("");
@@ -324,6 +338,13 @@ export function VaultViewer({
     };
   }, []);
 
+  function commitTitle() {
+    const trimmed = titleDraft.trim();
+    setEditingTitle(false);
+    if (!trimmed || trimmed === displayItem.title) return;
+    rename.mutate(trimmed);
+  }
+
   const showLoading =
     ((isTextItem || isLinkLike || isSnippet) && detailPending) ||
     (isTextFile && textPending) ||
@@ -332,11 +353,34 @@ export function VaultViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={!isSnippet}
         className={cn(
           "max-w-[calc(100%-2rem)] overflow-hidden",
           isSheet ? "gap-2 p-2 sm:max-w-5xl" : "sm:max-w-3xl",
         )}
       >
+        {isSnippet ? (
+          <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Copy"
+              disabled={!textContent}
+              onClick={() => {
+                if (!textContent) return;
+                void navigator.clipboard.writeText(textContent);
+                toast.success("Copied");
+              }}
+            >
+              <CopyIcon />
+            </Button>
+            <DialogClose render={<Button variant="ghost" size="icon-sm" />}>
+              <Cross2Icon />
+              <span className="sr-only">Close</span>
+            </DialogClose>
+          </div>
+        ) : null}
+
         <DialogHeader className="min-w-0">
           {isSnippet ? (
             <>
@@ -356,13 +400,43 @@ export function VaultViewer({
                   scheduleSnippetSave({ title: next });
                 }}
                 placeholder="Snippet title"
-                className="h-8 pr-8 text-sm font-normal"
+                className="h-8 pr-16 text-sm font-normal"
                 aria-label="Snippet title"
               />
             </>
+          ) : editingTitle ? (
+            <Input
+              autoFocus
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitTitle();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setEditingTitle(false);
+                }
+              }}
+              className="h-7 pr-8 text-sm font-medium"
+              disabled={rename.isPending}
+            />
           ) : (
-            <DialogTitle className="truncate pr-8">
-              {displayItem.title ?? "Untitled"}
+            <DialogTitle className="flex min-w-0 items-baseline gap-2 pr-8">
+              <span
+                className="min-w-0 cursor-text truncate"
+                onClick={() => {
+                  setTitleDraft(displayItem.title ?? "");
+                  setEditingTitle(true);
+                }}
+              >
+                {displayItem.title ?? "Untitled"}
+              </span>
+              <span className="shrink-0 text-xs font-normal text-muted-foreground capitalize">
+                {kindLabel(displayItem)}
+              </span>
             </DialogTitle>
           )}
         </DialogHeader>

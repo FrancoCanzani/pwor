@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1785601664929,
-      "tag": "0000_robust_sharon_ventura",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1785665900838,
-      "tag": "0001_complete_ted_forrester",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1785777517033,
-      "tag": "0002_perfect_jane_foster",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1786434773120,
-      "tag": "0003_omniscient_sleepwalker",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1786451536137,
-      "tag": "0004_blushing_centennial",
+      "when": 1786462252127,
+      "tag": "0000_early_cannonball",
       "breakpoints": true
     }
   ]

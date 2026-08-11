@@ -35,11 +35,7 @@ function pickPreferredOrNewest(
   return spaces[0]!.id;
 }
 
-/**
- * Pick a space for an auto-routed clip (e.g. X bookmark).
- * High-confidence keyword match wins; otherwise AI; low confidence falls
- * back to the user's preferred/last space instead of a wrong guess.
- */
+/** Keyword match wins if confident, else AI, else the user's preferred/last space rather than a wrong guess. */
 export async function resolveAutoSpace(
   env: Env,
   userId: string,

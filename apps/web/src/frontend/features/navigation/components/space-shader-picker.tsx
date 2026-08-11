@@ -15,7 +15,7 @@ export function SpaceShaderPicker({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-6 gap-1.5", className)}>
+    <div className={cn("flex flex-wrap gap-1.5 p-0.5", className)}>
       {SPACE_SHADERS.map((preset) => {
         const selected = preset.id === value;
         return (
@@ -26,13 +26,15 @@ export function SpaceShaderPicker({
             aria-label={preset.label}
             aria-pressed={selected}
             className={cn(
-              "rounded-sm transition-opacity",
-              selected
-                ? "ring-1 ring-foreground/40"
-                : "hover:opacity-80",
+              "size-7 rounded-sm",
+              selected && "ring-2 ring-foreground/40",
             )}
           >
-            <SpacePic shaderId={preset.id} size="sm" className="size-7" />
+            <SpacePic
+              shaderId={preset.id}
+              size="sm"
+              className="size-7 hover:opacity-90"
+            />
           </button>
         );
       })}

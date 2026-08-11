@@ -425,65 +425,68 @@ export function SpaceLibraryPage() {
       : null;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col px-4">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/40">
-        <h1 className="min-w-0 flex-1 truncate text-sm font-normal">
-          {spaceTitle}
-        </h1>
-        {hasCaptured ? (
-          <>
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search…"
-              className="h-7 max-w-[10rem] border-0 bg-transparent px-0 text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 sm:max-w-xs"
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    type="button"
-                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground"
-                  />
-                }
-              >
-                {filterLabel}
-                <CaretDownIcon className="size-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-32">
-                {FILTERS.map((item) => (
-                  <DropdownMenuItem
-                    key={item.id}
-                    className="font-normal text-xs"
-                    onClick={() => setFilter(item.id)}
-                  >
-                    {item.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        ) : null}
-        <Button
-          type="button"
-          variant="new"
-          className="h-auto shrink-0 px-1.5 py-1 text-xs leading-none font-normal"
-          onClick={() => openNewNote()}
-        >
-          Note
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Capture"
-          onClick={() => openCreate()}
-        >
-          <PlusIcon />
-        </Button>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-border/40">
+        <div className="mx-auto flex h-12 w-full max-w-4xl items-center gap-2 px-4">
+          <h1 className="min-w-0 flex-1 truncate text-sm font-normal">
+            {spaceTitle}
+          </h1>
+          {hasCaptured ? (
+            <>
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search…"
+                className="h-7 max-w-[10rem] border-0 bg-transparent px-0 text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 sm:max-w-xs"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground"
+                    />
+                  }
+                >
+                  {filterLabel}
+                  <CaretDownIcon className="size-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-32">
+                  {FILTERS.map((item) => (
+                    <DropdownMenuItem
+                      key={item.id}
+                      className="font-normal text-xs"
+                      onClick={() => setFilter(item.id)}
+                    >
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : null}
+          <Button
+            type="button"
+            variant="new"
+            className="h-auto shrink-0 px-1.5 py-1 text-xs leading-none font-normal"
+            onClick={() => openNewNote()}
+          >
+            Note
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Capture"
+            onClick={() => openCreate()}
+          >
+            <PlusIcon />
+          </Button>
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pt-2 pb-20">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-4xl px-4 pt-6 pb-20">
           {!hasCaptured ? (
             <PageEmpty
               title="Nothing here yet"
@@ -557,6 +560,7 @@ export function SpaceLibraryPage() {
               </tbody>
             </table>
           )}
+        </div>
       </div>
 
       {openItem ? (

@@ -2,9 +2,10 @@ import {
   CaretDownIcon,
   CaretSortIcon,
   CaretUpIcon,
+  DotsHorizontalIcon,
   PlusIcon,
 } from "@radix-ui/react-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
   columnFilteringFeature,
@@ -21,20 +22,38 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { PageEmpty } from "@components/page-empty";
 import { useCreateDialog } from "@features/command/create-dialog-context";
-import { notesQueryOptions, type NoteListItem } from "@features/notes/api";
+import {
+  deleteNote,
+  notesQueryOptions,
+  type NoteListItem,
+} from "@features/notes/api";
 import { useFloatingNote } from "@features/notes/floating-note-context";
 import {
+  deleteVaultItem,
   vaultItemsQueryOptions,
   type VaultItem,
 } from "@features/vault/api";
@@ -99,7 +118,7 @@ function SortableHeader({
       type="button"
       className={
         className ??
-        "inline-flex items-center gap-1 text-xs font-normal text-muted-foreground hover:text-foreground"
+        "inline-flex items-center gap-1 text-[11px] font-normal text-muted-foreground hover:text-foreground"
       }
       onClick={header.column.getToggleSortingHandler()}
     >
@@ -115,50 +134,93 @@ function SortableHeader({
   );
 }
 
-const columns: ColumnDef<typeof spaceLibraryFeatures, LibraryRow>[] = [
-  {
-    accessorKey: "title",
-    header: ({ header }) => (
-      <SortableHeader header={header}>Name</SortableHeader>
-    ),
-    cell: ({ getValue }) => (
-      <span className="min-w-0 truncate text-sm">{getValue<string>()}</span>
-    ),
-    enableGlobalFilter: true,
-  },
-  {
-    id: "type",
-    accessorKey: "typeLabel",
-    header: ({ header }) => (
-      <SortableHeader header={header}>Type</SortableHeader>
-    ),
-    cell: ({ getValue }) => (
-      <span className="text-xs text-muted-foreground">{getValue<string>()}</span>
-    ),
-    filterFn: (row, _columnId, filterValue) => {
-      if (!filterValue || filterValue === "all") return true;
-      return row.original.facet === filterValue;
+function LibraryRowActions({
+  row,
+  onView,
+}: {
+  row: LibraryRow;
+  onView: () => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const remove = useMutation({
+    mutationFn: async () => {
+      if (row.kind === "note" && row.note) {
+        await deleteNote(row.note.id);
+        return;
+      }
+      if (row.kind === "vault" && row.item) {
+        await deleteVaultItem(row.item.id);
+      }
     },
-    enableGlobalFilter: false,
-  },
-  {
-    accessorKey: "uploadedAt",
-    header: ({ header }) => (
-      <SortableHeader
-        header={header}
-        className="inline-flex w-full items-center justify-end gap-1 text-xs font-normal text-muted-foreground hover:text-foreground"
-      >
-        Uploaded
-      </SortableHeader>
-    ),
-    cell: ({ getValue }) => (
-      <span className="font-nums text-xs text-muted-foreground">
-        {formatUploadDate(getValue<number>())}
-      </span>
-    ),
-    enableGlobalFilter: false,
-  },
-];
+    onSuccess: () => {
+      toast.success(`Deleted ${row.title}`);
+      if (row.kind === "note") {
+        void queryClient.invalidateQueries({ queryKey: ["notes"] });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+      }
+    },
+    onError: () => toast.error("Delete failed"),
+  });
+
+  return (
+    <AlertDialog>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Actions"
+              onClick={(event) => event.stopPropagation()}
+            />
+          }
+        >
+          <DotsHorizontalIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+          <DropdownMenuItem
+            className="font-normal text-xs"
+            onClick={onView}
+          >
+            View
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <AlertDialogTrigger
+            render={
+              <DropdownMenuItem
+                variant="destructive"
+                className="font-normal text-xs"
+              />
+            }
+          >
+            Delete
+          </AlertDialogTrigger>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialogContent onClick={(event) => event.stopPropagation()}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {row.title}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently removes it from this space. This can’t be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => remove.mutate()}
+            disabled={remove.isPending}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 export function SpaceLibraryPage() {
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
@@ -211,7 +273,12 @@ export function SpaceLibraryPage() {
             : item.kind === "text"
               ? "text"
               : "files";
-      const searchText = [title, item.summary, item.language, ...(item.tags ?? [])]
+      const searchText = [
+        title,
+        item.summary,
+        item.language,
+        ...(item.tags ?? []),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -235,6 +302,82 @@ export function SpaceLibraryPage() {
     () => (filter === "all" ? [] : [{ id: "type", value: filter }]),
     [filter],
   );
+
+  function setOpenItem(item: VaultItem | null) {
+    void navigate({
+      search: item ? { item: item.id } : {},
+      replace: true,
+    });
+  }
+
+  function openRow(row: LibraryRow) {
+    if (row.kind === "note" && row.note) {
+      openNote(row.note.id);
+      return;
+    }
+    if (row.kind === "vault" && row.item) {
+      setOpenItem(row.item);
+    }
+  }
+
+  const columns: ColumnDef<typeof spaceLibraryFeatures, LibraryRow>[] = [
+    {
+      accessorKey: "title",
+      header: ({ header }) => (
+        <SortableHeader header={header}>Name</SortableHeader>
+      ),
+      cell: ({ getValue }) => (
+        <span className="min-w-0 truncate text-xs">{getValue<string>()}</span>
+      ),
+      enableGlobalFilter: true,
+    },
+    {
+      id: "type",
+      accessorKey: "typeLabel",
+      header: ({ header }) => (
+        <SortableHeader header={header}>Type</SortableHeader>
+      ),
+      cell: ({ getValue }) => (
+        <span className="text-[11px] tracking-wide text-muted-foreground uppercase">
+          {getValue<string>()}
+        </span>
+      ),
+      filterFn: (row, _columnId, filterValue) => {
+        if (!filterValue || filterValue === "all") return true;
+        return row.original.facet === filterValue;
+      },
+      enableGlobalFilter: false,
+    },
+    {
+      accessorKey: "uploadedAt",
+      header: ({ header }) => (
+        <SortableHeader
+          header={header}
+          className="inline-flex w-full items-center justify-end gap-0.5 text-[11px] font-normal text-muted-foreground hover:text-foreground"
+        >
+          Uploaded
+        </SortableHeader>
+      ),
+      cell: ({ getValue }) => (
+        <span className="font-nums text-[11px] text-muted-foreground">
+          {formatUploadDate(getValue<number>())}
+        </span>
+      ),
+      enableGlobalFilter: false,
+    },
+    {
+      id: "actions",
+      header: () => null,
+      cell: ({ row }) => (
+        <LibraryRowActions
+          row={row.original}
+          onView={() => openRow(row.original)}
+        />
+      ),
+      enableSorting: false,
+      enableGlobalFilter: false,
+    },
+  ];
 
   const table = useTable({
     key: "space-library",
@@ -280,23 +423,6 @@ export function SpaceLibraryPage() {
     search.item != null
       ? (vaultItems.find((item) => item.id === search.item) ?? null)
       : null;
-
-  function setOpenItem(item: VaultItem | null) {
-    void navigate({
-      search: item ? { item: item.id } : {},
-      replace: true,
-    });
-  }
-
-  function openRow(row: LibraryRow) {
-    if (row.kind === "note" && row.note) {
-      openNote(row.note.id);
-      return;
-    }
-    if (row.kind === "vault" && row.item) {
-      setOpenItem(row.item);
-    }
-  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -358,7 +484,7 @@ export function SpaceLibraryPage() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="w-full px-4 pt-2 pb-20">
+        <div className="mx-auto w-full max-w-3xl px-4 pt-2 pb-20">
           {!hasCaptured ? (
             <PageEmpty
               title="Nothing here yet"
@@ -375,20 +501,21 @@ export function SpaceLibraryPage() {
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr
                     key={headerGroup.id}
-                    className="border-b border-border/40"
+                    className="border-b border-dashed border-border/40"
                   >
                     {headerGroup.headers.map((header) => {
-                      const isUploaded = header.column.id === "uploadedAt";
-                      const isType = header.column.id === "type";
+                      const id = header.column.id;
                       return (
                         <th
                           key={header.id}
                           className={
-                            isUploaded
-                              ? "w-28 py-2 text-right"
-                              : isType
-                                ? "w-24 py-2 text-left"
-                                : "py-2 text-left"
+                            id === "uploadedAt"
+                              ? "w-[5.25rem] py-2 text-right"
+                              : id === "type"
+                                ? "w-20 py-2 text-left"
+                                : id === "actions"
+                                  ? "w-8 py-2"
+                                  : "py-2 text-left"
                           }
                         >
                           {header.isPlaceholder ? null : (
@@ -404,21 +531,22 @@ export function SpaceLibraryPage() {
                 {rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="cursor-pointer border-b border-border hover:bg-muted/40"
+                    className="cursor-pointer border-b border-dashed border-border/40 hover:bg-muted/40"
                     onClick={() => openRow(row.original)}
                   >
                     {row.getAllCells().map((cell) => {
-                      const isUploaded = cell.column.id === "uploadedAt";
-                      const isType = cell.column.id === "type";
+                      const id = cell.column.id;
                       return (
                         <td
                           key={cell.id}
                           className={
-                            isUploaded
-                              ? "py-3 text-right"
-                              : isType
-                                ? "py-3 pr-4"
-                                : "min-w-0 py-3 pr-4"
+                            id === "uploadedAt"
+                              ? "py-2.5 text-right"
+                              : id === "type"
+                                ? "py-2.5 pr-3"
+                                : id === "actions"
+                                  ? "py-2.5 text-right"
+                                  : "min-w-0 py-2.5 pr-3"
                           }
                         >
                           <table.FlexRender cell={cell} />

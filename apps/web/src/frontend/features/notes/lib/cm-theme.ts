@@ -1,55 +1,49 @@
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { type Extension, EditorState } from "@codemirror/state";
 import {
   EditorView,
-  keymap,
   placeholder as placeholderExt,
 } from "@codemirror/view";
-import { tags } from "@lezer/highlight";
+import { GFM } from "@lezer/markdown";
+import {
+  prosemarkBaseThemeSetup,
+  prosemarkBasicSetup,
+  prosemarkMarkdownSyntaxExtensions,
+} from "@prosemark/core";
 
 import { createHtmlPasteHandler } from "@features/notes/lib/cm-html-paste";
-import { createImagePreviewExtension } from "@features/notes/lib/cm-image-preview";
 import {
   createWikiLinkExtensions,
   type WikiLinkEditorOptions,
 } from "@features/notes/lib/cm-wiki-links";
 
-export const pworHighlight = HighlightStyle.define([
-  { tag: tags.heading, fontWeight: "700", color: "var(--foreground)" },
-  { tag: tags.heading1, fontSize: "1.35em", lineHeight: "1.3" },
-  { tag: tags.heading2, fontSize: "1.15em", lineHeight: "1.35" },
-  { tag: tags.heading3, fontSize: "1.05em" },
-  { tag: tags.strong, fontWeight: "700" },
-  { tag: tags.emphasis, fontStyle: "italic" },
-  { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: tags.link, color: "var(--muted-foreground)" },
-  { tag: tags.url, color: "var(--muted-foreground)" },
-  { tag: tags.monospace, color: "var(--muted-foreground)" },
-  { tag: tags.processingInstruction, color: "var(--muted-foreground)" },
-  { tag: tags.meta, color: "var(--muted-foreground)" },
-  { tag: tags.comment, color: "var(--muted-foreground)" },
-  { tag: tags.quote, color: "var(--muted-foreground)", fontStyle: "italic" },
-  { tag: tags.list, color: "var(--foreground)" },
-]);
-
-export const pworEditorTheme = EditorView.theme({
+/** Map ProseMark tokens onto Pwor theme vars; preview uses Geist Sans. */
+export const pworProsemarkTheme = EditorView.theme({
   "&": {
     height: "100%",
-    fontSize: "14px",
+    fontSize: "15px",
     backgroundColor: "transparent",
     color: "var(--foreground)",
+    "--pm-cursor-color": "var(--foreground)",
+    "--pm-header-mark-color": "var(--muted-foreground)",
+    "--pm-link-color": "var(--foreground)",
+    "--pm-muted-color": "var(--muted-foreground)",
+    "--pm-code-background-color": "var(--muted)",
+    "--pm-code-font": "var(--font-mono)",
+    "--pm-code-btn-background-color": "var(--muted)",
+    "--pm-code-btn-hover-background-color": "var(--border)",
+    "--pm-blockquote-vertical-line-background-color": "var(--border)",
+    "--pm-syntax-comment": "var(--muted-foreground)",
   },
   ".cm-scroller": {
-    fontFamily: "var(--font-mono)",
+    fontFamily: "var(--font-sans)",
     lineHeight: "1.65",
     fontWeight: "400",
   },
   ".cm-content": {
     padding: "0",
     caretColor: "var(--foreground)",
-    fontFamily: "var(--font-mono)",
+    fontFamily: "var(--font-sans)",
   },
   ".cm-line": {
     padding: "0",
@@ -104,11 +98,11 @@ function altFromFilename(name: string): string {
   return base.length > 0 ? base : "image";
 }
 
-function insertMarkdown(view: EditorView, markdown: string) {
+function insertMarkdown(view: EditorView, markdownText: string) {
   const { from, to } = view.state.selection.main;
   const needsLeadingNewline =
     from > 0 && view.state.doc.sliceString(from - 1, from) !== "\n";
-  const insert = `${needsLeadingNewline ? "\n" : ""}${markdown}\n`;
+  const insert = `${needsLeadingNewline ? "\n" : ""}${markdownText}\n`;
   view.dispatch({
     changes: { from, to, insert },
     selection: { anchor: from + insert.length },
@@ -178,17 +172,16 @@ export function createNoteEditorState({
   wikiLinks?: WikiLinkEditorOptions;
 }) {
   const extensions: Extension[] = [
-    history(),
-    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-    // No codeLanguages — @codemirror/language-data loads every grammar and
-    // will freeze the tab on larger notes / fenced blocks.
-    markdown({ base: markdownLanguage }),
-    syntaxHighlighting(pworHighlight),
-    pworEditorTheme,
-    EditorView.lineWrapping,
+    markdown({
+      base: markdownLanguage,
+      // Skip @codemirror/language-data — loading every grammar freezes large notes.
+      extensions: [GFM, ...prosemarkMarkdownSyntaxExtensions],
+    }),
+    prosemarkBasicSetup(),
+    prosemarkBaseThemeSetup(),
+    pworProsemarkTheme,
     placeholder ? placeholderExt(placeholder) : [],
     createHtmlPasteHandler(),
-    createImagePreviewExtension(),
     uploadImage ? createImageUploadHandler(uploadImage) : [],
     wikiLinks ? createWikiLinkExtensions(wikiLinks) : [],
     EditorView.updateListener.of((update) => {

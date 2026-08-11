@@ -259,10 +259,14 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="flex h-12 shrink-0 items-center gap-3 px-3 md:px-8">
-        <div className="mx-auto flex min-w-0 w-full max-w-3xl items-center gap-3">
-          <div className="min-w-0 flex-1 truncate text-[11px] leading-none text-muted-foreground">
-            {tags.length > 0 ? tags.join(" · ") : null}
-          </div>
+        <div className="mx-auto flex min-w-0 w-full max-w-3xl items-center justify-end gap-3">
+          {tags.length > 0 ? (
+            <div className="min-w-0 flex-1 truncate text-[11px] leading-none text-muted-foreground">
+              {tags.join(" · ")}
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1" />
+          )}
           <span className="shrink-0 text-[11px] leading-none text-muted-foreground">
             {saveState === "saving"
               ? "Saving…"

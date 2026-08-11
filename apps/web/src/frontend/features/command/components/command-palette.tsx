@@ -20,30 +20,16 @@ import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-worksp
 /** Every destination shares a single `{ workspaceId }` param, which keeps
  *  `navigate` type-safe across the union. Note detail is handled separately. */
 const NAV_ITEMS = [
-  { to: "/$workspaceId/inbox", label: "Inbox" },
-  { to: "/$workspaceId/tasks", label: "Tasks" },
-  { to: "/$workspaceId/calendar", label: "Calendar" },
   { to: "/$workspaceId/notes", label: "Notes" },
   { to: "/$workspaceId/vault", label: "Vault" },
-  { to: "/$workspaceId/log", label: "Updates" },
 ] as const;
 
 const KIND_META = {
   note: { label: "Notes", to: "/$workspaceId/notes" },
-  task: { label: "Tasks", to: "/$workspaceId/tasks" },
-  event: { label: "Events", to: "/$workspaceId/calendar" },
   vault_item: { label: "Vault", to: "/$workspaceId/vault" },
-  inbox_item: { label: "Inbox", to: "/$workspaceId/inbox" },
 } as const satisfies Record<SearchKind, { label: string; to: string }>;
 
-const KIND_ORDER: SearchKind[] = [
-  "note",
-  "task",
-  "event",
-  "vault_item",
-  "inbox_item",
-];
-
+const KIND_ORDER: SearchKind[] = ["note", "vault_item"];
 type PaletteItem = {
   id: string;
   label: string;
@@ -106,7 +92,7 @@ export function CommandPalette() {
             run: () =>
               select(workspace.id, () =>
                 navigate({
-                  to: "/$workspaceId/inbox",
+                  to: "/$workspaceId/notes",
                   params: { workspaceId: workspace.id },
                 }),
               ),
@@ -132,23 +118,23 @@ export function CommandPalette() {
             const workspaceId = hit.workspaceId ?? currentWorkspaceId;
             if (!workspaceId) return;
             select(workspaceId, () => {
-              if (hit.kind === "note") {
-                return navigate({
-                  to: "/$workspaceId/notes/$noteId",
-                  params: { workspaceId, noteId: hit.id },
-                });
+              switch (hit.kind) {
+                case "note":
+                  return navigate({
+                    to: "/$workspaceId/notes/$noteId",
+                    params: { workspaceId, noteId: hit.id },
+                  });
+                case "vault_item":
+                  return navigate({
+                    to: "/$workspaceId/vault",
+                    params: { workspaceId },
+                    search: { item: hit.id },
+                  });
+                default: {
+                  const _exhaustive: never = hit.kind;
+                  return _exhaustive;
+                }
               }
-              if (hit.kind === "vault_item") {
-                return navigate({
-                  to: "/$workspaceId/vault",
-                  params: { workspaceId },
-                  search: { item: hit.id },
-                });
-              }
-              return navigate({
-                to: KIND_META[hit.kind].to,
-                params: { workspaceId },
-              });
             });
           },
         })),

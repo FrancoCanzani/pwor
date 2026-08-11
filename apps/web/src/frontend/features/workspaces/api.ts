@@ -2,7 +2,6 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 import type { NoteListItem } from "@features/notes/api";
-import type { Task } from "@features/tasks/api";
 import type { VaultItem } from "@features/vault/api";
 
 export type Workspace = {
@@ -13,19 +12,9 @@ export type Workspace = {
   updatedAt: string;
 };
 
-export type WorkspaceInbox = {
-  id: string;
-  workspaceId: string;
-  token: string;
-  label: string | null;
-  createdAt: string;
-};
-
 export type WorkspaceDetail = Workspace & {
-  tasks: Task[];
   notes: NoteListItem[];
   vaultItems: VaultItem[];
-  inboxes: WorkspaceInbox[];
 };
 
 async function fetchWorkspaces(): Promise<Workspace[]> {
@@ -83,29 +72,5 @@ export async function updateWorkspace(
 export async function deleteWorkspace(id: string): Promise<void> {
   await parseJson<{ ok: boolean }>(
     await fetch(`/api/workspaces/${id}`, { method: "DELETE" }),
-  );
-}
-
-export async function createWorkspaceInbox(
-  workspaceId: string,
-  label?: string | null,
-): Promise<WorkspaceInbox> {
-  return parseJson<WorkspaceInbox>(
-    await fetch(`/api/workspaces/${workspaceId}/inboxes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label }),
-    }),
-  );
-}
-
-export async function deleteWorkspaceInbox(
-  workspaceId: string,
-  inboxId: string,
-): Promise<void> {
-  await parseJson<{ ok: boolean }>(
-    await fetch(`/api/workspaces/${workspaceId}/inboxes/${inboxId}`, {
-      method: "DELETE",
-    }),
   );
 }

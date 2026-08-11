@@ -10,8 +10,7 @@ const searchQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 });
 
-export type SearchKind =
-  "note" | "task" | "event" | "vault_item" | "inbox_item";
+export type SearchKind = "note" | "vault_item";
 
 export type SearchHit = {
   kind: SearchKind;
@@ -44,24 +43,6 @@ const SOURCES: Source[] = [
     body: "body",
   },
   {
-    kind: "task",
-    table: "task",
-    title: "title",
-    fallback: "Untitled",
-    workspace: "project_id",
-    timestamp: "updated_at",
-    body: null,
-  },
-  {
-    kind: "event",
-    table: "event",
-    title: "title",
-    fallback: "Untitled",
-    workspace: "workspace_id",
-    timestamp: "updated_at",
-    body: null,
-  },
-  {
     // Files are R2 keys with no extracted text, so titles are all there is.
     kind: "vault_item",
     table: "vault_item",
@@ -70,15 +51,6 @@ const SOURCES: Source[] = [
     workspace: "project_id",
     timestamp: "updated_at",
     body: null,
-  },
-  {
-    kind: "inbox_item",
-    table: "inbox_item",
-    title: "subject",
-    fallback: "(no subject)",
-    workspace: "workspace_id",
-    timestamp: "created_at",
-    body: "body",
   },
 ];
 

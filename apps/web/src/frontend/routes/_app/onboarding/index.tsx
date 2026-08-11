@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
   createWorkspace,
-  createWorkspaceInbox,
   workspacesQueryOptions,
 } from "@features/workspaces/api";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
@@ -51,14 +50,7 @@ function WorkspaceStep() {
     try {
       const workspace = await createWorkspace(trimmed);
       setStoredWorkspaceId(workspace.id);
-      try {
-        await createWorkspaceInbox(workspace.id);
-      } catch {
-        // Best-effort — the workspace exists either way; an inbox
-        // address can be added later from workspace settings.
-      }
-      await queryClient.invalidateQueries({
-        queryKey: workspacesQueryOptions.queryKey,
+      await queryClient.invalidateQueries({        queryKey: workspacesQueryOptions.queryKey,
         exact: true,
       });
       cue("success");

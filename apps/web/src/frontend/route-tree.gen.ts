@@ -17,11 +17,7 @@ import { Route as AppWorkspaceIdIndexRouteImport } from './routes/_app/$workspac
 import { Route as AppWorkspaceIdNotesRouteRouteImport } from './routes/_app/$workspaceId/notes/route'
 import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
-import { Route as AppWorkspaceIdCalendarIndexRouteImport } from './routes/_app/$workspaceId/calendar/index'
-import { Route as AppWorkspaceIdInboxIndexRouteImport } from './routes/_app/$workspaceId/inbox/index'
-import { Route as AppWorkspaceIdLogIndexRouteImport } from './routes/_app/$workspaceId/log/index'
 import { Route as AppWorkspaceIdNotesIndexRouteImport } from './routes/_app/$workspaceId/notes/index'
-import { Route as AppWorkspaceIdTasksIndexRouteImport } from './routes/_app/$workspaceId/tasks/index'
 import { Route as AppWorkspaceIdVaultIndexRouteImport } from './routes/_app/$workspaceId/vault/index'
 import { Route as AppWorkspaceIdNotesNoteIdIndexRouteImport } from './routes/_app/$workspaceId/notes/$noteId/index'
 
@@ -65,34 +61,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWorkspaceIdCalendarIndexRoute =
-  AppWorkspaceIdCalendarIndexRouteImport.update({
-    id: '/calendar/',
-    path: '/calendar/',
-    getParentRoute: () => AppWorkspaceIdRoute,
-  } as any)
-const AppWorkspaceIdInboxIndexRoute =
-  AppWorkspaceIdInboxIndexRouteImport.update({
-    id: '/inbox/',
-    path: '/inbox/',
-    getParentRoute: () => AppWorkspaceIdRoute,
-  } as any)
-const AppWorkspaceIdLogIndexRoute = AppWorkspaceIdLogIndexRouteImport.update({
-  id: '/log/',
-  path: '/log/',
-  getParentRoute: () => AppWorkspaceIdRoute,
-} as any)
 const AppWorkspaceIdNotesIndexRoute =
   AppWorkspaceIdNotesIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AppWorkspaceIdNotesRouteRoute,
-  } as any)
-const AppWorkspaceIdTasksIndexRoute =
-  AppWorkspaceIdTasksIndexRouteImport.update({
-    id: '/tasks/',
-    path: '/tasks/',
-    getParentRoute: () => AppWorkspaceIdRoute,
   } as any)
 const AppWorkspaceIdVaultIndexRoute =
   AppWorkspaceIdVaultIndexRouteImport.update({
@@ -115,11 +88,7 @@ export interface FileRoutesByFullPath {
   '/$workspaceId/': typeof AppWorkspaceIdIndexRoute
   '/onboarding/': typeof AppOnboardingIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
-  '/$workspaceId/calendar/': typeof AppWorkspaceIdCalendarIndexRoute
-  '/$workspaceId/inbox/': typeof AppWorkspaceIdInboxIndexRoute
-  '/$workspaceId/log/': typeof AppWorkspaceIdLogIndexRoute
   '/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
-  '/$workspaceId/tasks/': typeof AppWorkspaceIdTasksIndexRoute
   '/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
   '/$workspaceId/notes/$noteId/': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
@@ -129,11 +98,7 @@ export interface FileRoutesByTo {
   '/$workspaceId': typeof AppWorkspaceIdIndexRoute
   '/onboarding': typeof AppOnboardingIndexRoute
   '/settings': typeof AppSettingsIndexRoute
-  '/$workspaceId/calendar': typeof AppWorkspaceIdCalendarIndexRoute
-  '/$workspaceId/inbox': typeof AppWorkspaceIdInboxIndexRoute
-  '/$workspaceId/log': typeof AppWorkspaceIdLogIndexRoute
   '/$workspaceId/notes': typeof AppWorkspaceIdNotesIndexRoute
-  '/$workspaceId/tasks': typeof AppWorkspaceIdTasksIndexRoute
   '/$workspaceId/vault': typeof AppWorkspaceIdVaultIndexRoute
   '/$workspaceId/notes/$noteId': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
@@ -147,11 +112,7 @@ export interface FileRoutesById {
   '/_app/$workspaceId/': typeof AppWorkspaceIdIndexRoute
   '/_app/onboarding/': typeof AppOnboardingIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
-  '/_app/$workspaceId/calendar/': typeof AppWorkspaceIdCalendarIndexRoute
-  '/_app/$workspaceId/inbox/': typeof AppWorkspaceIdInboxIndexRoute
-  '/_app/$workspaceId/log/': typeof AppWorkspaceIdLogIndexRoute
   '/_app/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
-  '/_app/$workspaceId/tasks/': typeof AppWorkspaceIdTasksIndexRoute
   '/_app/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
   '/_app/$workspaceId/notes/$noteId/': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
@@ -165,11 +126,7 @@ export interface FileRouteTypes {
     | '/$workspaceId/'
     | '/onboarding/'
     | '/settings/'
-    | '/$workspaceId/calendar/'
-    | '/$workspaceId/inbox/'
-    | '/$workspaceId/log/'
     | '/$workspaceId/notes/'
-    | '/$workspaceId/tasks/'
     | '/$workspaceId/vault/'
     | '/$workspaceId/notes/$noteId/'
   fileRoutesByTo: FileRoutesByTo
@@ -179,11 +136,7 @@ export interface FileRouteTypes {
     | '/$workspaceId'
     | '/onboarding'
     | '/settings'
-    | '/$workspaceId/calendar'
-    | '/$workspaceId/inbox'
-    | '/$workspaceId/log'
     | '/$workspaceId/notes'
-    | '/$workspaceId/tasks'
     | '/$workspaceId/vault'
     | '/$workspaceId/notes/$noteId'
   id:
@@ -196,11 +149,7 @@ export interface FileRouteTypes {
     | '/_app/$workspaceId/'
     | '/_app/onboarding/'
     | '/_app/settings/'
-    | '/_app/$workspaceId/calendar/'
-    | '/_app/$workspaceId/inbox/'
-    | '/_app/$workspaceId/log/'
     | '/_app/$workspaceId/notes/'
-    | '/_app/$workspaceId/tasks/'
     | '/_app/$workspaceId/vault/'
     | '/_app/$workspaceId/notes/$noteId/'
   fileRoutesById: FileRoutesById
@@ -268,40 +217,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/$workspaceId/calendar/': {
-      id: '/_app/$workspaceId/calendar/'
-      path: '/calendar'
-      fullPath: '/$workspaceId/calendar/'
-      preLoaderRoute: typeof AppWorkspaceIdCalendarIndexRouteImport
-      parentRoute: typeof AppWorkspaceIdRoute
-    }
-    '/_app/$workspaceId/inbox/': {
-      id: '/_app/$workspaceId/inbox/'
-      path: '/inbox'
-      fullPath: '/$workspaceId/inbox/'
-      preLoaderRoute: typeof AppWorkspaceIdInboxIndexRouteImport
-      parentRoute: typeof AppWorkspaceIdRoute
-    }
-    '/_app/$workspaceId/log/': {
-      id: '/_app/$workspaceId/log/'
-      path: '/log'
-      fullPath: '/$workspaceId/log/'
-      preLoaderRoute: typeof AppWorkspaceIdLogIndexRouteImport
-      parentRoute: typeof AppWorkspaceIdRoute
-    }
     '/_app/$workspaceId/notes/': {
       id: '/_app/$workspaceId/notes/'
       path: '/'
       fullPath: '/$workspaceId/notes/'
       preLoaderRoute: typeof AppWorkspaceIdNotesIndexRouteImport
       parentRoute: typeof AppWorkspaceIdNotesRouteRoute
-    }
-    '/_app/$workspaceId/tasks/': {
-      id: '/_app/$workspaceId/tasks/'
-      path: '/tasks'
-      fullPath: '/$workspaceId/tasks/'
-      preLoaderRoute: typeof AppWorkspaceIdTasksIndexRouteImport
-      parentRoute: typeof AppWorkspaceIdRoute
     }
     '/_app/$workspaceId/vault/': {
       id: '/_app/$workspaceId/vault/'
@@ -339,20 +260,12 @@ const AppWorkspaceIdNotesRouteRouteWithChildren =
 interface AppWorkspaceIdRouteChildren {
   AppWorkspaceIdNotesRouteRoute: typeof AppWorkspaceIdNotesRouteRouteWithChildren
   AppWorkspaceIdIndexRoute: typeof AppWorkspaceIdIndexRoute
-  AppWorkspaceIdCalendarIndexRoute: typeof AppWorkspaceIdCalendarIndexRoute
-  AppWorkspaceIdInboxIndexRoute: typeof AppWorkspaceIdInboxIndexRoute
-  AppWorkspaceIdLogIndexRoute: typeof AppWorkspaceIdLogIndexRoute
-  AppWorkspaceIdTasksIndexRoute: typeof AppWorkspaceIdTasksIndexRoute
   AppWorkspaceIdVaultIndexRoute: typeof AppWorkspaceIdVaultIndexRoute
 }
 
 const AppWorkspaceIdRouteChildren: AppWorkspaceIdRouteChildren = {
   AppWorkspaceIdNotesRouteRoute: AppWorkspaceIdNotesRouteRouteWithChildren,
   AppWorkspaceIdIndexRoute: AppWorkspaceIdIndexRoute,
-  AppWorkspaceIdCalendarIndexRoute: AppWorkspaceIdCalendarIndexRoute,
-  AppWorkspaceIdInboxIndexRoute: AppWorkspaceIdInboxIndexRoute,
-  AppWorkspaceIdLogIndexRoute: AppWorkspaceIdLogIndexRoute,
-  AppWorkspaceIdTasksIndexRoute: AppWorkspaceIdTasksIndexRoute,
   AppWorkspaceIdVaultIndexRoute: AppWorkspaceIdVaultIndexRoute,
 }
 

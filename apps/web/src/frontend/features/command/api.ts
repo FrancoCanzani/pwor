@@ -2,8 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 
-export type SearchKind =
-  "note" | "task" | "event" | "vault_item" | "inbox_item";
+export type SearchKind = "note" | "vault_item";
 
 export type SearchHit = {
   kind: SearchKind;

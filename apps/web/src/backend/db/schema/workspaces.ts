@@ -22,19 +22,3 @@ export const workspace = sqliteTable("project", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
-
-// Not applied locally yet — keep the schema, callers should tolerate empty results.
-export const workspaceInbox = sqliteTable("workspace_inbox", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id")
-    .notNull()
-    .references(() => workspace.id, { onDelete: "cascade" }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
-  label: text("label"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-});

@@ -58,7 +58,7 @@ function NavButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors",
+        "relative flex w-full items-center rounded-md py-1.5 pr-8 pl-2 text-left text-xs transition-colors",
         active
           ? "bg-muted text-foreground"
           : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -66,7 +66,9 @@ function NavButton({
     >
       <span className="truncate">{label}</span>
       {count !== undefined ? (
-        <span className="font-nums shrink-0">{count}</span>
+        <span className="font-nums absolute top-1/2 right-2 -translate-y-1/2">
+          {count}
+        </span>
       ) : null}
     </button>
   );
@@ -303,17 +305,15 @@ export function VaultSidebar({
             type="button"
             aria-expanded={typesOpen}
             onClick={() => setTypesOpen((open) => !open)}
-            className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            className="relative mb-1 flex w-full items-center rounded-md py-1.5 pr-8 pl-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
             <span className="truncate">Types</span>
-            <span className="font-nums flex shrink-0 items-center justify-end">
-              <ChevronRightIcon
-                className={cn(
-                  "size-3 transition-transform",
-                  typesOpen && "rotate-90",
-                )}
-              />
-            </span>
+            <ChevronRightIcon
+              className={cn(
+                "absolute top-1/2 right-2 size-3 -translate-y-1/2 transition-transform",
+                typesOpen && "rotate-90",
+              )}
+            />
           </button>
           {typesOpen ? (
             <ul className="flex flex-col gap-0.5">

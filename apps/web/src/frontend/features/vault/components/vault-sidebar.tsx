@@ -1,5 +1,6 @@
 import { DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -225,6 +226,13 @@ export function VaultSidebar({
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
 
+  function closeCreating() {
+    setCreating(false);
+    setNewName("");
+  }
+
+  useHotkey("Escape", () => closeCreating(), { enabled: creating });
+
   const typeCounts = new Map<VaultTypeFacet, number>();
   let uncategorizedCount = 0;
   const categoryCounts = new Map<string, number>();
@@ -308,9 +316,12 @@ export function VaultSidebar({
           <button
             type="button"
             className="text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              if (creating) closeCreating();
+              else setCreating(true);
+            }}
           >
-            New
+            {creating ? "Cancel" : "New"}
           </button>
         </div>
         <ul className="flex flex-col gap-0.5">

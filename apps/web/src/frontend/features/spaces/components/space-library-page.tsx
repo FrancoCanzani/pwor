@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { PageEmpty } from "@components/page-empty";
 import { useCreateDialog } from "@features/command/create-dialog-context";
 import { notesQueryOptions, type NoteListItem } from "@features/notes/api";
+import { useFloatingNote } from "@features/notes/floating-note-context";
 import {
   vaultItemsQueryOptions,
   type VaultItem,
@@ -56,6 +57,7 @@ export function SpaceLibraryPage() {
   const search = useSearch({ from: "/_app/$workspaceId/" });
   const navigate = useNavigate({ from: "/$workspaceId/" });
   const { open: openCreate } = useCreateDialog();
+  const { openNew: openNewNote } = useFloatingNote();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<LibraryKind>("all");
 
@@ -171,9 +173,17 @@ export function SpaceLibraryPage() {
         ) : null}
         <Button
           type="button"
+          variant="new"
+          className="h-auto shrink-0 px-1.5 py-1 text-xs leading-none font-normal"
+          onClick={() => openNewNote()}
+        >
+          Note
+        </Button>
+        <Button
+          type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Create new"
+          aria-label="Capture"
           onClick={() => openCreate()}
         >
           <PlusIcon />
@@ -185,7 +195,7 @@ export function SpaceLibraryPage() {
           {rows.length === 0 ? (
             <PageEmpty
               title="Nothing here yet"
-              description="Create a note, snippet, or capture something into this space."
+              description="Open a note or capture a URL, text, or file into this space."
             />
           ) : (
             <ul className="flex flex-col divide-y divide-border">

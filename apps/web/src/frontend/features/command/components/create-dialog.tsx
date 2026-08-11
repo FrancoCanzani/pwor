@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { toast } from "sonner";
 
@@ -31,8 +30,6 @@ import {
   prependFrontmatter,
 } from "@shared/note-frontmatter";
 
-type CreateMode = "menu" | "capture";
-
 export function CreateDialog({
   open,
   onOpenChange,
@@ -40,40 +37,18 @@ export function CreateDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [mode, setMode] = useState<CreateMode>("menu");
   const [captureInput, setCaptureInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const { id: workspaceId } = useCurrentWorkspace();
 
   useEffect(() => {
     if (!open) {
-      setMode("menu");
       setCaptureInput("");
       setUploading(false);
     }
   }, [open]);
-
-  const createNoteMutation = useMutation({
-    mutationFn: () => {
-      if (!workspaceId) throw new Error("No space selected");
-      const title = "Untitled";
-      const body = prependFrontmatter("", { title, tags: [] });
-      return createNote(body, title, workspaceId);
-    },
-    onSuccess: async (note) => {
-      if (!workspaceId) return;
-      await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
-      onOpenChange(false);
-      await navigate({
-        to: "/$workspaceId/notes/$noteId",
-        params: { workspaceId, noteId: note.id },
-      });
-    },
-    onError: () => toast.error("Couldn’t create note"),
-  });
 
   const captureMutation = useMutation({
     mutationFn: () => {
@@ -88,8 +63,7 @@ export function CreateDialog({
     onError: () => toast.error("Couldn’t add item"),
   });
 
-  const busy =
-    createNoteMutation.isPending || captureMutation.isPending || uploading;
+  const busy = captureMutation.isPending || uploading;
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0 || busy) return;
@@ -149,89 +123,53 @@ export function CreateDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton className="sm:max-w-md">
-        {mode === "menu" ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Create new</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col gap-1">
-              <button
-                type="button"
-                className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
-                disabled={busy || !workspaceId}
-                onClick={() => createNoteMutation.mutate()}
-              >
-                <span className="text-sm">
-                  {createNoteMutation.isPending ? "Creating…" : "Note"}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Markdown notebook
-                </span>
-              </button>
-              <button
-                type="button"
-                className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
-                disabled={!workspaceId}
-                onClick={() => setMode("capture")}
-              >
-                <span className="text-sm">Capture</span>
-                <span className="text-[11px] text-muted-foreground">
-                  Paste a URL, text, or code
-                </span>
-              </button>
-            </div>
-          </>
-        ) : null}
-
-        {mode === "capture" ? (
-          <form onSubmit={handleCaptureSubmit} className="flex flex-col gap-3">
-            <DialogHeader>
-              <DialogTitle>Capture</DialogTitle>
-            </DialogHeader>
-            <Textarea
-              autoFocus
-              value={captureInput}
-              onChange={(e) => setCaptureInput(e.target.value)}
-              placeholder="Paste a URL, text, or code…"
-              className="min-h-28 resize-none text-xs"
-              disabled={busy}
-            />
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              className="sr-only"
-              tabIndex={-1}
-              onChange={(e) => void handleFiles(e.target.files)}
-            />
-            <button
+        <form onSubmit={handleCaptureSubmit} className="flex flex-col gap-3">
+          <DialogHeader>
+            <DialogTitle>Capture</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            autoFocus
+            value={captureInput}
+            onChange={(e) => setCaptureInput(e.target.value)}
+            placeholder="Paste a URL, text, or code…"
+            className="min-h-28 resize-none text-xs"
+            disabled={busy}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(e) => void handleFiles(e.target.files)}
+          />
+          <button
+            type="button"
+            disabled={busy || !workspaceId}
+            onClick={() => fileRef.current?.click()}
+            className={cn(
+              "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-xs text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+              busy && "pointer-events-none opacity-50",
+            )}
+          >
+            {uploading ? "Uploading…" : "Drop files here, or click to choose"}
+          </button>
+          <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0">
+            <Button
               type="button"
-              disabled={busy || !workspaceId}
-              onClick={() => fileRef.current?.click()}
-              className={cn(
-                "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-xs text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-                busy && "pointer-events-none opacity-50",
-              )}
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
             >
-              {uploading ? "Uploading…" : "Drop files here, or click to choose"}
-            </button>
-            <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setMode("menu")}
-              >
-                Back
-              </Button>
-              <Button
-                type="submit"
-                disabled={!captureInput.trim() || busy || !workspaceId}
-              >
-                {captureMutation.isPending ? "Adding…" : "Add"}
-              </Button>
-            </DialogFooter>
-          </form>
-        ) : null}
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!captureInput.trim() || busy || !workspaceId}
+            >
+              {captureMutation.isPending ? "Adding…" : "Add"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

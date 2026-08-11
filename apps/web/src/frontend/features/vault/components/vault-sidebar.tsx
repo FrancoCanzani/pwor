@@ -306,7 +306,7 @@ export function VaultSidebar({
             className="mb-1 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
             <span className="truncate">Types</span>
-            <span className="font-nums flex w-4 shrink-0 items-center justify-end">
+            <span className="font-nums flex shrink-0 items-center justify-end">
               <ChevronRightIcon
                 className={cn(
                   "size-3 transition-transform",

@@ -97,18 +97,19 @@ export function SpacesNav() {
   return (
     <>
       <SidebarGroup className="relative">
-        <SidebarGroupLabel className="mb-1 font-mono text-sm font-normal tracking-wide uppercase">
+        <SidebarGroupLabel className="mb-1.5 font-mono text-sm font-normal tracking-wide uppercase">
           Spaces
         </SidebarGroupLabel>
         <SidebarGroupAction
           aria-label="New space"
+          className="top-2.5 [&_svg]:size-4"
           onClick={() => setCreateSpaceOpen(true)}
         >
           <PlusIcon />
         </SidebarGroupAction>
 
-        <SidebarGroupContent className="pt-1">
-          <SidebarMenu>
+        <SidebarGroupContent className="pt-1.5">
+          <SidebarMenu className="gap-1">
             {ordered.map((space) => (
               <SpaceRow
                 key={space.id}
@@ -200,38 +201,34 @@ function SpaceRow({
     >
       <SidebarMenuButton
         isActive={isActive}
-        size="sm"
         className="font-normal"
         tooltip={label}
         onClick={onSelect}
       >
-        <SpacePic shaderId={space.shader} />
+        <SpacePic shaderId={space.shader} className="size-5" />
         <span>{label}</span>
       </SidebarMenuButton>
 
       {hasChildren ? (
         <CollapsibleTrigger
-          render={
-            <SidebarMenuAction showOnHover className="!size-4 !w-4" />
-          }
+          render={<SidebarMenuAction showOnHover />}
           aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
         >
-          <ChevronRightIcon className="!size-3 transition-transform group-data-open/collapsible:rotate-90" />
+          <ChevronRightIcon className="size-3.5 transition-transform group-data-open/collapsible:rotate-90" />
         </CollapsibleTrigger>
       ) : null}
 
       {hasChildren ? (
         <CollapsibleContent>
-          <SidebarMenuSub className="mr-0 min-w-0 pr-0">
+          <SidebarMenuSub className="mr-0 min-w-0 gap-0.5 pr-0">
             {recent.map((row) => {
               if (row.kind === "note") {
                 const active = activeNoteId === row.noteId;
                 return (
                   <SidebarMenuSubItem key={row.key} className="w-full">
                     <SidebarMenuSubButton
-                      size="sm"
                       isActive={active}
-                      className="h-6 w-full justify-start gap-2 text-left text-[11px] font-normal text-muted-foreground"
+                      className="h-7 w-full justify-start gap-2 text-left text-sm font-normal text-muted-foreground"
                       render={
                         <button
                           type="button"
@@ -252,7 +249,7 @@ function SpaceRow({
                       <span className="min-w-0 flex-1 truncate text-left">
                         {row.title}
                       </span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground opacity-70">
+                      <span className="shrink-0 text-xs text-muted-foreground opacity-70">
                         note
                       </span>
                     </SidebarMenuSubButton>
@@ -264,9 +261,8 @@ function SpaceRow({
               return (
                 <SidebarMenuSubItem key={row.key} className="w-full">
                   <SidebarMenuSubButton
-                    size="sm"
                     isActive={active}
-                    className="h-6 w-full justify-start gap-2 text-left text-[11px] font-normal text-muted-foreground"
+                    className="h-7 w-full justify-start gap-2 text-left text-sm font-normal text-muted-foreground"
                     render={
                       <Link
                         to="/$workspaceId"
@@ -280,7 +276,7 @@ function SpaceRow({
                     <span className="min-w-0 flex-1 truncate text-left">
                       {row.title}
                     </span>
-                    <span className="shrink-0 text-[10px] text-muted-foreground opacity-70">
+                    <span className="shrink-0 text-xs text-muted-foreground opacity-70">
                       {row.label}
                     </span>
                   </SidebarMenuSubButton>

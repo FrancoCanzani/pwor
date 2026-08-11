@@ -3,7 +3,7 @@ export const APP_URL = (
 ).replace(/\/$/, "");
 
 export const STORAGE_KEYS = {
-  token: "pwor:extension:token",
+  apiKey: "pwor:extension:api-key",
   user: "pwor:extension:user",
   workspaceId: "pwor:extension:workspace-id",
   saveOnBookmark: "pwor:extension:save-on-bookmark",

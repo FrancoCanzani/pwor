@@ -1,60 +1,15 @@
-import { and, eq, isNull } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 
-import { createDb } from "../db";
-import { extensionDevice, user } from "../db/schema";
 import { createAuth } from "../lib/auth";
-import { sha256Hex } from "../lib/extension-token";
 import type { AppEnv } from "../types";
 
-async function userFromBearer(
-  env: Env,
-  authorization: string | undefined,
-): Promise<{ id: string; email: string } | null> {
-  if (!authorization?.startsWith("Bearer ")) return null;
-  const token = authorization.slice("Bearer ".length).trim();
-  if (!token.startsWith("pwor_ext_")) return null;
-
-  const tokenHash = await sha256Hex(token);
-  const db = createDb(env.DB);
-  const [device] = await db
-    .select({
-      id: extensionDevice.id,
-      userId: extensionDevice.userId,
-      email: user.email,
-    })
-    .from(extensionDevice)
-    .innerJoin(user, eq(user.id, extensionDevice.userId))
-    .where(
-      and(
-        eq(extensionDevice.tokenHash, tokenHash),
-        isNull(extensionDevice.revokedAt),
-      ),
-    )
-    .limit(1);
-
-  if (!device) return null;
-
-  await db
-    .update(extensionDevice)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(extensionDevice.id, device.id));
-
-  return { id: device.userId, email: device.email };
-}
-
+/**
+ * Resolve the current user from Better Auth.
+ * Supports cookie sessions, bearer session tokens, and API keys
+ * (`x-api-key` → session via `enableSessionForAPIKeys`).
+ */
 export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
-  const bearerUser = await userFromBearer(
-    c.env,
-    c.req.header("Authorization"),
-  );
-  if (bearerUser) {
-    c.set("user", bearerUser);
-    await next();
-    return;
-  }
-
   const session = await createAuth(c.env).api.getSession({
     headers: c.req.raw.headers,
   });

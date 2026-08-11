@@ -12,9 +12,9 @@ import {
   setStoredWorkspaceId,
   startLink,
 } from "../../lib/api";
-import type { Workspace } from "../../lib/config";
-import { APP_URL } from "../../lib/config";
+import { APP_URL, STORAGE_KEYS, type Workspace } from "../../lib/config";
 import { cn } from "../../lib/utils";
+
 type PageInfo = {
   title: string;
   url: string;
@@ -59,8 +59,7 @@ function Button({
         "inline-flex h-7 shrink-0 items-center justify-center rounded-md border border-transparent px-2.5 text-xs font-normal transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
         variant === "default" &&
           "bg-primary text-primary-foreground hover:bg-primary/80",
-        variant === "outline" &&
-          "border-border bg-background hover:bg-muted",
+        variant === "outline" && "border-border bg-background hover:bg-muted",
         variant === "ghost" && "hover:bg-muted",
         className,
       )}
@@ -75,19 +74,27 @@ export default function App() {
   const [linking, setLinking] = useState(false);
   const [page, setPage] = useState<PageInfo | null>(null);
   const [spaces, setSpaces] = useState<Workspace[]>([]);
-  const [workspaceId, setWorkspaceId] = useState<string>("");
+  const [workspaceId, setWorkspaceId] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saveOnBookmark, setSaveOnBookmark] = useState(true);
+  const [showInlineButton, setShowInlineButton] = useState(true);
 
   useEffect(() => {
     void (async () => {
       try {
-        const [user, pageInfo] = await Promise.all([
+        const [user, pageInfo, settings] = await Promise.all([
           getStoredUser(),
           readActivePage(),
+          browser.storage.local.get([
+            STORAGE_KEYS.saveOnBookmark,
+            STORAGE_KEYS.showInlineButton,
+          ]),
         ]);
         setPage(pageInfo);
+        setSaveOnBookmark(settings[STORAGE_KEYS.saveOnBookmark] !== false);
+        setShowInlineButton(settings[STORAGE_KEYS.showInlineButton] !== false);
 
         if (!user) {
           setLoading(false);
@@ -132,7 +139,7 @@ export default function App() {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         const result = await pollLink(pairingId, secret);
         if (result.status === "approved") {
-          await setSession(result.token, result.user);
+          await setSession(result.apiKey, result.user);
           setEmail(result.user.email);
           const items = await listWorkspaces();
           setSpaces(items);
@@ -172,15 +179,9 @@ export default function App() {
         if (!page.selection.trim()) {
           throw new Error("Nothing selected on the page.");
         }
-        await capture({
-          input: page.selection,
-          workspaceId,
-        });
+        await capture({ input: page.selection, workspaceId });
       } else {
-        await capture({
-          input: page.url,
-          workspaceId,
-        });
+        await capture({ input: page.url, workspaceId });
       }
       await setStoredWorkspaceId(workspaceId);
       setStatus(`Saved to ${space?.name ?? "space"}`);
@@ -189,6 +190,15 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function toggleSetting(
+    key: typeof STORAGE_KEYS.saveOnBookmark | typeof STORAGE_KEYS.showInlineButton,
+    value: boolean,
+  ) {
+    await browser.storage.local.set({ [key]: value });
+    if (key === STORAGE_KEYS.saveOnBookmark) setSaveOnBookmark(value);
+    if (key === STORAGE_KEYS.showInlineButton) setShowInlineButton(value);
   }
 
   if (loading) {
@@ -235,11 +245,9 @@ export default function App() {
 
   return (
     <div className="flex min-h-[280px] flex-col p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h1 className="font-pixel text-base font-normal tracking-tight">
-          Save to Pwor
-        </h1>
-      </div>
+      <h1 className="mb-3 font-pixel text-base font-normal tracking-tight">
+        Save to Pwor
+      </h1>
 
       <div className="mb-3 min-w-0">
         <div className="truncate text-xs">{page?.title || "This page"}</div>
@@ -295,14 +303,42 @@ export default function App() {
           className="flex-1"
           disabled={!workspaceId}
           onClick={() => {
-            const url = workspaceId
-              ? `${APP_URL}/${workspaceId}/vault`
-              : APP_URL;
-            void browser.tabs.create({ url });
+            void browser.tabs.create({
+              url: workspaceId ? `${APP_URL}/${workspaceId}/vault` : APP_URL,
+            });
           }}
         >
           Open
         </Button>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
+        <label className="flex items-center justify-between gap-3 text-xs">
+          <span>Save X bookmarks</span>
+          <input
+            type="checkbox"
+            checked={saveOnBookmark}
+            onChange={(event) =>
+              void toggleSetting(
+                STORAGE_KEYS.saveOnBookmark,
+                event.target.checked,
+              )
+            }
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 text-xs">
+          <span>Show X button</span>
+          <input
+            type="checkbox"
+            checked={showInlineButton}
+            onChange={(event) =>
+              void toggleSetting(
+                STORAGE_KEYS.showInlineButton,
+                event.target.checked,
+              )
+            }
+          />
+        </label>
       </div>
 
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">

@@ -22,9 +22,23 @@ function scoreOverlap(haystack: string, needle: string): number {
   return hits / words.length;
 }
 
+function pickPreferredOrNewest(
+  spaces: Array<{ id: string }>,
+  preferredWorkspaceId?: string | null,
+): string {
+  if (
+    preferredWorkspaceId &&
+    spaces.some((space) => space.id === preferredWorkspaceId)
+  ) {
+    return preferredWorkspaceId;
+  }
+  return spaces[0]!.id;
+}
+
 /**
  * Pick a space for an auto-routed clip (e.g. X bookmark).
- * Prefers keyword overlap; falls back to Workers AI when ambiguous; else newest space.
+ * High-confidence keyword match wins; otherwise AI; low confidence falls
+ * back to the user's preferred/last space instead of a wrong guess.
  */
 export async function resolveAutoSpace(
   env: Env,
@@ -48,10 +62,7 @@ export async function resolveAutoSpace(
 
   const trimmed = hint?.trim() ?? "";
   if (!trimmed) {
-    return preferredWorkspaceId &&
-      spaces.some((space) => space.id === preferredWorkspaceId)
-      ? preferredWorkspaceId
-      : spaces[0]!.id;
+    return pickPreferredOrNewest(spaces, preferredWorkspaceId);
   }
 
   const scored = spaces
@@ -63,7 +74,7 @@ export async function resolveAutoSpace(
 
   const top = scored[0]!;
   const second = scored[1];
-  if (top.score >= 0.25 && (!second || top.score - second.score >= 0.1)) {
+  if (top.score >= 0.35 && (!second || top.score - second.score >= 0.15)) {
     return top.id;
   }
 
@@ -73,8 +84,11 @@ export async function resolveAutoSpace(
       model: workersai(MODEL),
       schema: z.object({
         workspaceId: z.string(),
+        confidence: z.number().min(0).max(1),
       }),
       prompt: `Pick the best Pwor space for this captured content.
+Only choose a space if you are reasonably confident it fits.
+If unsure, still return a workspaceId but set confidence below 0.55.
 
 Spaces:
 ${spaces
@@ -85,24 +99,18 @@ ${spaces
   .join("\n")}
 
 Content hint:
-${trimmed.slice(0, 2000)}
-
-Return only a workspaceId from the list.`,
+${trimmed.slice(0, 2000)}`,
     });
 
-    if (spaces.some((space) => space.id === object.workspaceId)) {
+    if (
+      object.confidence >= 0.55 &&
+      spaces.some((space) => space.id === object.workspaceId)
+    ) {
       return object.workspaceId;
     }
   } catch (error) {
     console.error("auto-space AI failed", error);
   }
 
-  if (
-    preferredWorkspaceId &&
-    spaces.some((space) => space.id === preferredWorkspaceId)
-  ) {
-    return preferredWorkspaceId;
-  }
-
-  return spaces[0]!.id;
+  return pickPreferredOrNewest(spaces, preferredWorkspaceId);
 }

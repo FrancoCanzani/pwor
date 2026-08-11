@@ -25,29 +25,29 @@ export default defineBackground(() => {
   browser.contextMenus.onClicked.addListener((info, tab) => {
     void (async () => {
       const user = await getStoredUser();
-      if (!user) {
-        await browser.runtime.openOptionsPage().catch(() => undefined);
-        await browser.action.openPopup().catch(() => undefined);
-        return;
-      }
+      if (!user) return;
 
       const preferred = await getStoredWorkspaceId();
-      if (info.menuItemId === "pwor-save-selection" && info.selectionText) {
+      try {
+        if (info.menuItemId === "pwor-save-selection" && info.selectionText) {
+          await capture({
+            input: info.selectionText,
+            workspaceId: preferred,
+            preferredWorkspaceId: preferred,
+          });
+          return;
+        }
+
+        const url = info.linkUrl || info.pageUrl || tab?.url;
+        if (!url) return;
         await capture({
-          input: info.selectionText,
+          input: url,
           workspaceId: preferred,
           preferredWorkspaceId: preferred,
         });
-        return;
+      } catch (error) {
+        console.error("context menu capture failed", error);
       }
-
-      const url = info.linkUrl || info.pageUrl || tab?.url;
-      if (!url) return;
-      await capture({
-        input: url,
-        workspaceId: preferred,
-        preferredWorkspaceId: preferred,
-      });
     })();
   });
 
@@ -62,17 +62,21 @@ export default defineBackground(() => {
       const user = await getStoredUser();
       if (!user) return;
       const preferred = await getStoredWorkspaceId();
-      const spaces = await listWorkspaces();
-      const workspaceId =
-        (preferred && spaces.some((space) => space.id === preferred)
-          ? preferred
-          : spaces[0]?.id) ?? null;
-      if (!workspaceId) return;
-      await capture({
-        input: tab.url,
-        workspaceId,
-        preferredWorkspaceId: preferred,
-      });
+      try {
+        const spaces = await listWorkspaces();
+        const workspaceId =
+          (preferred && spaces.some((space) => space.id === preferred)
+            ? preferred
+            : spaces[0]?.id) ?? null;
+        if (!workspaceId) return;
+        await capture({
+          input: tab.url,
+          workspaceId,
+          preferredWorkspaceId: preferred,
+        });
+      } catch (error) {
+        console.error("hotkey capture failed", error);
+      }
     })();
   });
 

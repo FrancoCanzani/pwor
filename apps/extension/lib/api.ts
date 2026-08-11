@@ -6,9 +6,9 @@ import {
   type Workspace,
 } from "./config";
 
-async function getToken(): Promise<string | null> {
-  const stored = await browser.storage.local.get(STORAGE_KEYS.token);
-  return (stored[STORAGE_KEYS.token] as string | undefined) ?? null;
+async function getApiKey(): Promise<string | null> {
+  const stored = await browser.storage.local.get(STORAGE_KEYS.apiKey);
+  return (stored[STORAGE_KEYS.apiKey] as string | undefined) ?? null;
 }
 
 export async function getStoredUser(): Promise<ExtensionUser | null> {
@@ -25,29 +25,23 @@ export async function setStoredWorkspaceId(id: string) {
   await browser.storage.local.set({ [STORAGE_KEYS.workspaceId]: id });
 }
 
-export async function setSession(token: string, user: ExtensionUser) {
+export async function setSession(apiKey: string, user: ExtensionUser) {
   await browser.storage.local.set({
-    [STORAGE_KEYS.token]: token,
+    [STORAGE_KEYS.apiKey]: apiKey,
     [STORAGE_KEYS.user]: user,
   });
 }
 
 export async function clearSession() {
-  await browser.storage.local.remove([
-    STORAGE_KEYS.token,
-    STORAGE_KEYS.user,
-  ]);
+  await browser.storage.local.remove([STORAGE_KEYS.apiKey, STORAGE_KEYS.user]);
 }
 
-async function api<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const token = await getToken();
-  if (!token) throw new Error("Not signed in");
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const apiKey = await getApiKey();
+  if (!apiKey) throw new Error("Not signed in");
 
   const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
+  headers.set("x-api-key", apiKey);
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -122,7 +116,7 @@ export async function pollLink(
   secret: string,
 ): Promise<
   | { status: "pending" | "expired" | "consumed" }
-  | { status: "approved"; token: string; user: ExtensionUser }
+  | { status: "approved"; apiKey: string; user: ExtensionUser }
 > {
   const response = await fetch(`${APP_URL}/api/extension/link/poll`, {
     method: "POST",
@@ -134,5 +128,5 @@ export async function pollLink(
   }
   return (await response.json()) as
     | { status: "pending" | "expired" | "consumed" }
-    | { status: "approved"; token: string; user: ExtensionUser };
+    | { status: "approved"; apiKey: string; user: ExtensionUser };
 }

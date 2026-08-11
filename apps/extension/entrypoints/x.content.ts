@@ -211,13 +211,12 @@ export default defineContentScript({
         const url = tweetUrlFromArticle(article);
         if (!url || !isTweetUrl(url)) return;
 
-        // Fire after X handles the bookmark; capture is additive on unbookmark too
-        // only when the control was a bookmark (not remove). Prefer bookmark label.
         const label = (
           target.getAttribute("aria-label") ||
           target.closest("[aria-label]")?.getAttribute("aria-label") ||
           ""
         ).toLowerCase();
+        // Unbookmark must not delete from Pwor (capture is additive).
         if (label.includes("remove") || label.includes("unbookmark")) return;
 
         window.setTimeout(() => {

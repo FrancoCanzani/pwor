@@ -7,8 +7,10 @@ import { PageHeader } from "@components/page-header";
 type ExtensionDevice = {
   id: string;
   name: string;
+  start: string | null;
   createdAt: string;
   lastUsedAt: string | null;
+  expiresAt: string | null;
 };
 
 async function listDevices(): Promise<ExtensionDevice[]> {
@@ -79,6 +81,7 @@ function SettingsPage() {
               <div className="min-w-0">
                 <div className="truncate">{device.name}</div>
                 <div className="font-nums text-muted-foreground">
+                  {device.start ? `${device.start}… · ` : null}
                   Linked {new Date(device.createdAt).toLocaleDateString()}
                 </div>
               </div>

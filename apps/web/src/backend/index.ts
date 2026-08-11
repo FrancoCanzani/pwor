@@ -34,7 +34,7 @@ app.use("/api/*", async (c, next) => {
       if (value === "http://127.0.0.1:5173") return value;
       return undefined;
     },
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "x-api-key"],
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   });

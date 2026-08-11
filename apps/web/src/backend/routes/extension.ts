@@ -1,11 +1,15 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { zValidator } from "@hono/zod-validator";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 import { createDb } from "../db";
-import { extensionDevice, extensionPairing, user } from "../db/schema";
+import { extensionPairing, user } from "../db/schema";
+import {
+  EXTENSION_API_KEY_TTL_SECONDS,
+  createAuth,
+} from "../lib/auth";
 import { randomToken, sha256Hex } from "../lib/extension-token";
 import type { AppEnv } from "../types";
 
@@ -44,17 +48,15 @@ const app = new Hono<AppEnv>()
       expiresAt: new Date(Date.now() + PAIRING_TTL_MS),
     });
 
-    const linkUrl = `${appOrigin(c.env)}/extension/link?pairing=${encodeURIComponent(pairingId)}`;
-
     return c.json({
       pairingId,
       secret,
-      linkUrl,
+      linkUrl: `${appOrigin(c.env)}/extension/link?pairing=${encodeURIComponent(pairingId)}`,
       expiresInMs: PAIRING_TTL_MS,
     });
   })
 
-  /** Extension polls until the user approves (unauthenticated, secret required). */
+  /** Extension polls until approved; consumes the API key once. */
   .post("/link/poll", zValidator("json", pollSchema), async (c) => {
     const { pairingId, secret } = c.req.valid("json");
     const secretHash = await sha256Hex(secret);
@@ -82,7 +84,7 @@ const app = new Hono<AppEnv>()
       return c.json({ status: "pending" as const });
     }
 
-    if (row.status === "consumed" || !row.token || !row.userId) {
+    if (row.status === "consumed" || !row.apiKey || !row.userId) {
       return c.json({ status: "consumed" as const });
     }
 
@@ -92,19 +94,21 @@ const app = new Hono<AppEnv>()
       .where(eq(user.id, row.userId))
       .limit(1);
 
+    const apiKeyValue = row.apiKey;
+
     await db
       .update(extensionPairing)
-      .set({ status: "consumed", token: null })
+      .set({ status: "consumed", apiKey: null })
       .where(eq(extensionPairing.id, pairingId));
 
     return c.json({
       status: "approved" as const,
-      token: row.token,
+      apiKey: apiKeyValue,
       user: { id: row.userId, email: account?.email ?? "" },
     });
   })
 
-  /** Signed-in user approves the pairing (cookie session). */
+  /** Signed-in user approves pairing and mints a Better Auth API key. */
   .post("/link/approve", zValidator("json", approveSchema), async (c) => {
     const sessionUser = c.get("user");
     if (!sessionUser) {
@@ -134,23 +138,26 @@ const app = new Hono<AppEnv>()
       throw new HTTPException(409, { message: "Pairing already used" });
     }
 
-    const token = `pwor_ext_${randomToken(32)}`;
-    const tokenHash = await sha256Hex(token);
-    const deviceId = crypto.randomUUID();
-
-    await db.insert(extensionDevice).values({
-      id: deviceId,
-      userId: sessionUser.id,
-      tokenHash,
-      name: name?.trim() || "Browser",
+    const auth = createAuth(c.env);
+    const created = await auth.api.createApiKey({
+      body: {
+        name: name?.trim() || "Browser",
+        userId: sessionUser.id,
+        expiresIn: EXTENSION_API_KEY_TTL_SECONDS,
+        metadata: { kind: "extension" },
+      },
     });
+
+    if (!created?.key) {
+      throw new HTTPException(500, { message: "Could not create API key" });
+    }
 
     await db
       .update(extensionPairing)
       .set({
         status: "approved",
         userId: sessionUser.id,
-        token,
+        apiKey: created.key,
       })
       .where(eq(extensionPairing.id, pairingId));
 
@@ -162,21 +169,54 @@ const app = new Hono<AppEnv>()
     if (!sessionUser) {
       throw new HTTPException(401, { message: "Unauthorized" });
     }
-    const db = createDb(c.env.DB);
-    const items = await db
-      .select({
-        id: extensionDevice.id,
-        name: extensionDevice.name,
-        createdAt: extensionDevice.createdAt,
-        lastUsedAt: extensionDevice.lastUsedAt,
+
+    const auth = createAuth(c.env);
+    const listed = await auth.api.listApiKeys({
+      headers: c.req.raw.headers,
+    });
+
+    const keys = (Array.isArray(listed)
+      ? listed
+      : ((listed as { apiKeys?: unknown[] } | null)?.apiKeys ??
+        [])) as Array<{
+      id: string;
+      name: string | null;
+      start?: string | null;
+      prefix?: string | null;
+      createdAt: Date | string;
+      lastRequest?: Date | string | null;
+      expiresAt?: Date | string | null;
+      metadata?: unknown;
+      enabled?: boolean | null;
+    }>;
+
+    const items = keys
+      .filter((key) => {
+        if (key.enabled === false) return false;
+        let meta: { kind?: string } | null = null;
+        if (typeof key.metadata === "string") {
+          try {
+            meta = JSON.parse(key.metadata) as { kind?: string };
+          } catch {
+            meta = null;
+          }
+        } else if (key.metadata && typeof key.metadata === "object") {
+          meta = key.metadata as { kind?: string };
+        }
+        return (
+          meta?.kind === "extension" ||
+          key.prefix === "pwor_" ||
+          (key.start?.startsWith("pwor_") ?? false)
+        );
       })
-      .from(extensionDevice)
-      .where(
-        and(
-          eq(extensionDevice.userId, sessionUser.id),
-          isNull(extensionDevice.revokedAt),
-        ),
-      );
+      .map((key) => ({
+        id: key.id,
+        name: key.name || "Browser",
+        start: key.start ?? null,
+        createdAt: key.createdAt,
+        lastUsedAt: key.lastRequest ?? null,
+        expiresAt: key.expiresAt ?? null,
+      }));
 
     return c.json({ items });
   })
@@ -186,29 +226,18 @@ const app = new Hono<AppEnv>()
     if (!sessionUser) {
       throw new HTTPException(401, { message: "Unauthorized" });
     }
+
     const id = c.req.param("id");
-    const db = createDb(c.env.DB);
+    const auth = createAuth(c.env);
 
-    const [row] = await db
-      .select({ id: extensionDevice.id })
-      .from(extensionDevice)
-      .where(
-        and(
-          eq(extensionDevice.id, id),
-          eq(extensionDevice.userId, sessionUser.id),
-          isNull(extensionDevice.revokedAt),
-        ),
-      )
-      .limit(1);
-
-    if (!row) {
+    try {
+      await auth.api.deleteApiKey({
+        body: { keyId: id },
+        headers: c.req.raw.headers,
+      });
+    } catch {
       throw new HTTPException(404, { message: "Device not found" });
     }
-
-    await db
-      .update(extensionDevice)
-      .set({ revokedAt: new Date() })
-      .where(eq(extensionDevice.id, id));
 
     return c.json({ ok: true as const });
   });

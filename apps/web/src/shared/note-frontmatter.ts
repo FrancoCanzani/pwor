@@ -11,7 +11,8 @@ export type ParsedNoteDocument = {
 };
 
 export const EMPTY_NOTE_BODY = `---
-title: Untitled
+title: 
+tags: []
 ---
 
 `;
@@ -94,7 +95,7 @@ export function prependFrontmatter(
   if (meta.title != null) {
     lines.push(`title: ${formatYamlScalar(meta.title)}`);
   }
-  if (meta.tags != null && meta.tags.length > 0) {
+  if (meta.tags != null) {
     lines.push(`tags: [${meta.tags.map(formatYamlScalar).join(", ")}]`);
   }
   lines.push("---", "");

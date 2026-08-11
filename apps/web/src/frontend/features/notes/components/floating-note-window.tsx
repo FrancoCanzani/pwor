@@ -54,6 +54,7 @@ function defaultPosition() {
   return { x, y };
 }
 
+/** UI-only label when the note has no real title yet. */
 function displayTitle(title: string | null | undefined): string {
   const trimmed = title?.trim();
   if (!trimmed || trimmed === "tags: []") return "Untitled";
@@ -104,14 +105,10 @@ export function FloatingNoteHost({
     creatingRef.current = true;
     draftBodyRef.current = EMPTY_NOTE_BODY;
 
-    void createNote(EMPTY_NOTE_BODY, "Untitled", workspaceId)
+    void createNote(EMPTY_NOTE_BODY, null, workspaceId)
       .then((note) => {
         const body = draftBodyRef.current;
-        const seeded: Note = {
-          ...note,
-          body,
-          title: displayTitle(note.title),
-        };
+        const seeded: Note = { ...note, body };
         queryClient.setQueryData(noteQueryOptions(note.id).queryKey, seeded);
         seedNotesList(queryClient, workspaceId, seeded);
         onOpenedRef.current(note.id);
@@ -131,36 +128,26 @@ export function FloatingNoteHost({
         aria-hidden
         className="pointer-events-none fixed inset-0 z-40 bg-black/10 supports-backdrop-filter:backdrop-blur-[1px]"
       />
-      {noteId ? (
-        <FloatingNoteWindow key={noteId} noteId={noteId} onClose={onClose} />
-      ) : (
-        <FloatingNoteDraft
-          draftBodyRef={draftBodyRef}
-          onClose={onClose}
-        />
-      )}
+      <FloatingNoteShell onClose={onClose}>
+        {noteId ? (
+          <FloatingNoteContent key={noteId} noteId={noteId} onClose={onClose} />
+        ) : (
+          <FloatingNoteDraft
+            draftBodyRef={draftBodyRef}
+            onClose={onClose}
+          />
+        )}
+      </FloatingNoteShell>
     </>,
     document.body,
   );
 }
 
-function FloatingNoteChrome({
-  title,
-  saveLabel,
+function FloatingNoteShell({
   onClose,
-  onToggleMode,
-  mode,
-  conflict,
-  onReload,
   children,
 }: {
-  title: string;
-  saveLabel: string | null;
   onClose: () => void;
-  onToggleMode?: () => void;
-  mode?: NoteEditorMode;
-  conflict?: boolean;
-  onReload?: () => void;
   children: ReactNode;
 }) {
   const [pos, setPos] = useState(defaultPosition);
@@ -183,8 +170,11 @@ function FloatingNoteChrome({
 
   useHotkey("Escape", () => onClose(), { enabled: true });
 
-  function onDragPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+  function onDragPointerDown(event: ReactPointerEvent<HTMLElement>) {
     if (event.button !== 0) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("button")) return;
+    if (!target?.closest("[data-floating-note-drag]")) return;
     const shell = shellRef.current;
     if (!shell) return;
     const rect = shell.getBoundingClientRect();
@@ -198,7 +188,7 @@ function FloatingNoteChrome({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function onDragPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+  function onDragPointerMove(event: ReactPointerEvent<HTMLElement>) {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const nextX = drag.originX + (event.clientX - drag.startX);
@@ -211,7 +201,7 @@ function FloatingNoteChrome({
     });
   }
 
-  function onDragPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+  function onDragPointerUp(event: ReactPointerEvent<HTMLElement>) {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     dragRef.current = null;
@@ -224,7 +214,7 @@ function FloatingNoteChrome({
     <div
       ref={shellRef}
       role="dialog"
-      aria-label={title}
+      aria-label="Note"
       className="fixed z-50 flex min-h-0 min-w-0 resize flex-col overflow-hidden rounded-md border border-border bg-background shadow-[0_16px_48px_rgba(0,0,0,0.14)] ring-1 ring-black/5"
       style={{
         left: pos.x,
@@ -232,13 +222,40 @@ function FloatingNoteChrome({
         minWidth: MIN_WIDTH,
         minHeight: MIN_HEIGHT,
       }}
+      onPointerDown={onDragPointerDown}
+      onPointerMove={onDragPointerMove}
+      onPointerUp={onDragPointerUp}
+      onPointerCancel={onDragPointerUp}
     >
+      {children}
+    </div>
+  );
+}
+
+function NoteChrome({
+  title,
+  saveLabel,
+  mode,
+  conflict,
+  onClose,
+  onToggleMode,
+  onReload,
+  children,
+}: {
+  title: string;
+  saveLabel: string | null;
+  mode: NoteEditorMode;
+  conflict: boolean;
+  onClose: () => void;
+  onToggleMode: () => void;
+  onReload?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <>
       <div
-        className="flex h-8 shrink-0 cursor-grab items-center gap-2 border-b border-border/40 px-2 active:cursor-grabbing"
-        onPointerDown={onDragPointerDown}
-        onPointerMove={onDragPointerMove}
-        onPointerUp={onDragPointerUp}
-        onPointerCancel={onDragPointerUp}
+        data-floating-note-drag
+        className="flex h-9 shrink-0 cursor-grab items-center gap-2 border-b border-border/40 px-2 active:cursor-grabbing"
       >
         <span className="min-w-0 flex-1 truncate text-[11px] font-normal">
           {title}
@@ -254,22 +271,20 @@ function FloatingNoteChrome({
             variant="ghost"
             className="h-auto shrink-0 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
             onClick={onReload}
-            onPointerDown={(e) => e.stopPropagation()}
           >
             Reload
           </Button>
-        ) : onToggleMode && mode ? (
+        ) : (
           <Button
             type="button"
             variant="ghost"
             className="h-auto shrink-0 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
             onClick={onToggleMode}
-            onPointerDown={(e) => e.stopPropagation()}
             title="Toggle source / preview (⌘⌥M)"
           >
             {mode === "preview" ? "Source" : "Preview"}
           </Button>
-        ) : null}
+        )}
         <Button
           type="button"
           variant="ghost"
@@ -277,28 +292,19 @@ function FloatingNoteChrome({
           aria-label="Close note"
           className="shrink-0"
           onClick={onClose}
-          onPointerDown={(e) => e.stopPropagation()}
         >
           <Cross2Icon />
         </Button>
       </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-2 pb-3 text-[13px]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-3">
         {children}
       </div>
-    </div>
+    </>
   );
 }
 
-function FloatingNoteDraft({
-  draftBodyRef,
-  onClose,
-}: {
-  draftBodyRef: MutableRefObject<string>;
-  onClose: () => void;
-}) {
+function useEditorMode() {
   const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
-  const [body, setBody] = useState(EMPTY_NOTE_BODY);
 
   function setEditorMode(next: NoteEditorMode) {
     setMode(next);
@@ -309,19 +315,33 @@ function FloatingNoteDraft({
     }
   }
 
-  useHotkey("Mod+Alt+M", () => {
+  function toggleEditorMode() {
     setEditorMode(mode === "preview" ? "source" : "preview");
-  });
+  }
+
+  return { mode, toggleEditorMode };
+}
+
+function FloatingNoteDraft({
+  draftBodyRef,
+  onClose,
+}: {
+  draftBodyRef: MutableRefObject<string>;
+  onClose: () => void;
+}) {
+  const { mode, toggleEditorMode } = useEditorMode();
+  const [body, setBody] = useState(EMPTY_NOTE_BODY);
+
+  useHotkey("Mod+Alt+M", () => toggleEditorMode());
 
   return (
-    <FloatingNoteChrome
+    <NoteChrome
       title="Untitled"
       saveLabel={null}
-      onClose={onClose}
       mode={mode}
-      onToggleMode={() =>
-        setEditorMode(mode === "preview" ? "source" : "preview")
-      }
+      conflict={false}
+      onClose={onClose}
+      onToggleMode={toggleEditorMode}
     >
       <NoteEditor
         key={`draft:${mode}`}
@@ -331,13 +351,13 @@ function FloatingNoteDraft({
           setBody(value);
           draftBodyRef.current = value;
         }}
-        className="min-h-full text-[13px] [&_.cm-editor]:min-h-[12rem]"
+        className="min-h-full [&_.cm-editor]:min-h-[12rem]"
       />
-    </FloatingNoteChrome>
+    </NoteChrome>
   );
 }
 
-function FloatingNoteWindow({
+function FloatingNoteContent({
   noteId,
   onClose,
 }: {
@@ -361,7 +381,7 @@ function FloatingNoteWindow({
     ...notesQueryOptions(workspaceId ?? undefined),
     enabled: Boolean(workspaceId),
   });
-  const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
+  const { mode, toggleEditorMode } = useEditorMode();
 
   const {
     saveState,
@@ -375,26 +395,12 @@ function FloatingNoteWindow({
     note,
   });
 
-  function setEditorMode(next: NoteEditorMode) {
-    setMode(next);
-    try {
-      localStorage.setItem(EDITOR_MODE_KEY, next);
-    } catch {
-      // privacy / unavailable storage
-    }
-  }
-
-  function toggleEditorMode() {
-    setEditorMode(mode === "preview" ? "source" : "preview");
-  }
-
   useHotkey("Mod+Alt+M", () => toggleEditorMode(), {
     enabled: note != null && saveState !== "conflict",
   });
 
   const listTitle = notes.find((item) => item.id === noteId)?.title;
   const title = displayTitle(note?.title ?? listTitle);
-
   const saveLabel =
     saveState === "saving"
       ? "Saving…"
@@ -407,13 +413,13 @@ function FloatingNoteWindow({
             : null;
 
   return (
-    <FloatingNoteChrome
+    <NoteChrome
       title={title}
       saveLabel={saveLabel}
-      onClose={onClose}
       mode={mode}
-      onToggleMode={toggleEditorMode}
       conflict={saveState === "conflict"}
+      onClose={onClose}
+      onToggleMode={toggleEditorMode}
       onReload={reloadFromServer}
     >
       {note ? (
@@ -423,7 +429,7 @@ function FloatingNoteWindow({
           initialDoc={initialDoc()}
           onChange={handleBodyChange}
           uploadImage={(file) => uploadNoteImage(noteId, file)}
-          className="min-h-full text-[13px] [&_.cm-editor]:min-h-[12rem]"
+          className="min-h-full [&_.cm-editor]:min-h-[12rem]"
           wikiLinks={
             workspaceId
               ? {
@@ -439,6 +445,6 @@ function FloatingNoteWindow({
       ) : error ? (
         <p className="text-xs text-destructive">Note not found.</p>
       ) : null}
-    </FloatingNoteChrome>
+    </NoteChrome>
   );
 }

@@ -11,6 +11,8 @@ export const workspace = sqliteTable("project", {
     .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
+  /** Paper shader preset id for the space pic (e.g. nebula, ether). */
+  shader: text("shader").notNull().default("nebula"),
   status: text("status", { enum: ["active", "done", "archived"] })
     .notNull()
     .default("active"),

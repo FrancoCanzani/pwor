@@ -12,16 +12,21 @@ import type { AppEnv } from "../../../types";
 const createWorkspaceSchema = z.object({
   name: z.string().trim().min(1),
   description: z.string().trim().nullable().optional(),
+  shader: z.string().trim().min(1).optional(),
 });
 
 const updateWorkspaceSchema = z
   .object({
     name: z.string().trim().min(1).optional(),
     description: z.string().trim().nullable().optional(),
+    shader: z.string().trim().min(1).optional(),
   })
   .refine(
-    (value) => value.name !== undefined || value.description !== undefined,
-    { message: "name or description is required" },
+    (value) =>
+      value.name !== undefined ||
+      value.description !== undefined ||
+      value.shader !== undefined,
+    { message: "name, description, or shader is required" },
   );
 
 const app = new Hono<AppEnv>()
@@ -40,7 +45,7 @@ const app = new Hono<AppEnv>()
 
   .post("/", zValidator("json", createWorkspaceSchema), async (c) => {
     const user = c.get("user")!;
-    const { name, description } = c.req.valid("json");
+    const { name, description, shader } = c.req.valid("json");
     const db = createDb(c.env.DB);
     const id = crypto.randomUUID();
 
@@ -51,6 +56,7 @@ const app = new Hono<AppEnv>()
         userId: user.id,
         name,
         description: description ?? null,
+        shader: shader ?? "nebula",
       })
       .returning();
 
@@ -96,7 +102,7 @@ const app = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", updateWorkspaceSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { name, description } = c.req.valid("json");
+    const { name, description, shader } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
     const [updated] = await db
@@ -104,6 +110,7 @@ const app = new Hono<AppEnv>()
       .set({
         ...(name !== undefined ? { name } : {}),
         ...(description !== undefined ? { description } : {}),
+        ...(shader !== undefined ? { shader } : {}),
       })
       .where(ownedBy(workspace.id, id, workspace.userId, user.id))
       .returning();

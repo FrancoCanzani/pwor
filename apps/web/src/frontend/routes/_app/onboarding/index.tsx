@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { SpaceShaderPicker } from "@features/navigation/components/space-shader-picker";
+import {
+  DEFAULT_SPACE_SHADER,
+  type SpaceShaderId,
+} from "@features/navigation/lib/space-shaders";
 import {
   createWorkspace,
   workspacesQueryOptions,
@@ -36,6 +41,7 @@ function WorkspaceStep() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
+  const [shader, setShader] = useState<SpaceShaderId>(DEFAULT_SPACE_SHADER);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -48,9 +54,10 @@ function WorkspaceStep() {
     setError(null);
 
     try {
-      const workspace = await createWorkspace(trimmed);
+      const workspace = await createWorkspace(trimmed, { shader });
       setStoredWorkspaceId(workspace.id);
-      await queryClient.invalidateQueries({        queryKey: workspacesQueryOptions.queryKey,
+      await queryClient.invalidateQueries({
+        queryKey: workspacesQueryOptions.queryKey,
         exact: true,
       });
       cue("success");
@@ -79,6 +86,8 @@ function WorkspaceStep() {
           onChange={(event) => setName(event.target.value)}
         />
       </div>
+
+      <SpaceShaderPicker value={shader} onChange={setShader} />
 
       {error ? (
         <p className="m-0 text-xs text-destructive" role="alert">

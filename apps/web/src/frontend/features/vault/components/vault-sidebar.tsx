@@ -227,7 +227,6 @@ export function VaultSidebar({
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [typesOpen, setTypesOpen] = useState(false);
 
   function closeCreating() {
     setCreating(false);
@@ -266,6 +265,9 @@ export function VaultSidebar({
   const activeCategoryId =
     nav.mode === "category" ? nav.categoryId : null;
 
+  const typeLabel =
+    nav.mode === "type" ? TYPE_FACET_LABEL[nav.type] : "Types";
+
   return (
     <aside
       className={cn(
@@ -300,35 +302,41 @@ export function VaultSidebar({
           </li>
         </ul>
 
-        <div className="mt-4">
-          <button
-            type="button"
-            aria-expanded={typesOpen}
-            onClick={() => setTypesOpen((open) => !open)}
-            className="relative mb-1 flex w-full items-center rounded-md py-1.5 pr-8 pl-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-          >
-            <span className="truncate">Types</span>
-            <ChevronRightIcon
-              className={cn(
-                "absolute top-1/2 right-2 size-3 -translate-y-1/2 transition-transform",
-                typesOpen && "rotate-90",
-              )}
-            />
-          </button>
-          {typesOpen ? (
-            <ul className="flex flex-col gap-0.5">
+        <div className="mt-4 px-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className={cn(
+                    "relative flex h-8 w-full items-center rounded-md py-1.5 pr-8 pl-2 text-left text-xs transition-colors",
+                    nav.mode === "type"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  )}
+                />
+              }
+            >
+              <span className="truncate">{typeLabel}</span>
+              <ChevronRightIcon className="absolute top-1/2 right-2 size-3 -translate-y-1/2 rotate-90" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-40">
               {TYPE_FACET_ORDER.map((facet) => (
-                <li key={facet}>
-                  <NavButton
-                    active={nav.mode === "type" && nav.type === facet}
-                    label={TYPE_FACET_LABEL[facet]}
-                    count={typeCounts.get(facet) ?? 0}
-                    onClick={() => onNavChange({ mode: "type", type: facet })}
-                  />
-                </li>
+                <DropdownMenuItem
+                  key={facet}
+                  className="font-normal text-xs"
+                  onClick={() => onNavChange({ mode: "type", type: facet })}
+                >
+                  <span className="flex-1 truncate">
+                    {TYPE_FACET_LABEL[facet]}
+                  </span>
+                  <span className="font-nums text-muted-foreground">
+                    {typeCounts.get(facet) ?? 0}
+                  </span>
+                </DropdownMenuItem>
               ))}
-            </ul>
-          ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="mt-4 mb-1 flex items-center justify-between px-2">

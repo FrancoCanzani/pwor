@@ -1,29 +1,41 @@
-import { StaticMeshGradient } from "@paper-design/shaders-react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import {
-  spacePicColors,
-  spacePicPositions,
-  spacePicRotation,
-} from "@features/navigation/lib/space-pic";
+  DEFAULT_SPACE_SHADER,
+  getSpaceShader,
+} from "@features/navigation/lib/space-shaders";
 
 const cache = new Map<string, string>();
 
+function cacheKey(shaderId: string, size: string) {
+  return `${shaderId}:${size}`;
+}
+
 /**
- * Unique cosmic “space pic” per space id, via Paper StaticMeshGradient.
- * Renders once through WebGL, then freezes to a PNG so we don’t keep a
- * context open for every row in the sidebar.
+ * Space pic from a Paper shader preset. Renders once via WebGL, then freezes
+ * to a PNG so the sidebar doesn’t keep a context open per row.
  */
 export function SpacePic({
-  spaceId,
+  shaderId = DEFAULT_SPACE_SHADER,
   className,
+  size = "sm",
 }: {
-  spaceId: string;
+  shaderId?: string | null;
   className?: string;
+  size?: "sm" | "md" | "lg";
 }) {
-  const [src, setSrc] = useState<string | null>(() => cache.get(spaceId) ?? null);
+  const preset = getSpaceShader(shaderId);
+  const sizeClass =
+    size === "lg" ? "size-16" : size === "md" ? "size-10" : "size-4";
+  const key = cacheKey(preset.id, size);
+  const [src, setSrc] = useState<string | null>(() => cache.get(key) ?? null);
   const hostRef = useRef<HTMLDivElement>(null);
+  const { Component, props } = preset;
+
+  useEffect(() => {
+    setSrc(cache.get(key) ?? null);
+  }, [key]);
 
   useEffect(() => {
     if (src) return;
@@ -43,16 +55,16 @@ export function SpacePic({
       }
       try {
         const url = canvas.toDataURL("image/png");
-        cache.set(spaceId, url);
+        cache.set(key, url);
         setSrc(url);
       } catch {
-        // WebGL/tainted canvas — leave the live shader mounted.
+        // leave live shader mounted
       }
     };
 
     raf = requestAnimationFrame(capture);
     return () => cancelAnimationFrame(raf);
-  }, [spaceId, src]);
+  }, [key, src]);
 
   if (src) {
     return (
@@ -61,7 +73,8 @@ export function SpacePic({
         alt=""
         draggable={false}
         className={cn(
-          "size-4 shrink-0 rounded-sm object-cover",
+          sizeClass,
+          "shrink-0 rounded-sm object-cover",
           className,
         )}
       />
@@ -72,25 +85,13 @@ export function SpacePic({
     <div
       ref={hostRef}
       className={cn(
-        "size-4 shrink-0 overflow-hidden rounded-sm bg-muted",
+        sizeClass,
+        "shrink-0 overflow-hidden rounded-sm bg-muted",
         className,
       )}
       aria-hidden
     >
-      <StaticMeshGradient
-        colors={spacePicColors(spaceId)}
-        positions={spacePicPositions(spaceId)}
-        rotation={spacePicRotation(spaceId)}
-        waveX={0.7}
-        waveXShift={0.4}
-        waveY={0.85}
-        waveYShift={0.3}
-        mixing={0.7}
-        grainMixer={0.15}
-        grainOverlay={0.08}
-        speed={0}
-        style={{ width: "100%", height: "100%" }}
-      />
+      <Component {...props} style={{ width: "100%", height: "100%" }} />
     </div>
   );
 }

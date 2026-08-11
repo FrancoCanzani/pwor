@@ -1,14 +1,11 @@
-import { CaretSortIcon, PlusIcon } from "@radix-ui/react-icons";
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { CaretSortIcon } from "@radix-ui/react-icons";
+import { Link } from "@tanstack/react-router";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -19,10 +16,6 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@lib/auth-client";
 import { cue } from "@lib/sound";
-import { workspacesQueryOptions, type Workspace } from "@features/workspaces/api";
-import { CreateWorkspaceDialog } from "@features/workspaces/components/create-workspace-dialog";
-import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
 export type ShellUser = {
   name: string;
@@ -32,25 +25,7 @@ export type ShellUser = {
 
 export function NavUser({ user }: { user: ShellUser }) {
   const { isMobile } = useSidebar();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const label = user.name.trim() || user.email;
-  const [createOpen, setCreateOpen] = useState(false);
-
-  const { name: currentName } = useCurrentWorkspace();
-  const spaceLabel = currentName || "Untitled";
-
-  async function handleWorkspaceCreated(workspace: Workspace) {
-    setStoredWorkspaceId(workspace.id);
-    await queryClient.invalidateQueries({
-      queryKey: workspacesQueryOptions.queryKey,
-      exact: true,
-    });
-    await navigate({
-      to: "/$workspaceId",
-      params: { workspaceId: workspace.id },
-    });
-  }
 
   return (
     <SidebarMenu>
@@ -67,7 +42,7 @@ export function NavUser({ user }: { user: ShellUser }) {
             <div className="grid flex-1 text-left text-xs leading-tight">
               <span className="truncate font-normal">{label}</span>
               <span className="truncate text-muted-foreground">
-                {spaceLabel}
+                {user.email}
               </span>
             </div>
             <CaretSortIcon className="ml-auto" />
@@ -81,20 +56,10 @@ export function NavUser({ user }: { user: ShellUser }) {
             <DropdownMenuGroup>
               <DropdownMenuItem
                 className="font-normal text-xs"
-                onClick={() => setCreateOpen(true)}
-              >
-                <PlusIcon className="size-3" />
-                New space
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="font-normal text-xs"
                 render={<Link to="/settings" />}
               >
                 Settings
               </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
               <DropdownMenuItem
                 variant="destructive"
                 className="font-normal text-xs"
@@ -109,12 +74,6 @@ export function NavUser({ user }: { user: ShellUser }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-
-      <CreateWorkspaceDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={handleWorkspaceCreated}
-      />
     </SidebarMenu>
   );
 }

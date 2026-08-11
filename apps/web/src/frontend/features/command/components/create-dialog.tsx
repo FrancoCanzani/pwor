@@ -32,7 +32,7 @@ import {
   prependFrontmatter,
 } from "@shared/note-frontmatter";
 
-type CreateMode = "menu" | "note" | "snippet" | "capture";
+type CreateMode = "menu" | "snippet" | "capture";
 
 export function CreateDialog({
   open,
@@ -42,7 +42,6 @@ export function CreateDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [mode, setMode] = useState<CreateMode>("menu");
-  const [noteTitle, setNoteTitle] = useState("");
   const [snippetTitle, setSnippetTitle] = useState("");
   const [snippetLanguage, setSnippetLanguage] = useState("typescript");
   const [snippetContent, setSnippetContent] = useState("");
@@ -56,7 +55,6 @@ export function CreateDialog({
   useEffect(() => {
     if (!open) {
       setMode("menu");
-      setNoteTitle("");
       setSnippetTitle("");
       setSnippetLanguage("typescript");
       setSnippetContent("");
@@ -68,7 +66,7 @@ export function CreateDialog({
   const createNoteMutation = useMutation({
     mutationFn: () => {
       if (!workspaceId) throw new Error("No space selected");
-      const title = noteTitle.trim() || "Untitled";
+      const title = "Untitled";
       const body = prependFrontmatter("", { title, tags: [] });
       return createNote(body, title, workspaceId);
     },
@@ -158,12 +156,6 @@ export function CreateDialog({
     }
   }
 
-  function handleNoteSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    createNoteMutation.mutate();
-  }
-
   function handleSnippetSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!snippetContent.trim() || busy) return;
@@ -185,20 +177,32 @@ export function CreateDialog({
               <DialogTitle>Create new</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
+                disabled={busy || !workspaceId}
+                onClick={() => createNoteMutation.mutate()}
+              >
+                <span className="text-sm">
+                  {createNoteMutation.isPending ? "Creating…" : "Note"}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Markdown notebook
+                </span>
+              </button>
               {(
                 [
-                  { id: "note", label: "Note", detail: "Markdown notebook" },
                   {
-                    id: "snippet",
+                    id: "snippet" as const,
                     label: "Snippet",
                     detail: "Code with syntax highlighting",
                   },
                   {
-                    id: "capture",
+                    id: "capture" as const,
                     label: "Capture",
                     detail: "Paste a URL, text, or drop files",
                   },
-                ] as const
+                ]
               ).map((item) => (
                 <button
                   key={item.id}
@@ -214,33 +218,6 @@ export function CreateDialog({
               ))}
             </div>
           </>
-        ) : null}
-
-        {mode === "note" ? (
-          <form onSubmit={handleNoteSubmit} className="flex flex-col gap-3">
-            <DialogHeader>
-              <DialogTitle>New note</DialogTitle>
-            </DialogHeader>
-            <Input
-              autoFocus
-              value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
-              placeholder="Title"
-              disabled={busy}
-            />
-            <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setMode("menu")}
-              >
-                Back
-              </Button>
-              <Button type="submit" disabled={busy}>
-                {createNoteMutation.isPending ? "Creating…" : "Create"}
-              </Button>
-            </DialogFooter>
-          </form>
         ) : null}
 
         {mode === "snippet" ? (

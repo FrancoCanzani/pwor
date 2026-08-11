@@ -8,6 +8,7 @@ export type Workspace = {
   id: string;
   name: string;
   description: string | null;
+  shader?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -42,13 +43,20 @@ export function workspaceQueryOptions(id: string) {
 
 export async function createWorkspace(
   name: string,
-  description?: string | null,
+  options?: {
+    description?: string | null;
+    shader?: string;
+  },
 ): Promise<Workspace> {
   return parseJson<Workspace>(
     await fetch("/api/workspaces", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({
+        name,
+        description: options?.description,
+        shader: options?.shader,
+      }),
     }),
   );
 }
@@ -58,6 +66,7 @@ export async function updateWorkspace(
   patch: {
     name?: string;
     description?: string | null;
+    shader?: string;
   },
 ): Promise<Workspace> {
   return parseJson<Workspace>(

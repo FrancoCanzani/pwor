@@ -29,6 +29,13 @@
       "when": 1786434773120,
       "tag": "0003_omniscient_sleepwalker",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1786445885736,
+      "tag": "0004_mature_sentry",
+      "breakpoints": true
     }
   ]
 }

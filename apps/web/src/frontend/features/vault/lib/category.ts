@@ -1,15 +1,34 @@
 import type { VaultItem } from "@features/vault/api";
 
-export type VaultCategory = "docs" | "images";
+/** System type filters in the aside — not user categories. */
+export type VaultTypeFacet = "links" | "docs" | "images" | "text";
 
-export const CATEGORY_ORDER: VaultCategory[] = ["docs", "images"];
+export const TYPE_FACET_ORDER: VaultTypeFacet[] = [
+  "links",
+  "docs",
+  "images",
+  "text",
+];
 
-export const CATEGORY_LABEL: Record<VaultCategory, string> = {
+export const TYPE_FACET_LABEL: Record<VaultTypeFacet, string> = {
+  links: "Links",
   docs: "Docs",
   images: "Images",
+  text: "Text",
 };
 
-export function categoryOf(item: VaultItem): VaultCategory {
-  if (item.mimeType?.startsWith("image/")) return "images";
-  return "docs";
+export function typeFacetOf(item: VaultItem): VaultTypeFacet {
+  switch (item.kind) {
+    case "link":
+      return "links";
+    case "text":
+      return "text";
+    case "file":
+      if (item.mimeType?.startsWith("image/")) return "images";
+      return "docs";
+    default: {
+      const _exhaustive: never = item.kind;
+      return _exhaustive;
+    }
+  }
 }

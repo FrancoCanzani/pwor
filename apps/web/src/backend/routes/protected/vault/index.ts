@@ -1,46 +1,100 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
-import { scheduleVaultMarkdownExtraction } from "../../../lib/vault-markdown";
+import { vaultItem } from "../../../db/schema";
+import {
+  extractUrl,
+  fetchPageMetadata,
+  titleFromText,
+  vaultSearchText,
+} from "../../../lib/vault-capture";
+import { scheduleVaultEnrichment } from "../../../lib/vault-enrichment";
 import {
   putVaultObject,
   vaultObjectByteSize,
 } from "../../../lib/vault-storage";
-import { vaultItem } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
+import categoriesRoutes, { assertCategoryOwned } from "./categories";
+
+type VaultKind = "file" | "link" | "text";
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
   inboxItemId: z.string().optional(),
 });
 
-const updateVaultItemSchema = z.object({
-  workspaceId: z.string().nullable(),
+const updateVaultItemSchema = z
+  .object({
+    workspaceId: z.string().nullable().optional(),
+    categoryId: z.string().nullable().optional(),
+  })
+  .refine(
+    (value) => value.workspaceId !== undefined || value.categoryId !== undefined,
+    { message: "workspaceId or categoryId is required" },
+  );
+
+const captureSchema = z.object({
+  input: z.string().trim().min(1),
+  workspaceId: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
 });
 
-const createTextSchema = z.object({
-  content: z.string().trim().min(1),
-  workspaceId: z.string().nullable().optional(),
-});
+/** Legacy tweet/site rows still read as links. */
+function normalizeKind(kind: string): VaultKind {
+  if (kind === "file" || kind === "text") return kind;
+  return "link";
+}
+
+function presentVaultItem<T extends { kind: string }>(item: T) {
+  return { ...item, kind: normalizeKind(item.kind) };
+}
+
+async function insertVaultItem(
+  db: ReturnType<typeof createDb>,
+  values: typeof vaultItem.$inferInsert,
+  ctx: { waitUntil(promise: Promise<unknown>): void },
+  env: Env,
+  userId: string,
+) {
+  const id = values.id;
+  await db.insert(vaultItem).values(values);
+  scheduleVaultEnrichment(ctx, env, id);
+
+  const [created] = await db
+    .select()
+    .from(vaultItem)
+    .where(ownedBy(vaultItem.id, id, vaultItem.userId, userId))
+    .limit(1);
+
+  return created ? presentVaultItem(created) : created;
+}
 
 const app = new Hono<AppEnv>()
+  .route("/categories", categoriesRoutes)
+
   .post("/", async (c) => {
     const user = c.get("user")!;
     const body = await c.req.parseBody();
     const file = body.file;
     const workspaceId =
       typeof body.workspaceId === "string" ? body.workspaceId : null;
+    const categoryId =
+      typeof body.categoryId === "string" && body.categoryId.length > 0
+        ? body.categoryId
+        : null;
 
     if (!(file instanceof File)) {
       throw new HTTPException(400, { message: "file is required" });
     }
 
     const db = createDb(c.env.DB);
+    if (categoryId) await assertCategoryOwned(db, categoryId, user.id);
+
     const id = crypto.randomUUID();
     const r2Key = `${user.id}/${id}/${file.name}`;
     const contentType = file.type || "application/octet-stream";
@@ -52,50 +106,73 @@ const app = new Hono<AppEnv>()
       contentType,
     );
 
-    await db.insert(vaultItem).values({
-      id,
-      userId: user.id,
-      title: file.name,
-      r2Key,
-      mimeType: contentType,
-      workspaceId,
-      parseStatus: "pending",
-    });
-
-    scheduleVaultMarkdownExtraction(c.executionCtx, c.env, id);
-
-    const [created] = await db
-      .select()
-      .from(vaultItem)
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
+    const created = await insertVaultItem(
+      db,
+      {
+        id,
+        userId: user.id,
+        kind: "file",
+        title: file.name,
+        r2Key,
+        mimeType: contentType,
+        workspaceId,
+        categoryId,
+        searchText: vaultSearchText({ title: file.name }),
+        parseStatus: "pending",
+      },
+      c.executionCtx,
+      c.env,
+      user.id,
+    );
 
     return c.json(created, 201);
   })
 
-  .post("/text", zValidator("json", createTextSchema), async (c) => {
+  .post("/capture", zValidator("json", captureSchema), async (c) => {
     const user = c.get("user")!;
-    const { content, workspaceId } = c.req.valid("json");
+    const { input, workspaceId, categoryId } = c.req.valid("json");
     const db = createDb(c.env.DB);
+    if (categoryId) await assertCategoryOwned(db, categoryId, user.id);
+
+    const url = extractUrl(input);
     const id = crypto.randomUUID();
 
-    const title =
-      content.length > 60 ? `${content.slice(0, 60).trim()}…` : content;
+    let kind: VaultKind = "text";
+    let title = titleFromText(input);
+    let siteName: string | null = null;
+    let content: string | null = input.trim();
+    let summary: string | null = null;
 
-    await db.insert(vaultItem).values({
-      id,
-      userId: user.id,
-      kind: "text",
-      title,
-      content,
-      workspaceId: workspaceId ?? null,
-    });
+    if (url) {
+      kind = "link";
+      const page = await fetchPageMetadata(url);
+      title = page.title || url;
+      siteName = page.siteName;
+      summary = page.description;
+      content =
+        [page.description, page.text].filter(Boolean).join("\n\n") || null;
+    }
 
-    const [created] = await db
-      .select()
-      .from(vaultItem)
-      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
-      .limit(1);
+    const created = await insertVaultItem(
+      db,
+      {
+        id,
+        userId: user.id,
+        kind,
+        title,
+        summary,
+        content,
+        url,
+        siteName,
+        workspaceId: workspaceId ?? null,
+        categoryId: categoryId ?? null,
+        searchText: vaultSearchText({ title, summary, content }),
+        parseStatus: "pending",
+      },
+      c.executionCtx,
+      c.env,
+      user.id,
+    );
 
     return c.json(created, 201);
   })
@@ -105,20 +182,18 @@ const app = new Hono<AppEnv>()
     const { workspaceId, inboxItemId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
-    const conditions = [
-      eq(vaultItem.userId, user.id),
-      inArray(vaultItem.kind, ["file", "text"]),
-    ];
+    const conditions = [eq(vaultItem.userId, user.id)];
     if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
     if (inboxItemId) conditions.push(eq(vaultItem.inboxItemId, inboxItemId));
 
-    const items = await db
+    const rows = await db
       .select()
       .from(vaultItem)
       .where(and(...conditions))
       .orderBy(desc(vaultItem.createdAt));
 
-    // Sum real object sizes (metadata / head / one-time backfill).
+    const items = rows.map(presentVaultItem);
+
     let totalBytes = 0;
     if (!inboxItemId) {
       const sizes = await Promise.all(
@@ -141,22 +216,27 @@ const app = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", updateVaultItemSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { workspaceId } = c.req.valid("json");
+    const { workspaceId, categoryId } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
     const [existing] = await db
-      .select({ id: vaultItem.id, kind: vaultItem.kind })
+      .select({ id: vaultItem.id })
       .from(vaultItem)
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    if (!existing || existing.kind === "link") {
+    if (!existing) {
       throw new HTTPException(404, { message: "Not found" });
     }
 
+    if (categoryId) await assertCategoryOwned(db, categoryId, user.id);
+
     await db
       .update(vaultItem)
-      .set({ workspaceId })
+      .set({
+        ...(workspaceId !== undefined ? { workspaceId } : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
+      })
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id));
 
     const [updated] = await db
@@ -165,7 +245,7 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    return c.json(updated);
+    return c.json(updated ? presentVaultItem(updated) : updated);
   })
 
   .delete("/:id", async (c) => {
@@ -198,11 +278,11 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
       .limit(1);
 
-    if (!item || item.kind === "link") {
+    if (!item) {
       throw new HTTPException(404, { message: "Not found" });
     }
 
-    return c.json(item);
+    return c.json(presentVaultItem(item));
   })
 
   .get("/:id/file", async (c) => {

@@ -62,14 +62,13 @@ const SOURCES: Source[] = [
     body: null,
   },
   {
-    // Files are R2 keys with no extracted text, so titles are all there is.
     kind: "vault_item",
     table: "vault_item",
     title: "title",
     fallback: "Untitled",
     workspace: "project_id",
     timestamp: "updated_at",
-    body: null,
+    body: "coalesce(search_text, summary, content, extracted_markdown)",
   },
   {
     kind: "inbox_item",

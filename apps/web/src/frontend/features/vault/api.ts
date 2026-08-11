@@ -2,15 +2,31 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 
-export type VaultItemKind = "file" | "text";
+export type VaultItemKind = "file" | "link" | "text";
+
+export type VaultParseStatus = "pending" | "ready" | "failed" | "skipped";
 
 export type VaultItem = {
   id: string;
   kind: VaultItemKind;
   title: string | null;
+  summary: string | null;
+  tags: string[] | null;
   mimeType: string | null;
+  url: string | null;
+  siteName: string | null;
+  categoryId: string | null;
   workspaceId: string | null;
   inboxItemId: string | null;
+  parseStatus: VaultParseStatus | null;
+  createdAt: string;
+};
+
+export type VaultCategory = {
+  id: string;
+  name: string;
+  position: number;
+  workspaceId: string | null;
   createdAt: string;
 };
 
@@ -54,6 +70,7 @@ export function vaultItemsByInboxItemQueryOptions(inboxItemId: string) {
 
 export type VaultItemDetail = VaultItem & {
   content: string | null;
+  extractedMarkdown: string | null;
 };
 
 async function fetchVaultItem(id: string): Promise<VaultItemDetail> {
@@ -99,28 +116,82 @@ export function vaultSheetQueryOptions(id: string) {
   });
 }
 
+async function fetchVaultCategories(
+  workspaceId?: string,
+): Promise<VaultCategory[]> {
+  const params = new URLSearchParams();
+  if (workspaceId) params.set("workspaceId", workspaceId);
+  const query = params.toString();
+  const data = await parseJson<{ items: VaultCategory[] }>(
+    await fetch(`/api/vault/categories${query ? `?${query}` : ""}`),
+  );
+  return data.items;
+}
+
+export function vaultCategoriesQueryOptions(workspaceId?: string) {
+  return queryOptions({
+    queryKey: ["vault", "categories", workspaceId] as const,
+    queryFn: () => fetchVaultCategories(workspaceId),
+  });
+}
+
+export async function createVaultCategory(
+  name: string,
+  workspaceId?: string | null,
+): Promise<VaultCategory> {
+  return parseJson<VaultCategory>(
+    await fetch("/api/vault/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, workspaceId }),
+    }),
+  );
+}
+
+export async function renameVaultCategory(
+  id: string,
+  name: string,
+): Promise<VaultCategory> {
+  return parseJson<VaultCategory>(
+    await fetch(`/api/vault/categories/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+  );
+}
+
+export async function deleteVaultCategory(id: string): Promise<{ id: string }> {
+  return parseJson<{ id: string }>(
+    await fetch(`/api/vault/categories/${id}`, { method: "DELETE" }),
+  );
+}
+
 export async function uploadVaultItem(
   file: File,
   workspaceId?: string | null,
+  categoryId?: string | null,
 ): Promise<{ id: string }> {
   const formData = new FormData();
   formData.append("file", file);
   if (workspaceId) formData.append("workspaceId", workspaceId);
+  if (categoryId) formData.append("categoryId", categoryId);
 
   return parseJson<{ id: string }>(
     await fetch("/api/vault", { method: "POST", body: formData }),
   );
 }
 
-export async function createVaultText(
-  content: string,
+export async function captureVaultInput(
+  input: string,
   workspaceId?: string | null,
+  categoryId?: string | null,
 ): Promise<VaultItem> {
   return parseJson<VaultItem>(
-    await fetch("/api/vault/text", {
+    await fetch("/api/vault/capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, workspaceId }),
+      body: JSON.stringify({ input, workspaceId, categoryId }),
     }),
   );
 }
@@ -140,6 +211,19 @@ export async function updateVaultItemProject(
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId }),
+    }),
+  );
+}
+
+export async function updateVaultItemCategory(
+  id: string,
+  categoryId: string | null,
+): Promise<VaultItem> {
+  return parseJson<VaultItem>(
+    await fetch(`/api/vault/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categoryId }),
     }),
   );
 }

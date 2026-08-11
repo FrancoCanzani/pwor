@@ -1,21 +1,27 @@
-import { CaretDownIcon, CaretRightIcon, PlusIcon } from "@radix-ui/react-icons";
+import { ChevronRightIcon, PlusIcon } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 import { SpacePic } from "@features/navigation/components/space-pic";
 import { vaultCategoriesQueryOptions } from "@features/vault/api";
 import {
@@ -84,23 +90,19 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
         </Button>
       </SidebarGroup>
 
-      <SidebarGroup>
-        <SidebarGroupLabel className="flex items-center gap-1 px-2 font-normal">
-          <span className="min-w-0 flex-1 truncate font-mono text-[10px] uppercase tracking-wide text-sidebar-foreground/70">
-            Spaces
-          </span>
-          <button
-            type="button"
-            className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
-            aria-label="New space"
-            onClick={() => setCreateSpaceOpen(true)}
-          >
-            <PlusIcon className="size-3" />
-          </button>
+      <SidebarGroup className="relative">
+        <SidebarGroupLabel className="font-mono text-[10px] font-normal tracking-wide uppercase">
+          Spaces
         </SidebarGroupLabel>
+        <SidebarGroupAction
+          aria-label="New space"
+          onClick={() => setCreateSpaceOpen(true)}
+        >
+          <PlusIcon />
+        </SidebarGroupAction>
 
         <SidebarGroupContent>
-          <SidebarMenu className="gap-0.5">
+          <SidebarMenu>
             {ordered.map((space) => (
               <SpaceRow
                 key={space.id}
@@ -147,45 +149,40 @@ function SpaceRow({
   const label = space.name.trim() || "Untitled";
 
   return (
-    <SidebarMenuItem>
-      <div className="flex w-full items-center gap-0.5">
-        <button
-          type="button"
-          className="flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          aria-expanded={open}
-          aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
-          onClick={() => setOpen((value) => !value)}
-        >
-          {open ? (
-            <CaretDownIcon className="size-3" />
-          ) : (
-            <CaretRightIcon className="size-3" />
-          )}
-        </button>
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="group/collapsible"
+      render={<SidebarMenuItem />}
+    >
+      <SidebarMenuButton
+        isActive={isActive}
+        size="sm"
+        className="font-normal"
+        tooltip={label}
+        onClick={onSelect}
+      >
+        <SpacePic shaderId={space.shader} />
+        <span>{label}</span>
+      </SidebarMenuButton>
 
-        <SidebarMenuButton
-          isActive={isActive}
-          size="sm"
-          className="min-w-0 flex-1 font-normal"
-          tooltip={label}
-          onClick={onSelect}
-        >
-          <SpacePic shaderId={space.shader} />
-          <span className="truncate">{label}</span>
-        </SidebarMenuButton>
-      </div>
+      <CollapsibleTrigger
+        render={<SidebarMenuAction showOnHover />}
+        aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
+      >
+        <ChevronRightIcon className="transition-transform group-data-open/collapsible:rotate-90" />
+      </CollapsibleTrigger>
 
-      {open ? (
-        <SidebarMenuSub className="mx-2 ml-4 border-sidebar-border/60">
+      <CollapsibleContent>
+        <SidebarMenuSub>
           {collections.map((collection) => {
-            const active =
-              isActive && search.category === collection.id;
+            const active = isActive && search.category === collection.id;
             return (
               <SidebarMenuSubItem key={collection.id}>
                 <SidebarMenuSubButton
                   size="sm"
                   isActive={active}
-                  className={cn("font-normal", active && "data-active:bg-sidebar-accent")}
+                  className="font-normal"
                   render={
                     <Link
                       to="/$workspaceId/vault"
@@ -195,13 +192,13 @@ function SpaceRow({
                     />
                   }
                 >
-                  <span className="truncate">{collection.name}</span>
+                  <span>{collection.name}</span>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             );
           })}
         </SidebarMenuSub>
-      ) : null}
-    </SidebarMenuItem>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

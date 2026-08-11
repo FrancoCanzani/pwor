@@ -1,19 +1,8 @@
-export type CaptureKind = "text" | "link" | "site";
-
-const TWEET_RE =
-  /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
 const URL_RE = /^https?:\/\/\S+$/i;
-
-export function detectCaptureKind(input: string): CaptureKind {
-  const trimmed = input.trim();
-  // Tweets are links — same capture path, no separate type.
-  if (TWEET_RE.test(trimmed) || URL_RE.test(trimmed)) return "link";
-  return "text";
-}
 
 export function extractUrl(input: string): string | null {
   const trimmed = input.trim();
-  if (!URL_RE.test(trimmed) && !TWEET_RE.test(trimmed)) return null;
+  if (!URL_RE.test(trimmed)) return null;
   try {
     return new URL(trimmed).toString();
   } catch {
@@ -114,4 +103,22 @@ export async function fetchPageMetadata(url: string): Promise<FetchedPage> {
 export function titleFromText(content: string): string {
   const line = content.trim().split(/\n/)[0] ?? content.trim();
   return line.length > 60 ? `${line.slice(0, 60).trim()}…` : line;
+}
+
+export function vaultSearchText(parts: {
+  title?: string | null;
+  summary?: string | null;
+  content?: string | null;
+  extractedMarkdown?: string | null;
+  tags?: string[] | null;
+}): string {
+  return [
+    parts.title,
+    parts.summary,
+    parts.content,
+    parts.extractedMarkdown,
+    ...(parts.tags ?? []),
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join("\n");
 }

@@ -38,13 +38,15 @@ export const vaultItem = sqliteTable("vault_item", {
   inboxItemId: text("inbox_item_id").references(() => inboxItem.id, {
     onDelete: "set null",
   }),
-  kind: text("kind", { enum: ["file", "link", "text", "tweet", "site"] })
+  kind: text("kind", { enum: ["file", "link", "text"] })
     .notNull()
     .default("file"),
   title: text("title"),
   summary: text("summary"),
   /** Freeform AI tags — topics, entities, places, themes. Not a fixed enum. */
   tags: text("tags", { mode: "json" }).$type<string[]>(),
+  /** Flat searchable blob (title, summary, content, markdown, tags). */
+  searchText: text("search_text"),
   r2Key: text("r2_key"),
   mimeType: text("mime_type"),
   url: text("url"),

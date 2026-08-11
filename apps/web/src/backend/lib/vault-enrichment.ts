@@ -5,6 +5,7 @@ import { createWorkersAI } from "workers-ai-provider";
 
 import { createDb } from "../db";
 import { vaultItem } from "../db/schema";
+import { vaultSearchText } from "./vault-capture";
 import { extractVaultItemMarkdown } from "./vault-markdown";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -19,14 +20,12 @@ const ENRICHMENT_SYSTEM_PROMPT = `You enrich a saved vault item for later search
 Return:
 - title: short plain title (under 80 chars). Prefer page/tweet title when present. Never invent brands you weren't given.
 - summary: 1–2 sentences on what this is and why it matters. Neutral tone.
-- tags: 3–8 short lowercase tags (1–3 words each). Topics, entities, places, brands, themes — not generic filler like "link", "interesting", "article", or the media type.
-- siteKind: for URLs only — "site" if it's a web page worth reading as an article/bookmark, otherwise "link". For non-URL items use null.`;
+- tags: 3–8 short lowercase tags (1–3 words each). Topics, entities, places, brands, themes — not generic filler like "link", "interesting", "article", or the media type.`;
 
 const enrichmentSchema = z.object({
   title: z.string().min(1).max(200),
   summary: z.string().min(1).max(500),
   tags: z.array(z.string().min(1).max(40)).min(1).max(8),
-  siteKind: z.enum(["site", "link"]).nullable(),
 });
 
 const BODY_CHARS = 6_000;
@@ -101,21 +100,23 @@ export async function enrichVaultItem(
       prompt: bodyParts.join("\n\n"),
     });
 
+    const title = object.title.trim() || item.title;
+    const summary = object.summary.trim();
     const tags = normalizeTags(object.tags);
-    const nextKind =
-      item.url && object.siteKind
-        ? object.siteKind
-        : item.kind === "link" && object.siteKind
-          ? object.siteKind
-          : item.kind;
 
     await db
       .update(vaultItem)
       .set({
-        title: object.title.trim() || item.title,
-        summary: object.summary.trim(),
+        title,
+        summary,
         tags,
-        kind: nextKind,
+        searchText: vaultSearchText({
+          title,
+          summary,
+          content: item.content,
+          extractedMarkdown: item.extractedMarkdown,
+          tags,
+        }),
         parseStatus: "ready",
         parseError: null,
         parsedAt: new Date(),

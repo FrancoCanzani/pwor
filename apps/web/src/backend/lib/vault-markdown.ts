@@ -148,15 +148,3 @@ export async function extractVaultItemMarkdown(
     });
   }
 }
-
-export function scheduleVaultMarkdownExtraction(
-  ctx: { waitUntil(promise: Promise<unknown>): void },
-  env: Env,
-  vaultItemId: string,
-): void {
-  ctx.waitUntil(
-    extractVaultItemMarkdown(env, vaultItemId).catch((err) => {
-      console.error("vault markdown extraction failed", vaultItemId, err);
-    }),
-  );
-}

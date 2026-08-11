@@ -68,7 +68,7 @@ const SOURCES: Source[] = [
     fallback: "Untitled",
     workspace: "project_id",
     timestamp: "updated_at",
-    body: "coalesce(summary, content, extracted_markdown, tags)",
+    body: "coalesce(search_text, summary, content, extracted_markdown)",
   },
   {
     kind: "inbox_item",

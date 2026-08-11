@@ -106,8 +106,7 @@ export function VaultViewer({
   onOpenChange: (open: boolean) => void;
 }) {
   const isTextItem = item.kind === "text";
-  const isLinkLike =
-    item.kind === "link" || item.kind === "site" || item.kind === "tweet";
+  const isLinkLike = item.kind === "link";
   const fileUrl = `/api/vault/${item.id}/file`;
   const isImage = item.mimeType?.startsWith("image/") ?? false;
   const isPdf = item.mimeType === "application/pdf";

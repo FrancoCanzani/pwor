@@ -105,11 +105,8 @@ export function kindLabel(item: VaultItem): string {
   switch (item.kind) {
     case "text":
       return "text";
-    case "tweet":
     case "link":
       return "link";
-    case "site":
-      return "site";
     case "file":
       if (item.mimeType?.startsWith("image/")) return "image";
       if (item.mimeType === "application/pdf") return "pdf";

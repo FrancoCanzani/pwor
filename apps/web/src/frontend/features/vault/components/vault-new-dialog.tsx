@@ -1,6 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
-import { useRef, useState, type SubmitEvent } from "react";
+import {
+  useRef,
+  useState,
+  type DragEvent,
+  type SubmitEvent,
+} from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import {
   captureVaultInput,
   uploadVaultItem,
@@ -53,7 +59,10 @@ export function VaultNewDialog({
   categoryId?: string | null;
 }) {
   const [input, setInput] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dragDepth = useRef(0);
   const queryClient = useQueryClient();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
 
@@ -69,9 +78,12 @@ export function VaultNewDialog({
     onError: () => toast.error("Couldn’t add to Vault"),
   });
 
+  const busy = capture.isPending || uploading;
+
   async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || busy) return;
     const list = Array.from(files);
+    setUploading(true);
     try {
       await Promise.all(
         list.map(async (file) => {
@@ -87,21 +99,53 @@ export function VaultNewDialog({
       onOpenChange(false);
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
     } finally {
+      setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!input.trim() || capture.isPending) return;
+    if (!input.trim() || busy) return;
     capture.mutate();
+  }
+
+  function onDragEnter(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current += 1;
+    setDragging(true);
+  }
+
+  function onDragOver(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function onDragLeave(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragging(false);
+  }
+
+  function onDrop(event: DragEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current = 0;
+    setDragging(false);
+    void handleFiles(event.dataTransfer.files);
   }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) setInput("");
+        if (!next) {
+          setInput("");
+          setDragging(false);
+          dragDepth.current = 0;
+        }
         onOpenChange(next);
       }}
     >
@@ -109,37 +153,50 @@ export function VaultNewDialog({
         <DialogHeader>
           <DialogTitle>New</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Textarea
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Paste a link, tweet, or any text…"
-            className="min-h-32 resize-none text-sm"
-            disabled={capture.isPending}
+            placeholder="Paste anything — link, tweet, text…"
+            className="min-h-36 resize-none text-sm"
+            disabled={busy}
           />
-          <p className="text-xs text-muted-foreground">
-            AI will classify it, summarize, and tag topics for search.
-          </p>
-          <DialogFooter className="-mx-0 -mb-0 flex-row justify-between border-0 bg-transparent p-0">
-            <div>
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                className="sr-only"
-                tabIndex={-1}
-                onChange={(e) => void handleFiles(e.target.files)}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={capture.isPending}
-                onClick={() => fileRef.current?.click()}
-              >
-                Upload file
-              </Button>
-            </div>
+
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(e) => void handleFiles(e.target.files)}
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+            onDragEnter={onDragEnter}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            className={cn(
+              "flex min-h-24 w-full flex-col items-center justify-center rounded-md border border-dashed px-4 py-6 text-center transition-colors",
+              dragging
+                ? "border-foreground/40 bg-muted/60 text-foreground"
+                : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+              busy && "pointer-events-none opacity-50",
+            )}
+          >
+            <span className="text-xs">
+              {uploading
+                ? "Uploading…"
+                : dragging
+                  ? "Drop to add"
+                  : "Drop files here, or click to choose"}
+            </span>
+          </button>
+
+          <DialogFooter className="-mx-0 -mb-0 flex-row justify-end border-0 bg-transparent p-0">
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -148,10 +205,7 @@ export function VaultNewDialog({
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={!input.trim() || capture.isPending}
-              >
+              <Button type="submit" disabled={!input.trim() || busy}>
                 {capture.isPending ? "Parsing…" : "Add"}
               </Button>
             </div>

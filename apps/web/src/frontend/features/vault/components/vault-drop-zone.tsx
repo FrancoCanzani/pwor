@@ -5,6 +5,10 @@ import { toast } from "sonner";
 
 import { SweepEffect } from "@components/sweep-effect";
 import { createNote } from "@features/notes/api";
+import {
+  inferTitleFromRaw,
+  prependFrontmatter,
+} from "../../../../shared/note-frontmatter";
 import { uploadVaultItem } from "@features/vault/api";
 
 const SWEEP_DURATION_MS = 800;
@@ -46,8 +50,13 @@ export function VaultDropZone() {
         ...markdownFiles.map(async (file) => {
           const toastId = toast.loading(`Adding ${file.name} to Notes…`);
           try {
-            const body = await file.text();
-            const title = file.name.replace(/\.md$/i, "");
+            const raw = await file.text();
+            const inferred = inferTitleFromRaw(raw).title;
+            const fallbackTitle = file.name.replace(/\.md$/i, "");
+            const title = inferred || fallbackTitle;
+            const body = inferred
+              ? raw
+              : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
             await createNote(body, title, workspaceId);
             toast.success(`${file.name} added to Notes`, { id: toastId });
           } catch {

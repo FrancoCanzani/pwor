@@ -21,6 +21,7 @@ import {
   type NoteListItem,
 } from "@features/notes/api";
 import { NotesList } from "@features/notes/components/notes-list";
+import { EMPTY_NOTE_BODY } from "../../../../shared/note-frontmatter";
 
 export function NotesLayout() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export function NotesLayout() {
   const { data: notes = [] } = useQuery(notesQueryOptions(workspaceId));
 
   const createMutation = useMutation({
-    mutationFn: () => createNote("", undefined, workspaceId),
+    mutationFn: () => createNote(EMPTY_NOTE_BODY, null, workspaceId),
     onSuccess: (note) => {
       queryClient.setQueryData(noteQueryOptions(note.id).queryKey, note);
       queryClient.setQueryData(

@@ -8,7 +8,6 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   NoteConflictError,
   noteQueryOptions,
@@ -21,6 +20,12 @@ import {
 } from "@features/notes/api";
 import { NoteEditor } from "@features/notes/components/note-editor";
 import type { NoteEditorMode } from "@features/notes/lib/cm-theme";
+import {
+  inferTitleFromRaw,
+  materializeNoteBody,
+  normalizeNoteTitle,
+  parseNoteDocument,
+} from "../../../../shared/note-frontmatter";
 
 const SAVE_DEBOUNCE_MS = 500;
 const EDITOR_MODE_KEY = "pwor-note-editor-mode";
@@ -42,15 +47,14 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
   const { data: note, error } = useQuery(noteQueryOptions(noteId));
   const { data: notes = [] } = useQuery(notesQueryOptions(workspaceId));
 
-  const [title, setTitle] = useState("");
   const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
   const [saveState, setSaveState] = useState<
     "idle" | "saving" | "saved" | "error" | "conflict"
   >("idle");
   const [editorNonce, setEditorNonce] = useState(0);
+  const [tags, setTags] = useState<string[]>([]);
 
   const latestBodyRef = useRef<string | null>(null);
-  const latestTitleRef = useRef<string | null>(null);
   const savedBodyRef = useRef<string | null>(null);
   const savedTitleRef = useRef<string | null>(null);
   const baseUpdatedAtRef = useRef<string | Date | number | null>(null);
@@ -81,10 +85,9 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
     savedBodyRef.current = null;
     savedTitleRef.current = null;
     latestBodyRef.current = null;
-    latestTitleRef.current = null;
     baseUpdatedAtRef.current = null;
     conflictRef.current = false;
-    setTitle("");
+    setTags([]);
     setSaveState("idle");
     if (timerRef.current) clearTimeout(timerRef.current);
   }, [noteId]);
@@ -92,14 +95,13 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
   useEffect(() => {
     if (!note) return;
     if (savedBodyRef.current === null) {
-      savedBodyRef.current = note.body;
-      latestBodyRef.current = note.body;
-    }
-    if (savedTitleRef.current === null) {
-      const nextTitle = note.title ?? "";
-      savedTitleRef.current = nextTitle;
-      latestTitleRef.current = nextTitle;
-      setTitle(nextTitle);
+      const body = materializeNoteBody(note.body, note.title);
+      savedBodyRef.current = body;
+      latestBodyRef.current = body;
+      savedTitleRef.current = normalizeNoteTitle(
+        inferTitleFromRaw(body).title,
+      );
+      setTags(parseNoteDocument(body).tags);
     }
     if (baseUpdatedAtRef.current === null) {
       baseUpdatedAtRef.current = note.updatedAt;
@@ -108,9 +110,10 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
 
   function applySavedNote(updated: Note) {
     savedBodyRef.current = updated.body;
-    savedTitleRef.current = updated.title ?? "";
+    savedTitleRef.current = updated.title ?? null;
     baseUpdatedAtRef.current = updated.updatedAt;
     conflictRef.current = false;
+    setTags(parseNoteDocument(updated.body).tags);
     queryClient.setQueryData(noteQueryOptions(noteId).queryKey, updated);
     queryClient.setQueryData(
       notesQueryOptions(workspaceId).queryKey,
@@ -160,10 +163,10 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
     if (noteIdRef.current !== noteId) return;
 
     const body = latestBodyRef.current;
-    const nextTitle = latestTitleRef.current;
     const expectedUpdatedAt = baseUpdatedAtRef.current;
-    if (body === null || nextTitle === null || expectedUpdatedAt == null) return;
+    if (body === null || expectedUpdatedAt == null) return;
 
+    const nextTitle = normalizeNoteTitle(inferTitleFromRaw(body).title);
     const bodyChanged = body !== savedBodyRef.current;
     const titleChanged = nextTitle !== savedTitleRef.current;
     if (!bodyChanged && !titleChanged) return;
@@ -172,8 +175,8 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
     setSaveState("saving");
     try {
       await saveMutation.mutateAsync({
-        ...(bodyChanged ? { body } : {}),
-        ...(titleChanged ? { title: nextTitle } : {}),
+        body,
+        title: nextTitle,
         expectedUpdatedAt: toEpochMs(expectedUpdatedAt),
       });
     } catch {
@@ -183,9 +186,9 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
         !conflictRef.current &&
         noteIdRef.current === noteId &&
         latestBodyRef.current !== null &&
-        latestTitleRef.current !== null &&
         (latestBodyRef.current !== savedBodyRef.current ||
-          latestTitleRef.current !== savedTitleRef.current)
+          normalizeNoteTitle(inferTitleFromRaw(latestBodyRef.current).title) !==
+            savedTitleRef.current)
       ) {
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
@@ -228,12 +231,7 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
 
   function handleBodyChange(value: string) {
     latestBodyRef.current = value;
-    scheduleSave();
-  }
-
-  function handleTitleChange(value: string) {
-    setTitle(value);
-    latestTitleRef.current = value;
+    setTags(parseNoteDocument(value).tags);
     scheduleSave();
   }
 
@@ -241,13 +239,12 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
     if (!note) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     conflictRef.current = false;
-    savedBodyRef.current = note.body;
-    latestBodyRef.current = note.body;
-    const nextTitle = note.title ?? "";
-    savedTitleRef.current = nextTitle;
-    latestTitleRef.current = nextTitle;
+    const body = materializeNoteBody(note.body, note.title);
+    savedBodyRef.current = body;
+    latestBodyRef.current = body;
+    savedTitleRef.current = normalizeNoteTitle(inferTitleFromRaw(body).title);
     baseUpdatedAtRef.current = note.updatedAt;
-    setTitle(nextTitle);
+    setTags(parseNoteDocument(body).tags);
     setSaveState("idle");
     setEditorNonce((n) => n + 1);
   }
@@ -263,13 +260,9 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="flex h-12 shrink-0 items-center gap-3 px-3 md:px-8">
         <div className="mx-auto flex min-w-0 w-full max-w-3xl items-center gap-3">
-          <Input
-            value={title}
-            onChange={(event) => handleTitleChange(event.target.value)}
-            placeholder="Title"
-            disabled={saveState === "conflict"}
-            className="h-auto border-0 px-0 py-0 text-sm leading-none font-normal shadow-none focus-visible:border-transparent focus-visible:ring-0"
-          />
+          <div className="min-w-0 flex-1 truncate text-[11px] leading-none text-muted-foreground">
+            {tags.length > 0 ? tags.join(" · ") : null}
+          </div>
           <span className="shrink-0 text-[11px] leading-none text-muted-foreground">
             {saveState === "saving"
               ? "Saving…"
@@ -308,7 +301,7 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
           <NoteEditor
             key={`${note.id}:${mode}:${editorNonce}`}
             mode={mode}
-            initialDoc={latestBodyRef.current ?? note.body}
+            initialDoc={latestBodyRef.current ?? materializeNoteBody(note.body, note.title)}
             onChange={handleBodyChange}
             uploadImage={(file) => uploadNoteImage(noteId, file)}
             wikiLinks={{

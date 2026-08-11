@@ -8,6 +8,11 @@ import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import { note, noteImage, workspace } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
+import {
+  EMPTY_NOTE_BODY,
+  inferTitleFromRaw,
+  normalizeNoteTitle,
+} from "../../../../shared/note-frontmatter";
 import { deleteNoteImagesFromR2 } from "./cleanup";
 import {
   isAllowedNoteImage,
@@ -50,9 +55,11 @@ const updateNoteSchema = z
 
 function normalizeTitle(title: string | null | undefined) {
   if (title === undefined) return undefined;
-  if (title === null) return null;
-  const trimmed = title.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return normalizeNoteTitle(title);
+}
+
+function titleFromBody(body: string): string | null {
+  return normalizeNoteTitle(inferTitleFromRaw(body).title);
 }
 
 function toEpochMs(value: string | number | Date): number {
@@ -104,12 +111,16 @@ const app = new Hono<AppEnv>()
 
   .post("/", zValidator("json", createNoteSchema), async (c) => {
     const user = c.get("user")!;
-    const { body, title, workspaceId } = c.req.valid("json");
+    const payload = c.req.valid("json");
     const db = createDb(c.env.DB);
 
-    await assertOwnedWorkspace(db, workspaceId, user.id);
+    await assertOwnedWorkspace(db, payload.workspaceId, user.id);
 
     const id = crypto.randomUUID();
+    const body =
+      payload.body.trim().length > 0 ? payload.body : EMPTY_NOTE_BODY;
+    const title =
+      normalizeTitle(payload.title) ?? titleFromBody(body) ?? null;
 
     const [created] = await db
       .insert(note)
@@ -117,8 +128,8 @@ const app = new Hono<AppEnv>()
         id,
         userId: user.id,
         body,
-        title: normalizeTitle(title) ?? null,
-        workspaceId: workspaceId ?? null,
+        title,
+        workspaceId: payload.workspaceId ?? null,
       })
       .returning();
 
@@ -250,7 +261,10 @@ const app = new Hono<AppEnv>()
       }
     }
 
-    const normalizedTitle = normalizeTitle(title);
+    const normalizedTitle =
+      body !== undefined
+        ? (normalizeTitle(title) ?? titleFromBody(body))
+        : normalizeTitle(title);
 
     const [updated] = await db
       .update(note)

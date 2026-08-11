@@ -1,6 +1,6 @@
 import { CaretDownIcon, PlusIcon } from "@radix-ui/react-icons";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ export function SpaceLibraryPage() {
   const search = useSearch({ from: "/_app/$workspaceId/" });
   const navigate = useNavigate({ from: "/$workspaceId/" });
   const { open: openCreate } = useCreateDialog();
-  const { openNew: openNewNote } = useFloatingNote();
+  const { openNew: openNewNote, openNote } = useFloatingNote();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<LibraryKind>("all");
 
@@ -202,13 +202,10 @@ export function SpaceLibraryPage() {
               {rows.map((row) => (
                 <li key={row.key}>
                   {row.kind === "note" ? (
-                    <Link
-                      to="/$workspaceId/notes/$noteId"
-                      params={{
-                        workspaceId,
-                        noteId: row.note.id,
-                      }}
-                      className="flex items-baseline justify-between gap-4 py-3 no-underline"
+                    <button
+                      type="button"
+                      className="flex w-full items-baseline justify-between gap-4 py-3 text-left"
+                      onClick={() => openNote(row.note.id)}
                     >
                       <span className="min-w-0 truncate text-sm">
                         {row.title}
@@ -216,7 +213,7 @@ export function SpaceLibraryPage() {
                       <span className="shrink-0 text-xs text-muted-foreground">
                         note
                       </span>
-                    </Link>
+                    </button>
                   ) : (
                     <button
                       type="button"

@@ -14,12 +14,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppWorkspaceIdRouteImport } from './routes/_app/$workspaceId'
 import { Route as AppWorkspaceIdIndexRouteImport } from './routes/_app/$workspaceId/index'
-import { Route as AppWorkspaceIdNotesRouteRouteImport } from './routes/_app/$workspaceId/notes/route'
 import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
-import { Route as AppWorkspaceIdNotesIndexRouteImport } from './routes/_app/$workspaceId/notes/index'
 import { Route as AppWorkspaceIdVaultIndexRouteImport } from './routes/_app/$workspaceId/vault/index'
-import { Route as AppWorkspaceIdNotesNoteIdIndexRouteImport } from './routes/_app/$workspaceId/notes/$noteId/index'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -45,12 +42,6 @@ const AppWorkspaceIdIndexRoute = AppWorkspaceIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppWorkspaceIdRoute,
 } as any)
-const AppWorkspaceIdNotesRouteRoute =
-  AppWorkspaceIdNotesRouteRouteImport.update({
-    id: '/notes',
-    path: '/notes',
-    getParentRoute: () => AppWorkspaceIdRoute,
-  } as any)
 const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   id: '/onboarding/',
   path: '/onboarding/',
@@ -61,36 +52,21 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWorkspaceIdNotesIndexRoute =
-  AppWorkspaceIdNotesIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AppWorkspaceIdNotesRouteRoute,
-  } as any)
 const AppWorkspaceIdVaultIndexRoute =
   AppWorkspaceIdVaultIndexRouteImport.update({
     id: '/vault/',
     path: '/vault/',
     getParentRoute: () => AppWorkspaceIdRoute,
   } as any)
-const AppWorkspaceIdNotesNoteIdIndexRoute =
-  AppWorkspaceIdNotesNoteIdIndexRouteImport.update({
-    id: '/$noteId/',
-    path: '/$noteId/',
-    getParentRoute: () => AppWorkspaceIdNotesRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/$workspaceId': typeof AppWorkspaceIdRouteWithChildren
-  '/$workspaceId/notes': typeof AppWorkspaceIdNotesRouteRouteWithChildren
   '/$workspaceId/': typeof AppWorkspaceIdIndexRoute
   '/onboarding/': typeof AppOnboardingIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
-  '/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
   '/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
-  '/$workspaceId/notes/$noteId/': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -98,9 +74,7 @@ export interface FileRoutesByTo {
   '/$workspaceId': typeof AppWorkspaceIdIndexRoute
   '/onboarding': typeof AppOnboardingIndexRoute
   '/settings': typeof AppSettingsIndexRoute
-  '/$workspaceId/notes': typeof AppWorkspaceIdNotesIndexRoute
   '/$workspaceId/vault': typeof AppWorkspaceIdVaultIndexRoute
-  '/$workspaceId/notes/$noteId': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -108,13 +82,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/$workspaceId': typeof AppWorkspaceIdRouteWithChildren
   '/_app/': typeof AppIndexRoute
-  '/_app/$workspaceId/notes': typeof AppWorkspaceIdNotesRouteRouteWithChildren
   '/_app/$workspaceId/': typeof AppWorkspaceIdIndexRoute
   '/_app/onboarding/': typeof AppOnboardingIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
-  '/_app/$workspaceId/notes/': typeof AppWorkspaceIdNotesIndexRoute
   '/_app/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
-  '/_app/$workspaceId/notes/$noteId/': typeof AppWorkspaceIdNotesNoteIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -122,13 +93,10 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/$workspaceId'
-    | '/$workspaceId/notes'
     | '/$workspaceId/'
     | '/onboarding/'
     | '/settings/'
-    | '/$workspaceId/notes/'
     | '/$workspaceId/vault/'
-    | '/$workspaceId/notes/$noteId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -136,22 +104,17 @@ export interface FileRouteTypes {
     | '/$workspaceId'
     | '/onboarding'
     | '/settings'
-    | '/$workspaceId/notes'
     | '/$workspaceId/vault'
-    | '/$workspaceId/notes/$noteId'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/_app/$workspaceId'
     | '/_app/'
-    | '/_app/$workspaceId/notes'
     | '/_app/$workspaceId/'
     | '/_app/onboarding/'
     | '/_app/settings/'
-    | '/_app/$workspaceId/notes/'
     | '/_app/$workspaceId/vault/'
-    | '/_app/$workspaceId/notes/$noteId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,13 +159,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceIdIndexRouteImport
       parentRoute: typeof AppWorkspaceIdRoute
     }
-    '/_app/$workspaceId/notes': {
-      id: '/_app/$workspaceId/notes'
-      path: '/notes'
-      fullPath: '/$workspaceId/notes'
-      preLoaderRoute: typeof AppWorkspaceIdNotesRouteRouteImport
-      parentRoute: typeof AppWorkspaceIdRoute
-    }
     '/_app/onboarding/': {
       id: '/_app/onboarding/'
       path: '/onboarding'
@@ -217,13 +173,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/$workspaceId/notes/': {
-      id: '/_app/$workspaceId/notes/'
-      path: '/'
-      fullPath: '/$workspaceId/notes/'
-      preLoaderRoute: typeof AppWorkspaceIdNotesIndexRouteImport
-      parentRoute: typeof AppWorkspaceIdNotesRouteRoute
-    }
     '/_app/$workspaceId/vault/': {
       id: '/_app/$workspaceId/vault/'
       path: '/vault'
@@ -231,40 +180,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceIdVaultIndexRouteImport
       parentRoute: typeof AppWorkspaceIdRoute
     }
-    '/_app/$workspaceId/notes/$noteId/': {
-      id: '/_app/$workspaceId/notes/$noteId/'
-      path: '/$noteId'
-      fullPath: '/$workspaceId/notes/$noteId/'
-      preLoaderRoute: typeof AppWorkspaceIdNotesNoteIdIndexRouteImport
-      parentRoute: typeof AppWorkspaceIdNotesRouteRoute
-    }
   }
 }
-
-interface AppWorkspaceIdNotesRouteRouteChildren {
-  AppWorkspaceIdNotesIndexRoute: typeof AppWorkspaceIdNotesIndexRoute
-  AppWorkspaceIdNotesNoteIdIndexRoute: typeof AppWorkspaceIdNotesNoteIdIndexRoute
-}
-
-const AppWorkspaceIdNotesRouteRouteChildren: AppWorkspaceIdNotesRouteRouteChildren =
-  {
-    AppWorkspaceIdNotesIndexRoute: AppWorkspaceIdNotesIndexRoute,
-    AppWorkspaceIdNotesNoteIdIndexRoute: AppWorkspaceIdNotesNoteIdIndexRoute,
-  }
-
-const AppWorkspaceIdNotesRouteRouteWithChildren =
-  AppWorkspaceIdNotesRouteRoute._addFileChildren(
-    AppWorkspaceIdNotesRouteRouteChildren,
-  )
 
 interface AppWorkspaceIdRouteChildren {
-  AppWorkspaceIdNotesRouteRoute: typeof AppWorkspaceIdNotesRouteRouteWithChildren
   AppWorkspaceIdIndexRoute: typeof AppWorkspaceIdIndexRoute
   AppWorkspaceIdVaultIndexRoute: typeof AppWorkspaceIdVaultIndexRoute
 }
 
 const AppWorkspaceIdRouteChildren: AppWorkspaceIdRouteChildren = {
-  AppWorkspaceIdNotesRouteRoute: AppWorkspaceIdNotesRouteRouteWithChildren,
   AppWorkspaceIdIndexRoute: AppWorkspaceIdIndexRoute,
   AppWorkspaceIdVaultIndexRoute: AppWorkspaceIdVaultIndexRoute,
 }

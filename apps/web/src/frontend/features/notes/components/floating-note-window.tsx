@@ -1,7 +1,6 @@
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useNavigate } from "@tanstack/react-router";
 import {
   useEffect,
   useLayoutEffect,
@@ -20,6 +19,7 @@ import {
   uploadNoteImage,
 } from "@features/notes/api";
 import { NoteEditor } from "@features/notes/components/note-editor";
+import { useFloatingNote } from "@features/notes/floating-note-context";
 import type { NoteEditorMode } from "@features/notes/lib/cm-theme";
 import { useNoteDocumentSave } from "@features/notes/lib/use-note-document-save";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
@@ -99,7 +99,13 @@ export function FloatingNoteHost({
   }
 
   return createPortal(
-    <FloatingNoteWindow noteId={noteId} onClose={onClose} />,
+    <>
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-40 bg-black/10 supports-backdrop-filter:backdrop-blur-[1px]"
+      />
+      <FloatingNoteWindow noteId={noteId} onClose={onClose} />
+    </>,
     document.body,
   );
 }
@@ -111,7 +117,7 @@ function FloatingNoteWindow({
   noteId: string;
   onClose: () => void;
 }) {
-  const navigate = useNavigate();
+  const { openNote } = useFloatingNote();
   const { id: workspaceId } = useCurrentWorkspace();
   const { data: note, error } = useQuery(noteQueryOptions(noteId));
   const { data: notes = [] } = useQuery({
@@ -213,7 +219,7 @@ function FloatingNoteWindow({
       ref={shellRef}
       role="dialog"
       aria-label={title}
-      className="fixed z-40 flex min-h-0 min-w-0 resize flex-col overflow-hidden rounded-md border border-border bg-background"
+      className="fixed z-50 flex min-h-0 min-w-0 resize flex-col overflow-hidden rounded-md border border-border bg-background shadow-[0_16px_48px_rgba(0,0,0,0.14)] ring-1 ring-black/5"
       style={{
         left: pos.x,
         top: pos.y,
@@ -304,10 +310,7 @@ function FloatingNoteWindow({
                     currentNoteId: noteId,
                     getNotes: () => notes,
                     onOpenNote: (targetId) => {
-                      void navigate({
-                        to: "/$workspaceId/notes/$noteId",
-                        params: { workspaceId, noteId: targetId },
-                      });
+                      openNote(targetId);
                     },
                   }
                 : undefined

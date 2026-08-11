@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SpacePic } from "@features/navigation/components/space-pic";
 import { notesQueryOptions } from "@features/notes/api";
+import { useFloatingNote } from "@features/notes/floating-note-context";
 import { vaultItemsQueryOptions } from "@features/vault/api";
 import { kindLabel } from "@features/vault/lib/list";
 import {
@@ -137,10 +138,12 @@ function SpaceRow({
   isActive: boolean;
   onSelect: () => void;
 }) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(isActive);
   const search = useRouterState({
     select: (state) => state.location.search as { item?: string },
   });
+  const { openNote, activeNoteId } = useFloatingNote();
 
   const { data: notes = [] } = useQuery({
     ...notesQueryOptions(space.id),
@@ -221,23 +224,33 @@ function SpaceRow({
           <SidebarMenuSub className="mr-0 min-w-0 pr-0">
             {recent.map((row) => {
               if (row.kind === "note") {
+                const active = activeNoteId === row.noteId;
                 return (
                   <SidebarMenuSubItem key={row.key} className="w-full">
                     <SidebarMenuSubButton
                       size="sm"
+                      isActive={active}
                       className="h-6 w-full flex-1 text-[11px] font-normal text-muted-foreground"
                       render={
-                        <Link
-                          to="/$workspaceId/notes/$noteId"
-                          params={{
-                            workspaceId: space.id,
-                            noteId: row.noteId,
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStoredWorkspaceId(space.id);
+                            if (!isActive) {
+                              void navigate({
+                                to: "/$workspaceId",
+                                params: { workspaceId: space.id },
+                              });
+                            }
+                            openNote(row.noteId);
                           }}
-                          onClick={() => setStoredWorkspaceId(space.id)}
                         />
                       }
                     >
                       <span className="min-w-0 flex-1 truncate">{row.title}</span>
+                      <span className="ml-auto shrink-0 text-[10px] opacity-70">
+                        note
+                      </span>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 );

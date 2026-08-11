@@ -16,19 +16,22 @@ import { fuzzyScore } from "@features/command/lib/score";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { useFloatingNote } from "@features/notes/floating-note-context";
 
 /** Every destination shares a single `{ workspaceId }` param, which keeps
- *  `navigate` type-safe across the union. Note detail is handled separately. */
+ *  `navigate` type-safe across the union. Note detail opens the sketchbook. */
 const NAV_ITEMS = [
   { to: "/$workspaceId", label: "Library" },
-  { to: "/$workspaceId/notes", label: "Notes" },
   { to: "/$workspaceId/vault", label: "Vault" },
 ] as const;
 
 const KIND_META = {
-  note: { label: "Notes", to: "/$workspaceId/notes" },
+  note: { label: "Notes" },
   vault_item: { label: "Vault", to: "/$workspaceId/vault" },
-} as const satisfies Record<SearchKind, { label: string; to: string }>;
+} as const satisfies Record<
+  SearchKind,
+  { label: string; to?: "/$workspaceId/vault" }
+>;
 
 const KIND_ORDER: SearchKind[] = ["note", "vault_item"];
 type PaletteItem = {
@@ -53,6 +56,7 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { id: currentWorkspaceId } = useCurrentWorkspace();
+  const { openNote } = useFloatingNote();
   const { data: workspaces = NO_WORKSPACES } = useQuery(workspacesQueryOptions);
 
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
@@ -121,10 +125,8 @@ export function CommandPalette() {
             select(workspaceId, () => {
               switch (hit.kind) {
                 case "note":
-                  return navigate({
-                    to: "/$workspaceId/notes/$noteId",
-                    params: { workspaceId, noteId: hit.id },
-                  });
+                  openNote(hit.id);
+                  return;
                 case "vault_item":
                   return navigate({
                     to: "/$workspaceId/vault",
@@ -149,7 +151,7 @@ export function CommandPalette() {
     }));
 
     return { sections, items: sections.flatMap((section) => section.items) };
-  }, [query, hits, workspaces, currentWorkspaceId, navigate]);
+  }, [query, hits, workspaces, currentWorkspaceId, navigate, openNote]);
 
   // Keyed on the query and the result count, not on `items` identity — a
   // reset on every re-render would undo each arrow press.

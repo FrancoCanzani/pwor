@@ -65,7 +65,13 @@ export function AppShell({
   return (
     <TooltipProvider>
       <CreateDialogProvider value={{ open: openCreate }}>
-        <FloatingNoteProvider value={{ openNew: openNewNote, openNote }}>
+        <FloatingNoteProvider
+          value={{
+            openNew: openNewNote,
+            openNote,
+            activeNoteId: floatingOpen ? floatingNoteId : null,
+          }}
+        >
           <SidebarProvider
             className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
           >

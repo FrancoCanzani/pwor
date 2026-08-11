@@ -3,6 +3,7 @@ import { createContext, useContext, type ReactNode } from "react";
 type FloatingNoteController = {
   openNew: () => void;
   openNote: (noteId: string) => void;
+  activeNoteId: string | null;
 };
 
 const FloatingNoteContext = createContext<FloatingNoteController | null>(null);

@@ -19,6 +19,7 @@ import {
   inferTitleFromRaw,
   prependFrontmatter,
 } from "@shared/note-frontmatter";
+import { dedentCode } from "@shared/snippet-format";
 
 const SWEEP_DURATION_MS = 800;
 
@@ -68,7 +69,7 @@ export function VaultDropZone() {
             }
 
             if (isCodeSnippetFile(file)) {
-              const content = await file.text();
+              const content = dedentCode(await file.text());
               await createVaultSnippet(content, {
                 title: file.name,
                 language:

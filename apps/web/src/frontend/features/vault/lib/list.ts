@@ -4,6 +4,7 @@ import {
   type VaultTypeFacet,
 } from "@features/vault/lib/category";
 import { isSheetPreviewable } from "@features/vault/lib/sheet";
+import { displayLanguageLabel } from "@shared/snippet-format";
 
 export type VaultSort = "newest" | "oldest" | "name";
 
@@ -107,7 +108,9 @@ export function kindLabel(item: VaultItem): string {
     case "text":
       return "text";
     case "snippet":
-      return item.language ?? "snippet";
+      return item.language
+        ? displayLanguageLabel(item.language).toLowerCase()
+        : "snippet";
     case "link":
       return item.siteName ? "site" : "link";
     case "file":

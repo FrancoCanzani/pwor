@@ -8,8 +8,10 @@ import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import { resolveAutoSpace } from "../../../lib/auto-space";
 import {
+  dedentCode,
   normalizeVaultKind,
   parseCaptureInput,
+  titleFromSnippet,
   titleFromText,
 } from "../../../lib/vault-capture";
 import {
@@ -34,10 +36,18 @@ const updateVaultItemSchema = z
   .object({
     workspaceId: z.string().nullable().optional(),
     categoryId: z.string().nullable().optional(),
+    title: z.string().trim().min(1).max(200).nullable().optional(),
+    content: z.string().min(1).optional(),
+    language: z.string().trim().min(1).max(40).nullable().optional(),
   })
   .refine(
-    (value) => value.workspaceId !== undefined || value.categoryId !== undefined,
-    { message: "workspaceId or categoryId is required" },
+    (value) =>
+      value.workspaceId !== undefined ||
+      value.categoryId !== undefined ||
+      value.title !== undefined ||
+      value.content !== undefined ||
+      value.language !== undefined,
+    { message: "At least one field is required" },
   );
 
 const captureSchema = z.object({
@@ -137,10 +147,11 @@ const app = new Hono<AppEnv>()
     const contentType = file.type || "application/octet-stream";
 
     if (isCodeSnippetFile(file.name, contentType)) {
-      const content = await file.text();
+      const content = dedentCode(await file.text());
       const language =
         languageFromFilename(file.name) ||
         languageFromMime(contentType) ||
+        inferLanguageFromContent(content) ||
         null;
 
       await db.insert(vaultItem).values({
@@ -208,16 +219,21 @@ const app = new Hono<AppEnv>()
     }
 
     const id = crypto.randomUUID();
-    const resolvedTitle = title?.trim() || titleFromText(content);
+    const normalizedContent = dedentCode(content);
     const resolvedLanguage =
-      language?.trim() || inferLanguageFromContent(content) || null;
+      language?.trim() ||
+      inferLanguageFromContent(normalizedContent) ||
+      null;
+    const resolvedTitle =
+      title?.trim() ||
+      titleFromSnippet(normalizedContent, resolvedLanguage);
 
     await db.insert(vaultItem).values({
       id,
       userId: user.id,
       kind: "snippet",
       title: resolvedTitle,
-      content,
+      content: normalizedContent,
       language: resolvedLanguage,
       workspaceId: workspace,
       categoryId: categoryId ?? null,
@@ -283,7 +299,7 @@ const app = new Hono<AppEnv>()
         id,
         userId: user.id,
         kind: "snippet",
-        title: titleFromText(parsed.content),
+        title: titleFromSnippet(parsed.content, parsed.language),
         content: parsed.content,
         language: parsed.language,
         tags: seedTags,
@@ -472,12 +488,14 @@ const app = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", updateVaultItemSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { workspaceId, categoryId } = c.req.valid("json");
+    const { workspaceId, categoryId, title, content, language } =
+      c.req.valid("json");
     const db = createDb(c.env.DB);
 
     const [existing] = await db
       .select({
         id: vaultItem.id,
+        kind: vaultItem.kind,
         workspaceId: vaultItem.workspaceId,
       })
       .from(vaultItem)
@@ -486,6 +504,17 @@ const app = new Hono<AppEnv>()
 
     if (!existing) {
       throw new HTTPException(404, { message: "Not found" });
+    }
+
+    const kind = normalizeVaultKind(existing.kind);
+    if (
+      (content !== undefined || language !== undefined) &&
+      kind !== "snippet" &&
+      kind !== "text"
+    ) {
+      throw new HTTPException(400, {
+        message: "content/language only supported for snippets and text",
+      });
     }
 
     const nextWorkspaceId =
@@ -500,11 +529,19 @@ const app = new Hono<AppEnv>()
       );
     }
 
+    const nextContent =
+      content !== undefined && kind === "snippet"
+        ? dedentCode(content)
+        : content;
+
     await db
       .update(vaultItem)
       .set({
         ...(workspaceId !== undefined ? { workspaceId } : {}),
         ...(categoryId !== undefined ? { categoryId } : {}),
+        ...(title !== undefined ? { title } : {}),
+        ...(nextContent !== undefined ? { content: nextContent } : {}),
+        ...(language !== undefined ? { language } : {}),
       })
       .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id));
 

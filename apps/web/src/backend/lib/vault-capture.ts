@@ -1,4 +1,5 @@
 import { inferLanguageFromContent, looksLikeCode } from "@shared/infer-language";
+import { dedentCode, titleFromSnippet, titleFromText } from "@shared/snippet-format";
 
 const TWEET_RE =
   /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
@@ -14,14 +15,17 @@ export function parseCaptureInput(input: string): ParsedCapture {
   const url = extractUrl(trimmed);
   if (url) return { type: "url", url };
   if (looksLikeCode(trimmed)) {
+    const content = dedentCode(trimmed);
     return {
       type: "snippet",
-      content: trimmed,
-      language: inferLanguageFromContent(trimmed),
+      content,
+      language: inferLanguageFromContent(content),
     };
   }
   return { type: "text", content: trimmed };
 }
+
+export { dedentCode, titleFromSnippet, titleFromText };
 
 export function extractUrl(input: string): string | null {
   const trimmed = input.trim();
@@ -121,11 +125,6 @@ export async function fetchPageMetadata(url: string): Promise<FetchedPage> {
   } catch {
     return { title: null, siteName: null, description: null, text: null };
   }
-}
-
-export function titleFromText(content: string): string {
-  const line = content.trim().split(/\n/)[0] ?? content.trim();
-  return line.length > 60 ? `${line.slice(0, 60).trim()}…` : line;
 }
 
 /** Stored kinds only. Legacy DB values `site` / `tweet` normalize to `link`. */

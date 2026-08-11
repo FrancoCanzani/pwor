@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import {
+  useEffect,
   useRef,
   useState,
   type DragEvent,
@@ -16,12 +17,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   captureVaultInput,
+  createVaultSnippet,
   uploadVaultItem,
 } from "@features/vault/api";
+import {
+  isCodeSnippetFile,
+  languageFromFilename,
+} from "@features/vault/lib/snippet-language";
+import { inferLanguageFromContent, looksLikeCode } from "@shared/infer-language";
+import {
+  dedentCode,
+  titleFromSnippet,
+} from "@shared/snippet-format";
 
 export function VaultNewButton({
   categoryId,
@@ -64,6 +76,8 @@ export function VaultNewDialog({
   categoryId?: string | null;
 }) {
   const [input, setInput] = useState("");
+  const [title, setTitle] = useState("");
+  const [titleTouched, setTitleTouched] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -71,12 +85,41 @@ export function VaultNewDialog({
   const queryClient = useQueryClient();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
 
+  const codeMode = looksLikeCode(input);
+  const inferredLanguage = codeMode
+    ? inferLanguageFromContent(dedentCode(input))
+    : null;
+
+  useEffect(() => {
+    if (!open) return;
+    if (!codeMode) {
+      if (!titleTouched) setTitle("");
+      return;
+    }
+    if (titleTouched) return;
+    setTitle(titleFromSnippet(dedentCode(input), inferredLanguage));
+  }, [open, codeMode, input, inferredLanguage, titleTouched]);
+
   const capture = useMutation({
-    mutationFn: () =>
-      captureVaultInput(input.trim(), workspaceId, categoryId ?? null),
+    mutationFn: async () => {
+      const trimmed = input.trim();
+      if (looksLikeCode(trimmed)) {
+        const content = dedentCode(trimmed);
+        const language = inferLanguageFromContent(content);
+        return createVaultSnippet(content, {
+          title: title.trim() || titleFromSnippet(content, language),
+          language,
+          workspaceId,
+          categoryId: categoryId ?? null,
+        });
+      }
+      return captureVaultInput(trimmed, workspaceId, categoryId ?? null);
+    },
     onSuccess: () => {
-      toast.success("Added to Vault — parsing…");
+      toast.success(codeMode ? "Snippet added" : "Added to Vault — parsing…");
       setInput("");
+      setTitle("");
+      setTitleTouched(false);
       onOpenChange(false);
       void queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
     },
@@ -94,8 +137,22 @@ export function VaultNewDialog({
         list.map(async (file) => {
           const toastId = toast.loading(`Uploading ${file.name}…`);
           try {
-            await uploadVaultItem(file, workspaceId, categoryId ?? null);
-            toast.success(`${file.name} added to Vault`, { id: toastId });
+            if (isCodeSnippetFile(file)) {
+              const content = dedentCode(await file.text());
+              const language =
+                languageFromFilename(file.name) ||
+                inferLanguageFromContent(content);
+              await createVaultSnippet(content, {
+                title: file.name,
+                language,
+                workspaceId,
+                categoryId: categoryId ?? null,
+              });
+              toast.success(`${file.name} added as snippet`, { id: toastId });
+            } else {
+              await uploadVaultItem(file, workspaceId, categoryId ?? null);
+              toast.success(`${file.name} added to Vault`, { id: toastId });
+            }
           } catch {
             toast.error(`Failed to upload ${file.name}`, { id: toastId });
           }
@@ -148,6 +205,8 @@ export function VaultNewDialog({
       onOpenChange={(next) => {
         if (!next) {
           setInput("");
+          setTitle("");
+          setTitleTouched(false);
           setDragging(false);
           dragDepth.current = 0;
         }
@@ -159,12 +218,25 @@ export function VaultNewDialog({
           <DialogTitle>New item</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {codeMode ? (
+            <Input
+              value={title}
+              onChange={(e) => {
+                setTitleTouched(true);
+                setTitle(e.target.value);
+              }}
+              placeholder="Snippet title"
+              className="text-xs"
+              disabled={busy}
+              aria-label="Snippet title"
+            />
+          ) : null}
           <Textarea
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Paste anything"
-            className="min-h-28 resize-none text-xs placeholder:text-[11px]"
+            className="min-h-28 resize-none font-mono text-xs placeholder:font-sans placeholder:text-[11px]"
             disabled={busy}
           />
 
@@ -211,7 +283,11 @@ export function VaultNewDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={!input.trim() || busy}>
-                {capture.isPending ? "Parsing…" : "Add"}
+                {capture.isPending
+                  ? codeMode
+                    ? "Saving…"
+                    : "Parsing…"
+                  : "Add"}
               </Button>
             </div>
           </DialogFooter>

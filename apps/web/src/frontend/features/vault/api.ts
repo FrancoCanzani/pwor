@@ -240,3 +240,22 @@ export async function updateVaultItemCategory(
     }),
   );
 }
+
+export async function updateVaultItem(
+  id: string,
+  patch: {
+    title?: string | null;
+    content?: string;
+    language?: string | null;
+    workspaceId?: string | null;
+    categoryId?: string | null;
+  },
+): Promise<VaultItemDetail> {
+  return parseJson<VaultItemDetail>(
+    await fetch(`/api/vault/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
+  );
+}

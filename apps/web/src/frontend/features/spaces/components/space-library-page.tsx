@@ -425,8 +425,8 @@ export function SpaceLibraryPage() {
       : null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/40 px-4">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col px-4">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/40">
         <h1 className="min-w-0 flex-1 truncate text-sm font-normal">
           {spaceTitle}
         </h1>
@@ -483,8 +483,7 @@ export function SpaceLibraryPage() {
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl px-4 pt-2 pb-20">
+      <div className="min-h-0 flex-1 overflow-y-auto pt-2 pb-20">
           {!hasCaptured ? (
             <PageEmpty
               title="Nothing here yet"
@@ -558,7 +557,6 @@ export function SpaceLibraryPage() {
               </tbody>
             </table>
           )}
-        </div>
       </div>
 
       {openItem ? (

@@ -1,8 +1,9 @@
-import { CaretDownIcon } from "@radix-ui/react-icons";
+import { CaretDownIcon, PlusIcon } from "@radix-ui/react-icons";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { PageEmpty } from "@components/page-empty";
+import { useCreateDialog } from "@features/command/create-dialog-context";
 import { notesQueryOptions, type NoteListItem } from "@features/notes/api";
 import {
   vaultItemsQueryOptions,
@@ -18,6 +20,7 @@ import {
 } from "@features/vault/api";
 import { VaultViewer } from "@features/vault/components/vault-viewer";
 import { kindLabel } from "@features/vault/lib/list";
+import { workspacesQueryOptions } from "@features/workspaces/api";
 import { toEpochMs } from "@shared/time";
 
 type LibraryKind = "all" | "notes" | "snippets" | "links" | "files" | "text";
@@ -50,13 +53,20 @@ const FILTERS: { id: LibraryKind; label: string }[] = [
 
 export function SpaceLibraryPage() {
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
+  const search = useSearch({ from: "/_app/$workspaceId/" });
+  const navigate = useNavigate({ from: "/$workspaceId/" });
+  const { open: openCreate } = useCreateDialog();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<LibraryKind>("all");
-  const [openItem, setOpenItem] = useState<VaultItem | null>(null);
+
+  const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
+  const space = workspaces.find((item) => item.id === workspaceId);
+  const spaceTitle = space?.name.trim() || "Untitled";
 
   const { data: notes = [] } = useQuery(notesQueryOptions(workspaceId));
   const { data: vaultList } = useQuery(vaultItemsQueryOptions(workspaceId));
   const vaultItems = vaultList?.items ?? [];
+  const hasCaptured = notes.length > 0 || vaultItems.length > 0;
 
   const filterLabel =
     FILTERS.find((item) => item.id === filter)?.label ?? "All";
@@ -107,45 +117,71 @@ export function SpaceLibraryPage() {
     return list;
   }, [notes, vaultItems, filter, query]);
 
+  const openItem =
+    search.item != null
+      ? (vaultItems.find((item) => item.id === search.item) ?? null)
+      : null;
+
+  function setOpenItem(item: VaultItem | null) {
+    void navigate({
+      search: item ? { item: item.id } : {},
+      replace: true,
+    });
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-8 pt-10 pb-6">
-        <div className="flex items-center gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search this space…"
-            className="h-9 flex-1 text-sm font-normal"
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-border px-2.5 text-xs font-normal text-muted-foreground hover:text-foreground"
-                />
-              }
-            >
-              {filterLabel}
-              <CaretDownIcon className="size-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-32">
-              {FILTERS.map((item) => (
-                <DropdownMenuItem
-                  key={item.id}
-                  className="font-normal text-xs"
-                  onClick={() => setFilter(item.id)}
-                >
-                  {item.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/40 px-4">
+        <h1 className="min-w-0 flex-1 truncate text-sm font-normal">
+          {spaceTitle}
+        </h1>
+        {hasCaptured ? (
+          <>
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="h-7 max-w-[10rem] border-0 bg-transparent px-0 text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 sm:max-w-xs"
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground"
+                  />
+                }
+              >
+                {filterLabel}
+                <CaretDownIcon className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-32">
+                {FILTERS.map((item) => (
+                  <DropdownMenuItem
+                    key={item.id}
+                    className="font-normal text-xs"
+                    onClick={() => setFilter(item.id)}
+                  >
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Create new"
+          onClick={() => openCreate()}
+        >
+          <PlusIcon />
+        </Button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl px-8 pb-20">
+        <div className="mx-auto w-full max-w-3xl px-8 pt-6 pb-20">
           {rows.length === 0 ? (
             <PageEmpty
               title="Nothing here yet"

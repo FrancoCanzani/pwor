@@ -16,6 +16,7 @@ import {
   languageFromFilename,
   languageFromMime,
 } from "../../../lib/snippet-language";
+import { inferLanguageFromContent } from "@shared/infer-language";
 import { scheduleVaultEnrichment } from "../../../lib/vault-enrichment";
 import {
   putVaultObject,
@@ -186,6 +187,8 @@ const app = new Hono<AppEnv>()
 
     const id = crypto.randomUUID();
     const resolvedTitle = title?.trim() || titleFromText(content);
+    const resolvedLanguage =
+      language?.trim() || inferLanguageFromContent(content) || null;
 
     await db.insert(vaultItem).values({
       id,
@@ -193,7 +196,7 @@ const app = new Hono<AppEnv>()
       kind: "snippet",
       title: resolvedTitle,
       content,
-      language: language ?? null,
+      language: resolvedLanguage,
       workspaceId: workspace,
       categoryId: categoryId ?? null,
       parseStatus: "ready",
@@ -232,6 +235,20 @@ const app = new Hono<AppEnv>()
         categoryId: categoryId ?? null,
         parseStatus: "pending",
       });
+      scheduleVaultEnrichment(c.executionCtx, c.env, id);
+    } else if (parsed.type === "snippet") {
+      await db.insert(vaultItem).values({
+        id,
+        userId: user.id,
+        kind: "snippet",
+        title: titleFromText(parsed.content),
+        content: parsed.content,
+        language: parsed.language,
+        workspaceId: workspace,
+        categoryId: categoryId ?? null,
+        parseStatus: "ready",
+        parsedAt: new Date(),
+      });
     } else {
       await db.insert(vaultItem).values({
         id,
@@ -243,9 +260,8 @@ const app = new Hono<AppEnv>()
         categoryId: categoryId ?? null,
         parseStatus: "pending",
       });
+      scheduleVaultEnrichment(c.executionCtx, c.env, id);
     }
-
-    scheduleVaultEnrichment(c.executionCtx, c.env, id);
 
     const [created] = await db
       .select()

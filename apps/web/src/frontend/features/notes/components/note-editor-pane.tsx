@@ -67,7 +67,7 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-      <div className="flex h-12 shrink-0 items-center gap-3 px-3 md:px-8">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border/40 px-3 md:px-8">
         <div className="mx-auto flex min-w-0 w-full max-w-3xl items-center justify-end gap-3">
           {tags.length > 0 ? (
             <div className="min-w-0 flex-1 truncate text-[11px] leading-none text-muted-foreground">

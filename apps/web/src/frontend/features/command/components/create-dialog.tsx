@@ -1,4 +1,3 @@
-import { useHotkey } from "@tanstack/react-hotkeys";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
@@ -27,6 +26,7 @@ import {
   languageFromFilename,
 } from "@features/vault/lib/snippet-language";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { inferLanguageFromContent } from "@shared/infer-language";
 import {
   inferTitleFromRaw,
   prependFrontmatter,
@@ -43,7 +43,6 @@ export function CreateDialog({
 }) {
   const [mode, setMode] = useState<CreateMode>("menu");
   const [snippetTitle, setSnippetTitle] = useState("");
-  const [snippetLanguage, setSnippetLanguage] = useState("typescript");
   const [snippetContent, setSnippetContent] = useState("");
   const [captureInput, setCaptureInput] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -56,7 +55,6 @@ export function CreateDialog({
     if (!open) {
       setMode("menu");
       setSnippetTitle("");
-      setSnippetLanguage("typescript");
       setSnippetContent("");
       setCaptureInput("");
       setUploading(false);
@@ -86,7 +84,7 @@ export function CreateDialog({
     mutationFn: () =>
       createVaultSnippet(snippetContent, {
         title: snippetTitle.trim() || null,
-        language: snippetLanguage.trim() || null,
+        language: inferLanguageFromContent(snippetContent),
         workspaceId,
       }),
     onSuccess: async () => {
@@ -98,7 +96,10 @@ export function CreateDialog({
   });
 
   const captureMutation = useMutation({
-    mutationFn: () => captureVaultInput(captureInput.trim(), workspaceId),
+    mutationFn: () => {
+      if (!workspaceId) throw new Error("No space selected");
+      return captureVaultInput(captureInput.trim(), workspaceId);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
       toast.success("Added — parsing…");
@@ -115,6 +116,10 @@ export function CreateDialog({
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0 || busy) return;
+    if (!workspaceId) {
+      toast.error("Open a space first");
+      return;
+    }
     const list = Array.from(files);
     setUploading(true);
     try {
@@ -135,7 +140,9 @@ export function CreateDialog({
             const content = await file.text();
             await createVaultSnippet(content, {
               title: file.name,
-              language: languageFromFilename(file.name),
+              language:
+                languageFromFilename(file.name) ||
+                inferLanguageFromContent(content),
               workspaceId,
             });
             toast.success(`${file.name} added as snippet`, { id: toastId });
@@ -159,6 +166,10 @@ export function CreateDialog({
   function handleSnippetSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!snippetContent.trim() || busy) return;
+    if (!workspaceId) {
+      toast.error("Open a space first");
+      return;
+    }
     createSnippetMutation.mutate();
   }
 
@@ -190,32 +201,28 @@ export function CreateDialog({
                   Markdown notebook
                 </span>
               </button>
-              {(
-                [
-                  {
-                    id: "snippet" as const,
-                    label: "Snippet",
-                    detail: "Code with syntax highlighting",
-                  },
-                  {
-                    id: "capture" as const,
-                    label: "Capture",
-                    detail: "Paste a URL, text, or drop files",
-                  },
-                ]
-              ).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-muted"
-                  onClick={() => setMode(item.id)}
-                >
-                  <span className="text-sm">{item.label}</span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {item.detail}
-                  </span>
-                </button>
-              ))}
+              <button
+                type="button"
+                className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
+                disabled={!workspaceId}
+                onClick={() => setMode("capture")}
+              >
+                <span className="text-sm">Capture</span>
+                <span className="text-[11px] text-muted-foreground">
+                  Paste a URL, text, or code — language is inferred
+                </span>
+              </button>
+              <button
+                type="button"
+                className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
+                disabled={!workspaceId}
+                onClick={() => setMode("snippet")}
+              >
+                <span className="text-sm">Snippet</span>
+                <span className="text-[11px] text-muted-foreground">
+                  Paste code — language is inferred
+                </span>
+              </button>
             </div>
           </>
         ) : null}
@@ -228,15 +235,8 @@ export function CreateDialog({
             <Input
               value={snippetTitle}
               onChange={(e) => setSnippetTitle(e.target.value)}
-              placeholder="Title"
+              placeholder="Title (optional)"
               disabled={busy}
-            />
-            <Input
-              value={snippetLanguage}
-              onChange={(e) => setSnippetLanguage(e.target.value)}
-              placeholder="Language (typescript, python…)"
-              disabled={busy}
-              className="font-mono text-xs"
             />
             <Textarea
               autoFocus
@@ -256,7 +256,7 @@ export function CreateDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={!snippetContent.trim() || busy}
+                disabled={!snippetContent.trim() || busy || !workspaceId}
               >
                 {createSnippetMutation.isPending ? "Saving…" : "Save"}
               </Button>
@@ -273,7 +273,7 @@ export function CreateDialog({
               autoFocus
               value={captureInput}
               onChange={(e) => setCaptureInput(e.target.value)}
-              placeholder="Paste a URL or text…"
+              placeholder="Paste a URL, text, or code…"
               className="min-h-28 resize-none text-xs"
               disabled={busy}
             />
@@ -287,7 +287,7 @@ export function CreateDialog({
             />
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !workspaceId}
               onClick={() => fileRef.current?.click()}
               className={cn(
                 "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-xs text-muted-foreground hover:border-foreground/30 hover:text-foreground",
@@ -306,7 +306,7 @@ export function CreateDialog({
               </Button>
               <Button
                 type="submit"
-                disabled={!captureInput.trim() || busy}
+                disabled={!captureInput.trim() || busy || !workspaceId}
               >
                 {captureMutation.isPending ? "Adding…" : "Add"}
               </Button>
@@ -316,11 +316,4 @@ export function CreateDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-/** Opens CreateDialog via Mod+N. Prefer wiring Mod+N in AppShell instead. */
-export function CreateDialogHost() {
-  const [open, setOpen] = useState(false);
-  useHotkey("Mod+N", () => setOpen(true));
-  return <CreateDialog open={open} onOpenChange={setOpen} />;
 }

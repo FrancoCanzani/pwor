@@ -119,28 +119,33 @@ export function VaultViewer({
     !isSheet &&
     isTextPreviewable(item.mimeType, item.title);
 
-  const { data: detail } = useQuery({
+  const { data: detail, isPending: detailPending } = useQuery({
     ...vaultItemQueryOptions(item.id),
     enabled: open && (isTextItem || isLinkLike || isSnippet),
   });
 
-  const { data: fileText } = useQuery({
+  const { data: fileText, isPending: textPending } = useQuery({
     ...vaultFileTextQueryOptions(item.id),
     enabled: open && isTextFile,
   });
 
-  const { data: workbook, isError: sheetError } = useQuery({
+  const {
+    data: workbook,
+    isError: sheetError,
+    isPending: sheetPending,
+  } = useQuery({
     ...vaultSheetQueryOptions(item.id),
     enabled: open && isSheet,
   });
 
-  const textContent = isTextItem || isSnippet
-    ? (detail?.content?.trim() || null)
-    : isLinkLike
-      ? (detail?.content?.trim() ||
-        detail?.extractedMarkdown?.trim() ||
-        null)
-      : (fileText ?? null);
+  const textContent =
+    isTextItem || isSnippet
+      ? (detail?.content?.trim() || null)
+      : isLinkLike
+        ? (detail?.content?.trim() ||
+          detail?.extractedMarkdown?.trim() ||
+          null)
+        : (fileText ?? null);
 
   const displayItem = detail
     ? {
@@ -152,6 +157,11 @@ export function VaultViewer({
         language: detail.language ?? item.language,
       }
     : item;
+
+  const showLoading =
+    ((isTextItem || isLinkLike || isSnippet) && detailPending) ||
+    (isTextFile && textPending) ||
+    (isSheet && sheetPending && !sheetError);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -167,13 +177,21 @@ export function VaultViewer({
           </DialogTitle>
         </DialogHeader>
 
-        {isSnippet ? (
+        {showLoading ? (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            Loading…
+          </p>
+        ) : isSnippet ? (
           textContent !== null ? (
             <SnippetViewer
               content={textContent}
               language={displayItem.language}
             />
-          ) : null
+          ) : (
+            <p className="py-16 text-center text-sm text-muted-foreground">
+              Loading…
+            </p>
+          )
         ) : isLinkLike ? (
           <LinkPreview item={displayItem} content={textContent} />
         ) : isTextItem || isTextFile ? (

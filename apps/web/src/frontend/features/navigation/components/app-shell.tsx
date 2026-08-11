@@ -15,11 +15,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import { CreateDialog } from "@features/command/components/create-dialog";
+import { CreateDialogProvider } from "@features/command/create-dialog-context";
 import { SpacesNav } from "@features/navigation/components/spaces-nav";
 import {
   NavUser,
   type ShellUser,
 } from "@features/navigation/components/nav-user";
+import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
 export function AppShell({
   user,
@@ -34,55 +36,63 @@ export function AppShell({
   const segments = pathname.split("/").filter(Boolean);
   const isSettings = segments[0] === "settings";
   const isFlush = !isSettings;
+  const { id: workspaceId } = useCurrentWorkspace();
   const [createOpen, setCreateOpen] = useState(false);
 
-  useHotkey("Mod+N", () => setCreateOpen(true));
+  function openCreate() {
+    if (!workspaceId) return;
+    setCreateOpen(true);
+  }
+
+  useHotkey("Mod+N", () => openCreate(), { enabled: Boolean(workspaceId) });
 
   return (
     <TooltipProvider>
-      <SidebarProvider
-        className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
-      >
-        <CommandPalette />
-        <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
-
-        <Sidebar collapsible="icon">
-          <SidebarHeader className="h-12 flex-row items-center gap-0 p-2">
-            <Link
-              to="/"
-              className="px-2 font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
-            >
-              Pwor
-            </Link>
-          </SidebarHeader>
-
-          <SidebarContent>
-            <SpacesNav onCreate={() => setCreateOpen(true)} />
-          </SidebarContent>
-
-          <SidebarFooter>
-            <NavUser user={user} />
-          </SidebarFooter>
-        </Sidebar>
-
-        <SidebarInset
-          className={cn(isFlush && "h-full min-h-0 overflow-hidden")}
+      <CreateDialogProvider value={{ open: openCreate }}>
+        <SidebarProvider
+          className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
         >
-          <div className="flex shrink-0 items-center gap-2 px-3 pt-3 pb-1 md:hidden">
-            <SidebarTrigger />
-            <span className="font-pixel text-base leading-none tracking-tight">
-              Pwor
-            </span>
-          </div>
-          {isFlush ? (
-            <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
-          ) : (
-            <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
-              {children}
+          <CommandPalette />
+          <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+          <Sidebar collapsible="icon">
+            <SidebarHeader className="h-12 flex-row items-center gap-0 border-b border-sidebar-border/40 p-2">
+              <Link
+                to="/"
+                className="px-2 font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
+              >
+                Pwor
+              </Link>
+            </SidebarHeader>
+
+            <SidebarContent>
+              <SpacesNav />
+            </SidebarContent>
+
+            <SidebarFooter>
+              <NavUser user={user} />
+            </SidebarFooter>
+          </Sidebar>
+
+          <SidebarInset
+            className={cn(isFlush && "h-full min-h-0 overflow-hidden")}
+          >
+            <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/40 px-3 md:hidden">
+              <SidebarTrigger />
+              <span className="font-pixel text-base leading-none tracking-tight">
+                Pwor
+              </span>
             </div>
-          )}
-        </SidebarInset>
-      </SidebarProvider>
+            {isFlush ? (
+              <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+            ) : (
+              <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
+                {children}
+              </div>
+            )}
+          </SidebarInset>
+        </SidebarProvider>
+      </CreateDialogProvider>
     </TooltipProvider>
   );
 }

@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -23,7 +22,9 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { SpacePic } from "@features/navigation/components/space-pic";
-import { vaultCategoriesQueryOptions } from "@features/vault/api";
+import { notesQueryOptions } from "@features/notes/api";
+import { vaultItemsQueryOptions } from "@features/vault/api";
+import { kindLabel } from "@features/vault/lib/list";
 import {
   workspacesQueryOptions,
   type Workspace,
@@ -31,8 +32,26 @@ import {
 import { CreateWorkspaceDialog } from "@features/workspaces/components/create-workspace-dialog";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { toEpochMs } from "@shared/time";
 
-export function SpacesNav({ onCreate }: { onCreate: () => void }) {
+type RecentRow =
+  | {
+      key: string;
+      kind: "note";
+      title: string;
+      noteId: string;
+      at: number;
+    }
+  | {
+      key: string;
+      kind: "vault";
+      title: string;
+      itemId: string;
+      label: string;
+      at: number;
+    };
+
+export function SpacesNav() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
@@ -75,23 +94,8 @@ export function SpacesNav({ onCreate }: { onCreate: () => void }) {
 
   return (
     <>
-      <SidebarGroup className="px-2 pt-1">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-8 w-full justify-start gap-2 px-2 text-xs font-normal"
-          onClick={onCreate}
-        >
-          <PlusIcon className="size-3.5" />
-          Create new
-          <kbd className="ml-auto rounded-sm border border-border/60 px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
-            ⌘N
-          </kbd>
-        </Button>
-      </SidebarGroup>
-
       <SidebarGroup className="relative">
-        <SidebarGroupLabel className="font-mono text-[10px] font-normal tracking-wide uppercase">
+        <SidebarGroupLabel className="font-mono text-sm font-normal tracking-wide uppercase">
           Spaces
         </SidebarGroupLabel>
         <SidebarGroupAction
@@ -135,23 +139,58 @@ function SpaceRow({
 }) {
   const [open, setOpen] = useState(isActive);
   const search = useRouterState({
-    select: (state) => state.location.search as { category?: string },
+    select: (state) => state.location.search as { item?: string },
   });
-  const { data: collections = [] } = useQuery({
-    ...vaultCategoriesQueryOptions(space.id),
-    enabled: open,
+
+  const { data: notes = [] } = useQuery({
+    ...notesQueryOptions(space.id),
+    enabled: open || isActive,
   });
+  const { data: vaultList } = useQuery({
+    ...vaultItemsQueryOptions(space.id),
+    enabled: open || isActive,
+  });
+  const vaultItems = vaultList?.items ?? [];
+
+  const recent = useMemo(() => {
+    const rows: RecentRow[] = [];
+    for (const note of notes) {
+      rows.push({
+        key: `note:${note.id}`,
+        kind: "note",
+        title: note.title?.trim() || "Untitled",
+        noteId: note.id,
+        at: toEpochMs(note.updatedAt),
+      });
+    }
+    for (const item of vaultItems) {
+      rows.push({
+        key: `vault:${item.id}`,
+        kind: "vault",
+        title: item.title?.trim() || "Untitled",
+        itemId: item.id,
+        label: kindLabel(item),
+        at: toEpochMs(item.createdAt),
+      });
+    }
+    rows.sort((a, b) => b.at - a.at);
+    return rows.slice(0, 5);
+  }, [notes, vaultItems]);
 
   useEffect(() => {
     if (isActive) setOpen(true);
   }, [isActive]);
 
   const label = space.name.trim() || "Untitled";
+  const hasChildren = recent.length > 0;
 
   return (
     <Collapsible
-      open={open}
-      onOpenChange={setOpen}
+      open={open && hasChildren}
+      onOpenChange={(next) => {
+        if (!hasChildren) return;
+        setOpen(next);
+      }}
       className="group/collapsible"
       render={<SidebarMenuItem />}
     >
@@ -166,39 +205,71 @@ function SpaceRow({
         <span>{label}</span>
       </SidebarMenuButton>
 
-      <CollapsibleTrigger
-        render={<SidebarMenuAction showOnHover />}
-        aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
-      >
-        <ChevronRightIcon className="transition-transform group-data-open/collapsible:rotate-90" />
-      </CollapsibleTrigger>
+      {hasChildren ? (
+        <CollapsibleTrigger
+          render={
+            <SidebarMenuAction showOnHover className="!size-4 !w-4" />
+          }
+          aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
+        >
+          <ChevronRightIcon className="!size-3 transition-transform group-data-open/collapsible:rotate-90" />
+        </CollapsibleTrigger>
+      ) : null}
 
-      <CollapsibleContent>
-        <SidebarMenuSub>
-          {collections.map((collection) => {
-            const active = isActive && search.category === collection.id;
-            return (
-              <SidebarMenuSubItem key={collection.id}>
-                <SidebarMenuSubButton
-                  size="sm"
-                  isActive={active}
-                  className="font-normal"
-                  render={
-                    <Link
-                      to="/$workspaceId/vault"
-                      params={{ workspaceId: space.id }}
-                      search={{ category: collection.id }}
-                      onClick={() => setStoredWorkspaceId(space.id)}
-                    />
-                  }
-                >
-                  <span>{collection.name}</span>
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            );
-          })}
-        </SidebarMenuSub>
-      </CollapsibleContent>
+      {hasChildren ? (
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {recent.map((row) => {
+              if (row.kind === "note") {
+                return (
+                  <SidebarMenuSubItem key={row.key}>
+                    <SidebarMenuSubButton
+                      size="sm"
+                      className="h-6 text-[11px] font-normal text-muted-foreground"
+                      render={
+                        <Link
+                          to="/$workspaceId/notes/$noteId"
+                          params={{
+                            workspaceId: space.id,
+                            noteId: row.noteId,
+                          }}
+                          onClick={() => setStoredWorkspaceId(space.id)}
+                        />
+                      }
+                    >
+                      <span className="truncate">{row.title}</span>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                );
+              }
+
+              const active = isActive && search.item === row.itemId;
+              return (
+                <SidebarMenuSubItem key={row.key}>
+                  <SidebarMenuSubButton
+                    size="sm"
+                    isActive={active}
+                    className="h-6 text-[11px] font-normal text-muted-foreground"
+                    render={
+                      <Link
+                        to="/$workspaceId"
+                        params={{ workspaceId: space.id }}
+                        search={{ item: row.itemId }}
+                        onClick={() => setStoredWorkspaceId(space.id)}
+                      />
+                    }
+                  >
+                    <span className="truncate">{row.title}</span>
+                    <span className="ml-auto shrink-0 text-[10px] opacity-70">
+                      {row.label}
+                    </span>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              );
+            })}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      ) : null}
     </Collapsible>
   );
 }

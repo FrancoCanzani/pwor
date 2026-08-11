@@ -1,15 +1,25 @@
+import { inferLanguageFromContent, looksLikeCode } from "@shared/infer-language";
+
 const TWEET_RE =
   /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
 const URL_RE = /^https?:\/\/\S+$/i;
 
 export type ParsedCapture =
   | { type: "url"; url: string }
+  | { type: "snippet"; content: string; language: string | null }
   | { type: "text"; content: string };
 
 export function parseCaptureInput(input: string): ParsedCapture {
   const trimmed = input.trim();
   const url = extractUrl(trimmed);
   if (url) return { type: "url", url };
+  if (looksLikeCode(trimmed)) {
+    return {
+      type: "snippet",
+      content: trimmed,
+      language: inferLanguageFromContent(trimmed),
+    };
+  }
   return { type: "text", content: trimmed };
 }
 

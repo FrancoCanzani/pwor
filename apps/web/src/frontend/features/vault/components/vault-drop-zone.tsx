@@ -14,6 +14,7 @@ import {
   isMarkdownFile,
   languageFromFilename,
 } from "@features/vault/lib/snippet-language";
+import { inferLanguageFromContent } from "@shared/infer-language";
 import {
   inferTitleFromRaw,
   prependFrontmatter,
@@ -70,7 +71,9 @@ export function VaultDropZone() {
               const content = await file.text();
               await createVaultSnippet(content, {
                 title: file.name,
-                language: languageFromFilename(file.name),
+                language:
+                  languageFromFilename(file.name) ||
+                  inferLanguageFromContent(content),
                 workspaceId,
               });
               vaultChanged = true;

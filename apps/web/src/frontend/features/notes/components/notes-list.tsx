@@ -134,7 +134,7 @@ export function NotesList({
         className,
       )}
     >
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border/40 px-4">
         <h1 className="text-xs leading-none font-normal text-muted-foreground">
           Notes
         </h1>

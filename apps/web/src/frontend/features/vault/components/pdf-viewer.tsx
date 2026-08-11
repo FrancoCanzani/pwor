@@ -10,32 +10,59 @@ const FRAME_PADDING = 12;
 
 export function PdfViewer({ fileUrl }: { fileUrl: string }) {
   const [numPages, setNumPages] = useState<number | null>(null);
-  const [width, setWidth] = useState(0);
+  const [docReady, setDocReady] = useState(false);
+  const [width, setWidth] = useState<number | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
-  const widthRef = useRef(0);
 
-  // Measure the non-scrolling shell so page width never feeds back into
-  // ResizeObserver via scrollbar gutters (that loop stacked dialog frames).
   useLayoutEffect(() => {
+    setNumPages(null);
+    setDocReady(false);
+    setWidth(null);
+
     const shell = shellRef.current;
     if (!shell) return;
 
-    const syncWidth = () => {
+    // Wait until the dialog finish sizing so the first width isn't a zoom flicker.
+    let last = 0;
+    let stable = 0;
+    let raf = 0;
+    let cancelled = false;
+
+    const tick = () => {
+      if (cancelled) return;
       const next = Math.max(
         0,
         Math.floor(shell.clientWidth - FRAME_PADDING * 2),
       );
-      if (next === widthRef.current) return;
-      widthRef.current = next;
-      setWidth(next);
+      if (next <= 0) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      if (Math.abs(next - last) <= 1) {
+        stable += 1;
+      } else {
+        stable = 0;
+        last = next;
+      }
+      if (stable >= 3) {
+        setWidth(last);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
     };
 
-    syncWidth();
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [fileUrl]);
 
-    const observer = new ResizeObserver(syncWidth);
-    observer.observe(shell);
-    return () => observer.disconnect();
-  }, []);
+  const loading = (
+    <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+      Loading…
+    </p>
+  );
 
   return (
     <div className="flex h-[70vh] flex-col">
@@ -44,29 +71,36 @@ export function PdfViewer({ fileUrl }: { fileUrl: string }) {
         className="min-h-0 flex-1 overflow-hidden rounded-md border border-border bg-muted/30"
       >
         <div className="h-full overflow-y-scroll overscroll-contain">
-          <Document
-            file={fileUrl}
-            onLoadSuccess={({ numPages: next }) => setNumPages(next)}
-            loading={null}
-            error={
-              <p className="px-4 py-8 text-center text-sm text-destructive">
-                Couldn't load this PDF.
-              </p>
-            }
-            className="flex flex-col items-center gap-3 p-3"
-          >
-            {numPages != null && width > 0
-              ? Array.from({ length: numPages }, (_, index) => (
-                  <Page
-                    key={index + 1}
-                    pageNumber={index + 1}
-                    width={width}
-                    loading={null}
-                    className="bg-background [&_canvas]:block"
-                  />
-                ))
-              : null}
-          </Document>
+          {width == null ? (
+            loading
+          ) : (
+            <Document
+              file={fileUrl}
+              onLoadSuccess={({ numPages: next }) => {
+                setNumPages(next);
+                setDocReady(true);
+              }}
+              loading={loading}
+              error={
+                <p className="px-4 py-8 text-center text-sm text-destructive">
+                  Couldn't load this PDF.
+                </p>
+              }
+              className="flex flex-col items-center gap-3 p-3"
+            >
+              {docReady && numPages != null
+                ? Array.from({ length: numPages }, (_, index) => (
+                    <Page
+                      key={`${fileUrl}:${width}:${index + 1}`}
+                      pageNumber={index + 1}
+                      width={width}
+                      loading={loading}
+                      className="bg-background [&_canvas]:block"
+                    />
+                  ))
+                : null}
+            </Document>
+          )}
         </div>
       </div>
     </div>

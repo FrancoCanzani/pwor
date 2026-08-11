@@ -3,7 +3,7 @@ import PostalMime, { type Attachment } from "postal-mime";
 
 import { createDb } from "./db";
 import { inboxItem, task, vaultItem, workspaceInbox } from "./db/schema";
-import { scheduleVaultMarkdownExtraction } from "./lib/vault-markdown";
+import { scheduleVaultEnrichment } from "./lib/vault-enrichment";
 import { putVaultObject } from "./lib/vault-storage";
 import { extractTaskFromEmail } from "./lib/task-extraction";
 
@@ -82,7 +82,7 @@ export async function handleInboundEmail(
       parseStatus: "pending",
     });
 
-    scheduleVaultMarkdownExtraction(ctx, env, id);
+    scheduleVaultEnrichment(ctx, env, id);
   }
 
   try {

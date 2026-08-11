@@ -58,6 +58,44 @@ function TextPreview({
   );
 }
 
+function LinkPreview({
+  item,
+  content,
+}: {
+  item: VaultItem;
+  content: string | null;
+}) {
+  return (
+    <div className="flex max-h-[70vh] flex-col gap-3 overflow-auto">
+      {item.url ? (
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          className="truncate text-xs text-muted-foreground underline"
+        >
+          {item.url}
+        </a>
+      ) : null}
+      {item.summary ? (
+        <p className="text-sm text-foreground">{item.summary}</p>
+      ) : null}
+      {item.tags && item.tags.length > 0 ? (
+        <p className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          {item.tags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </p>
+      ) : null}
+      {content ? (
+        <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
+          {content}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
 export function VaultViewer({
   item,
   open,
@@ -68,19 +106,21 @@ export function VaultViewer({
   onOpenChange: (open: boolean) => void;
 }) {
   const isTextItem = item.kind === "text";
+  const isLinkLike =
+    item.kind === "link" || item.kind === "site" || item.kind === "tweet";
   const fileUrl = `/api/vault/${item.id}/file`;
   const isImage = item.mimeType?.startsWith("image/") ?? false;
   const isPdf = item.mimeType === "application/pdf";
   const isSheet =
-    !isTextItem && isSheetPreviewable(item.mimeType, item.title);
+    item.kind === "file" && isSheetPreviewable(item.mimeType, item.title);
   const isTextFile =
-    !isTextItem &&
+    item.kind === "file" &&
     !isSheet &&
     isTextPreviewable(item.mimeType, item.title);
 
   const { data: detail } = useQuery({
     ...vaultItemQueryOptions(item.id),
-    enabled: open && isTextItem,
+    enabled: open && (isTextItem || isLinkLike),
   });
 
   const { data: fileText } = useQuery({
@@ -95,7 +135,21 @@ export function VaultViewer({
 
   const textContent = isTextItem
     ? (detail?.content?.trim() || null)
-    : (fileText ?? null);
+    : isLinkLike
+      ? (detail?.content?.trim() ||
+        detail?.extractedMarkdown?.trim() ||
+        null)
+      : (fileText ?? null);
+
+  const displayItem = detail
+    ? {
+        ...item,
+        title: detail.title ?? item.title,
+        summary: detail.summary ?? item.summary,
+        tags: detail.tags ?? item.tags,
+        url: detail.url ?? item.url,
+      }
+    : item;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,11 +161,13 @@ export function VaultViewer({
       >
         <DialogHeader className="min-w-0">
           <DialogTitle className="truncate pr-8">
-            {item.title ?? "Untitled"}
+            {displayItem.title ?? "Untitled"}
           </DialogTitle>
         </DialogHeader>
 
-        {isTextItem || isTextFile ? (
+        {isLinkLike ? (
+          <LinkPreview item={displayItem} content={textContent} />
+        ) : isTextItem || isTextFile ? (
           <TextPreview
             content={textContent}
             downloadUrl={isTextFile ? fileUrl : undefined}

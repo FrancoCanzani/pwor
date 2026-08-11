@@ -262,13 +262,14 @@ export function VaultSidebar({
         className,
       )}
     >
-      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4">
+      <div className="flex h-12 shrink-0 items-center px-4">
         <h1 className="text-xs leading-none font-normal text-muted-foreground">
           Vault
         </h1>
-        <span className="font-nums text-xs leading-none text-muted-foreground">
-          {formatGb(totalBytes)}
-        </span>
+      </div>
+
+      <div className="shrink-0 px-2 pb-2">
+        <VaultNewButton categoryId={activeCategoryId} />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin px-2 pb-3">
@@ -359,8 +360,10 @@ export function VaultSidebar({
         </ul>
       </div>
 
-      <div className="shrink-0 px-2 pb-2">
-        <VaultNewButton categoryId={activeCategoryId} />
+      <div className="flex h-10 shrink-0 items-center px-4">
+        <span className="font-nums text-xs text-muted-foreground">
+          {formatGb(totalBytes)}
+        </span>
       </div>
     </aside>
   );

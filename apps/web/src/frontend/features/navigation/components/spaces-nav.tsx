@@ -95,7 +95,7 @@ export function SpacesNav() {
   return (
     <>
       <SidebarGroup className="relative">
-        <SidebarGroupLabel className="font-mono text-sm font-normal tracking-wide uppercase">
+        <SidebarGroupLabel className="mb-1 font-mono text-sm font-normal tracking-wide uppercase">
           Spaces
         </SidebarGroupLabel>
         <SidebarGroupAction
@@ -105,7 +105,7 @@ export function SpacesNav() {
           <PlusIcon />
         </SidebarGroupAction>
 
-        <SidebarGroupContent>
+        <SidebarGroupContent className="pt-1">
           <SidebarMenu>
             {ordered.map((space) => (
               <SpaceRow
@@ -218,14 +218,14 @@ function SpaceRow({
 
       {hasChildren ? (
         <CollapsibleContent>
-          <SidebarMenuSub>
+          <SidebarMenuSub className="mr-0 min-w-0 pr-0">
             {recent.map((row) => {
               if (row.kind === "note") {
                 return (
-                  <SidebarMenuSubItem key={row.key}>
+                  <SidebarMenuSubItem key={row.key} className="w-full">
                     <SidebarMenuSubButton
                       size="sm"
-                      className="h-6 text-[11px] font-normal text-muted-foreground"
+                      className="h-6 w-full flex-1 text-[11px] font-normal text-muted-foreground"
                       render={
                         <Link
                           to="/$workspaceId/notes/$noteId"
@@ -237,7 +237,7 @@ function SpaceRow({
                         />
                       }
                     >
-                      <span className="truncate">{row.title}</span>
+                      <span className="min-w-0 flex-1 truncate">{row.title}</span>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 );
@@ -245,11 +245,11 @@ function SpaceRow({
 
               const active = isActive && search.item === row.itemId;
               return (
-                <SidebarMenuSubItem key={row.key}>
+                <SidebarMenuSubItem key={row.key} className="w-full">
                   <SidebarMenuSubButton
                     size="sm"
                     isActive={active}
-                    className="h-6 text-[11px] font-normal text-muted-foreground"
+                    className="h-6 w-full flex-1 text-[11px] font-normal text-muted-foreground"
                     render={
                       <Link
                         to="/$workspaceId"
@@ -259,7 +259,7 @@ function SpaceRow({
                       />
                     }
                   >
-                    <span className="truncate">{row.title}</span>
+                    <span className="min-w-0 flex-1 truncate">{row.title}</span>
                     <span className="ml-auto shrink-0 text-[10px] opacity-70">
                       {row.label}
                     </span>

@@ -59,18 +59,18 @@ export function PdfViewer({ fileUrl }: { fileUrl: string }) {
   }, [fileUrl]);
 
   const loading = (
-    <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-      Loading…
-    </p>
+    <div className="flex h-full min-h-[inherit] w-full flex-1 items-center justify-center">
+      <p className="text-sm text-muted-foreground">Loading…</p>
+    </div>
   );
 
   return (
     <div className="flex h-[70vh] flex-col">
       <div
         ref={shellRef}
-        className="min-h-0 flex-1 overflow-hidden rounded-md border border-border bg-muted/30"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-muted/30"
       >
-        <div className="h-full overflow-y-scroll overscroll-contain">
+        <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-scroll overscroll-contain">
           {width == null ? (
             loading
           ) : (
@@ -82,11 +82,13 @@ export function PdfViewer({ fileUrl }: { fileUrl: string }) {
               }}
               loading={loading}
               error={
-                <p className="px-4 py-8 text-center text-sm text-destructive">
-                  Couldn't load this PDF.
-                </p>
+                <div className="flex h-full w-full flex-1 items-center justify-center">
+                  <p className="text-sm text-destructive">
+                    Couldn't load this PDF.
+                  </p>
+                </div>
               }
-              className="flex flex-col items-center gap-3 p-3"
+              className="flex min-h-full flex-col items-center gap-3 p-3"
             >
               {docReady && numPages != null
                 ? Array.from({ length: numPages }, (_, index) => (

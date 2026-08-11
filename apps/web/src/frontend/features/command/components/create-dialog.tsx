@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { createNote } from "@features/notes/api";
@@ -32,7 +31,7 @@ import {
   prependFrontmatter,
 } from "@shared/note-frontmatter";
 
-type CreateMode = "menu" | "snippet" | "capture";
+type CreateMode = "menu" | "capture";
 
 export function CreateDialog({
   open,
@@ -42,8 +41,6 @@ export function CreateDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [mode, setMode] = useState<CreateMode>("menu");
-  const [snippetTitle, setSnippetTitle] = useState("");
-  const [snippetContent, setSnippetContent] = useState("");
   const [captureInput, setCaptureInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -54,8 +51,6 @@ export function CreateDialog({
   useEffect(() => {
     if (!open) {
       setMode("menu");
-      setSnippetTitle("");
-      setSnippetContent("");
       setCaptureInput("");
       setUploading(false);
     }
@@ -80,21 +75,6 @@ export function CreateDialog({
     onError: () => toast.error("Couldn’t create note"),
   });
 
-  const createSnippetMutation = useMutation({
-    mutationFn: () =>
-      createVaultSnippet(snippetContent, {
-        title: snippetTitle.trim() || null,
-        language: inferLanguageFromContent(snippetContent),
-        workspaceId,
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
-      toast.success("Snippet saved");
-      onOpenChange(false);
-    },
-    onError: () => toast.error("Couldn’t save snippet"),
-  });
-
   const captureMutation = useMutation({
     mutationFn: () => {
       if (!workspaceId) throw new Error("No space selected");
@@ -102,17 +82,14 @@ export function CreateDialog({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
-      toast.success("Added — parsing…");
+      toast.success("Added");
       onOpenChange(false);
     },
     onError: () => toast.error("Couldn’t add item"),
   });
 
   const busy =
-    createNoteMutation.isPending ||
-    createSnippetMutation.isPending ||
-    captureMutation.isPending ||
-    uploading;
+    createNoteMutation.isPending || captureMutation.isPending || uploading;
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0 || busy) return;
@@ -163,16 +140,6 @@ export function CreateDialog({
     }
   }
 
-  function handleSnippetSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!snippetContent.trim() || busy) return;
-    if (!workspaceId) {
-      toast.error("Open a space first");
-      return;
-    }
-    createSnippetMutation.mutate();
-  }
-
   function handleCaptureSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!captureInput.trim() || busy) return;
@@ -209,59 +176,11 @@ export function CreateDialog({
               >
                 <span className="text-sm">Capture</span>
                 <span className="text-[11px] text-muted-foreground">
-                  Paste a URL, text, or code — language is inferred
-                </span>
-              </button>
-              <button
-                type="button"
-                className="flex flex-col items-start rounded-md px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
-                disabled={!workspaceId}
-                onClick={() => setMode("snippet")}
-              >
-                <span className="text-sm">Snippet</span>
-                <span className="text-[11px] text-muted-foreground">
-                  Paste code — language is inferred
+                  Paste a URL, text, or code
                 </span>
               </button>
             </div>
           </>
-        ) : null}
-
-        {mode === "snippet" ? (
-          <form onSubmit={handleSnippetSubmit} className="flex flex-col gap-3">
-            <DialogHeader>
-              <DialogTitle>New snippet</DialogTitle>
-            </DialogHeader>
-            <Input
-              value={snippetTitle}
-              onChange={(e) => setSnippetTitle(e.target.value)}
-              placeholder="Title (optional)"
-              disabled={busy}
-            />
-            <Textarea
-              autoFocus
-              value={snippetContent}
-              onChange={(e) => setSnippetContent(e.target.value)}
-              placeholder="Paste code…"
-              className="min-h-40 resize-none font-mono text-xs"
-              disabled={busy}
-            />
-            <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setMode("menu")}
-              >
-                Back
-              </Button>
-              <Button
-                type="submit"
-                disabled={!snippetContent.trim() || busy || !workspaceId}
-              >
-                {createSnippetMutation.isPending ? "Saving…" : "Save"}
-              </Button>
-            </DialogFooter>
-          </form>
         ) : null}
 
         {mode === "capture" ? (

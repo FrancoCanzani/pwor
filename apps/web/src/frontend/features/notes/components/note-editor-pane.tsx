@@ -146,7 +146,6 @@ export function NoteEditorPane({ noteId }: { noteId: string }) {
         expectedUpdatedAt: toEpochMs(expectedUpdatedAt),
       });
     } catch {
-      // onError handles UI state
     } finally {
       savingRef.current = false;
       if (

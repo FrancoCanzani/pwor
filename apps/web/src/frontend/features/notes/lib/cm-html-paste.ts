@@ -33,7 +33,6 @@ function htmlToMarkdown(html: string): string {
     .trim();
 }
 
-/** Prefer image paste handlers; convert rich HTML (Docs/web) to markdown. */
 export function createHtmlPasteHandler(): Extension {
   return EditorView.domEventHandlers({
     paste(event, view) {
@@ -43,7 +42,6 @@ export function createHtmlPasteHandler(): Extension {
       const html = clipboard.getData("text/html")?.trim();
       if (!html) return false;
 
-      // Ignore CM/internal or tiny wrappers that are effectively plain text.
       if (!/[<](p|div|li|h[1-6]|table|ul|ol|pre|blockquote)\b/i.test(html)) {
         return false;
       }

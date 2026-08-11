@@ -102,7 +102,6 @@ function createWikiLinkPlugin(options: WikiLinkEditorOptions) {
       eventHandlers: {
         click(event, view) {
           if (event.button !== 0) return false;
-          // Require mod-click so normal editing/selection still works.
           if (!(event.metaKey || event.ctrlKey)) return false;
           const hit = linkAt(view, event.clientX, event.clientY);
           if (!hit) return false;

@@ -30,7 +30,6 @@ const updateNoteSchema = z
     body: z.string().optional(),
     title: z.string().nullable().optional(),
     workspaceId: z.string().nullable().optional(),
-    /** Client's last-seen `updatedAt` (ISO or epoch ms). Required when saving body/title. */
     expectedUpdatedAt: z.union([z.string(), z.number()]).optional(),
   })
   .refine(

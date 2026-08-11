@@ -69,11 +69,9 @@ export function NoteEditor({
       viewRef.current = null;
       view.destroy();
     };
-    // Mount once per note (parent remounts via key={noteId}).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- remount via key={noteId}
   }, []);
 
-  // Wiki-link resolve state depends on the notes list; nudge CM when it changes.
   const fingerprint = notesFingerprint(
     wikiLinks ? wikiLinks.getNotes() : undefined,
   );

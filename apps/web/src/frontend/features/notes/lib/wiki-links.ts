@@ -1,4 +1,3 @@
-/** Obsidian-style wiki-link: `[[target]]`, `[[target|alias]]`, `[[target#heading]]`. */
 export const WIKI_LINK_RE =
   /\[\[([^\]|#\n]+?)(?:#([^\]|\n]*?))?(?:\|([^\]\n]*?))?\]\]/g;
 
@@ -39,7 +38,6 @@ export type NoteTitleRef = {
   title: string | null;
 };
 
-/** Resolve a wiki-link target to a note id by case-insensitive title match. */
 export function resolveWikiLinkTarget(
   target: string,
   notes: readonly NoteTitleRef[],
@@ -55,7 +53,6 @@ export function resolveWikiLinkTarget(
   );
   if (exact) return exact.id;
 
-  // Untitled notes are addressable as "Untitled".
   if (needle === "untitled") {
     const untitled = notes.find(
       (note) =>

@@ -84,7 +84,6 @@ function buildImagePreviewDecos(view: EditorView): DecorationSet {
   return builder.finish();
 }
 
-/** Source stays visible; a thumbnail is drawn after each markdown image. */
 export function createImagePreviewExtension(): Extension {
   return [
     ViewPlugin.fromClass(

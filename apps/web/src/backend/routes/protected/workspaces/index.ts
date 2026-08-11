@@ -6,13 +6,7 @@ import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
-import {
-  note,
-  task,
-  vaultItem,
-  workspace,
-  workspaceInbox,
-} from "../../../db/schema";
+import { note, vaultItem, workspace } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 
 const createWorkspaceSchema = z.object({
@@ -29,14 +23,6 @@ const updateWorkspaceSchema = z
     (value) => value.name !== undefined || value.description !== undefined,
     { message: "name or description is required" },
   );
-
-const createInboxSchema = z.object({
-  label: z.string().trim().nullable().optional(),
-});
-
-function generateInboxToken() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-}
 
 const app = new Hono<AppEnv>()
   .get("/", async (c) => {
@@ -84,12 +70,7 @@ const app = new Hono<AppEnv>()
 
     if (!item) throw new HTTPException(404, { message: "Not found" });
 
-    const [tasks, notes, vaultItems, inboxes] = await Promise.all([
-      db
-        .select()
-        .from(task)
-        .where(and(eq(task.workspaceId, id), eq(task.userId, user.id)))
-        .orderBy(desc(task.createdAt)),
+    const [notes, vaultItems] = await Promise.all([
       db
         .select({
           id: note.id,
@@ -107,19 +88,9 @@ const app = new Hono<AppEnv>()
           and(eq(vaultItem.workspaceId, id), eq(vaultItem.userId, user.id)),
         )
         .orderBy(desc(vaultItem.createdAt)),
-      db
-        .select()
-        .from(workspaceInbox)
-        .where(
-          and(
-            eq(workspaceInbox.workspaceId, id),
-            eq(workspaceInbox.userId, user.id),
-          ),
-        )
-        .orderBy(desc(workspaceInbox.createdAt)),
     ]);
 
-    return c.json({ ...item, tasks, notes, vaultItems, inboxes });
+    return c.json({ ...item, notes, vaultItems });
   })
 
   .patch("/:id", zValidator("json", updateWorkspaceSchema), async (c) => {
@@ -151,60 +122,6 @@ const app = new Hono<AppEnv>()
       .delete(workspace)
       .where(ownedBy(workspace.id, id, workspace.userId, user.id))
       .returning({ id: workspace.id });
-
-    if (result.length === 0) {
-      throw new HTTPException(404, { message: "Not found" });
-    }
-
-    return c.json({ ok: true });
-  })
-
-  .post(
-    "/:id/inboxes",
-    zValidator("json", createInboxSchema),
-    async (c) => {
-      const user = c.get("user")!;
-      const workspaceId = c.req.param("id");
-      const { label } = c.req.valid("json");
-      const db = createDb(c.env.DB);
-
-      const [existing] = await db
-        .select({ id: workspace.id })
-        .from(workspace)
-        .where(ownedBy(workspace.id, workspaceId, workspace.userId, user.id))
-        .limit(1);
-
-      if (!existing) throw new HTTPException(404, { message: "Not found" });
-
-      const id = crypto.randomUUID();
-      const token = generateInboxToken();
-
-      const [created] = await db
-        .insert(workspaceInbox)
-        .values({
-          id,
-          workspaceId,
-          userId: user.id,
-          token,
-          label: label ?? null,
-        })
-        .returning();
-
-      return c.json(created, 201);
-    },
-  )
-
-  .delete("/:id/inboxes/:inboxId", async (c) => {
-    const user = c.get("user")!;
-    const inboxId = c.req.param("inboxId");
-    const db = createDb(c.env.DB);
-
-    const result = await db
-      .delete(workspaceInbox)
-      .where(
-        ownedBy(workspaceInbox.id, inboxId, workspaceInbox.userId, user.id),
-      )
-      .returning({ id: workspaceInbox.id });
 
     if (result.length === 0) {
       throw new HTTPException(404, { message: "Not found" });

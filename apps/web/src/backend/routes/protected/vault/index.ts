@@ -21,7 +21,6 @@ import type { AppEnv } from "../../../types";
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
-  inboxItemId: z.string().optional(),
 });
 
 const updateVaultItemSchema = z
@@ -301,12 +300,11 @@ const app = new Hono<AppEnv>()
 
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { workspaceId, inboxItemId } = c.req.valid("query");
+    const { workspaceId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(vaultItem.userId, user.id)];
     if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
-    if (inboxItemId) conditions.push(eq(vaultItem.inboxItemId, inboxItemId));
 
     const rows = await db
       .select()
@@ -316,21 +314,18 @@ const app = new Hono<AppEnv>()
 
     const items = rows.map(serializeVaultItem);
 
-    let totalBytes = 0;
-    if (!inboxItemId) {
-      const sizes = await Promise.all(
-        items.map(async (item) => {
-          if (item.r2Key) {
-            return vaultObjectByteSize(c.env.VAULT_BUCKET, item.r2Key);
-          }
-          if (item.content) {
-            return new TextEncoder().encode(item.content).byteLength;
-          }
-          return 0;
-        }),
-      );
-      totalBytes = sizes.reduce((sum, size) => sum + size, 0);
-    }
+    const sizes = await Promise.all(
+      items.map(async (item) => {
+        if (item.r2Key) {
+          return vaultObjectByteSize(c.env.VAULT_BUCKET, item.r2Key);
+        }
+        if (item.content) {
+          return new TextEncoder().encode(item.content).byteLength;
+        }
+        return 0;
+      }),
+    );
+    const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
 
     return c.json({ items, totalBytes });
   })

@@ -4,7 +4,6 @@ import { logger } from "hono/logger";
 import { prettyJSON } from "hono/pretty-json";
 import { secureHeaders } from "hono/secure-headers";
 
-import { handleInboundEmail } from "./email";
 import { createAuth } from "./lib/auth";
 import { authMiddleware, requireAuth } from "./middleware/auth";
 import protectedRoutes from "./routes/protected";
@@ -42,13 +41,5 @@ export default {
 
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
     await cleanupOrphanNoteImages(env);
-  },
-
-  async email(
-    message: ForwardableEmailMessage,
-    env: Env,
-    ctx: ExecutionContext,
-  ): Promise<void> {
-    await handleInboundEmail(message, env, ctx);
   },
 };

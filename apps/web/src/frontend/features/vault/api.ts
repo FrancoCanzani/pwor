@@ -17,7 +17,6 @@ export type VaultItem = {
   siteName: string | null;
   categoryId: string | null;
   workspaceId: string | null;
-  inboxItemId: string | null;
   parseStatus: VaultParseStatus | null;
   createdAt: string;
 };
@@ -48,23 +47,6 @@ export function vaultItemsQueryOptions(workspaceId?: string) {
   return queryOptions({
     queryKey: ["vault", "items", workspaceId] as const,
     queryFn: () => fetchVaultItems(workspaceId),
-  });
-}
-
-async function fetchVaultItemsByInboxItem(
-  inboxItemId: string,
-): Promise<VaultItem[]> {
-  const params = new URLSearchParams({ inboxItemId });
-  const data = await parseJson<VaultList>(
-    await fetch(`/api/vault?${params.toString()}`),
-  );
-  return data.items;
-}
-
-export function vaultItemsByInboxItemQueryOptions(inboxItemId: string) {
-  return queryOptions({
-    queryKey: ["vault", "items", "inbox-item", inboxItemId] as const,
-    queryFn: () => fetchVaultItemsByInboxItem(inboxItemId),
   });
 }
 

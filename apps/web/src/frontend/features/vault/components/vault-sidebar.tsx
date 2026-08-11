@@ -303,15 +303,15 @@ export function VaultSidebar({
             type="button"
             aria-expanded={typesOpen}
             onClick={() => setTypesOpen((open) => !open)}
-            className="mb-1 flex w-full items-center gap-1 px-2 text-left text-xs text-muted-foreground hover:text-foreground"
+            className="mb-1 flex w-full items-center justify-between gap-1 px-2 text-left text-xs text-muted-foreground hover:text-foreground"
           >
+            Types
             <ChevronRightIcon
               className={cn(
                 "size-3 shrink-0 transition-transform",
                 typesOpen && "rotate-90",
               )}
             />
-            Types
           </button>
           {typesOpen ? (
             <ul className="flex flex-col gap-0.5">

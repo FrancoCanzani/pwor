@@ -1,4 +1,4 @@
-import { DotsHorizontalIcon } from "@radix-ui/react-icons";
+import { ChevronRightIcon, DotsHorizontalIcon } from "@radix-ui/react-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useParams } from "@tanstack/react-router";
@@ -225,6 +225,7 @@ export function VaultSidebar({
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [typesOpen, setTypesOpen] = useState(false);
 
   function closeCreating() {
     setCreating(false);
@@ -297,19 +298,36 @@ export function VaultSidebar({
           </li>
         </ul>
 
-        <p className="mt-4 mb-1 px-2 text-xs text-muted-foreground">Types</p>
-        <ul className="flex flex-col gap-0.5">
-          {TYPE_FACET_ORDER.map((facet) => (
-            <li key={facet}>
-              <NavButton
-                active={nav.mode === "type" && nav.type === facet}
-                label={TYPE_FACET_LABEL[facet]}
-                count={typeCounts.get(facet) ?? 0}
-                onClick={() => onNavChange({ mode: "type", type: facet })}
-              />
-            </li>
-          ))}
-        </ul>
+        <div className="mt-4">
+          <button
+            type="button"
+            aria-expanded={typesOpen}
+            onClick={() => setTypesOpen((open) => !open)}
+            className="mb-1 flex w-full items-center gap-1 px-2 text-left text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRightIcon
+              className={cn(
+                "size-3 shrink-0 transition-transform",
+                typesOpen && "rotate-90",
+              )}
+            />
+            Types
+          </button>
+          {typesOpen ? (
+            <ul className="flex flex-col gap-0.5">
+              {TYPE_FACET_ORDER.map((facet) => (
+                <li key={facet}>
+                  <NavButton
+                    active={nav.mode === "type" && nav.type === facet}
+                    label={TYPE_FACET_LABEL[facet]}
+                    count={typeCounts.get(facet) ?? 0}
+                    onClick={() => onNavChange({ mode: "type", type: facet })}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
 
         <div className="mt-4 mb-1 flex items-center justify-between px-2">
           <p className="text-xs text-muted-foreground">Categories</p>

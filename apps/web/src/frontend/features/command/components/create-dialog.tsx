@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { createNote } from "@features/notes/api";
@@ -24,11 +25,15 @@ import {
   languageFromFilename,
 } from "@features/vault/lib/snippet-language";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-import { inferLanguageFromContent } from "@shared/infer-language";
+import { inferLanguageFromContent, looksLikeCode } from "@shared/infer-language";
 import {
   inferTitleFromRaw,
   prependFrontmatter,
 } from "@shared/note-frontmatter";
+import {
+  dedentCode,
+  titleFromSnippet,
+} from "@shared/snippet-format";
 
 export function CreateDialog({
   open,
@@ -38,26 +43,55 @@ export function CreateDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [captureInput, setCaptureInput] = useState("");
+  const [title, setTitle] = useState("");
+  const [titleTouched, setTitleTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { id: workspaceId } = useCurrentWorkspace();
 
+  const codeMode = looksLikeCode(captureInput);
+  const inferredLanguage = codeMode
+    ? inferLanguageFromContent(dedentCode(captureInput))
+    : null;
+
   useEffect(() => {
     if (!open) {
       setCaptureInput("");
+      setTitle("");
+      setTitleTouched(false);
       setUploading(false);
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    if (!codeMode) {
+      if (!titleTouched) setTitle("");
+      return;
+    }
+    if (titleTouched) return;
+    setTitle(titleFromSnippet(dedentCode(captureInput), inferredLanguage));
+  }, [open, codeMode, captureInput, inferredLanguage, titleTouched]);
+
   const captureMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!workspaceId) throw new Error("No space selected");
-      return captureVaultInput(captureInput.trim(), workspaceId);
+      const trimmed = captureInput.trim();
+      if (looksLikeCode(trimmed)) {
+        const content = dedentCode(trimmed);
+        const language = inferLanguageFromContent(content);
+        return createVaultSnippet(content, {
+          title: title.trim() || titleFromSnippet(content, language),
+          language,
+          workspaceId,
+        });
+      }
+      return captureVaultInput(trimmed, workspaceId);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
-      toast.success("Added");
+      toast.success(codeMode ? "Snippet added" : "Added");
       onOpenChange(false);
     },
     onError: () => toast.error("Couldn’t add item"),
@@ -81,14 +115,14 @@ export function CreateDialog({
             const raw = await file.text();
             const inferred = inferTitleFromRaw(raw).title;
             const fallbackTitle = file.name.replace(/\.md$/i, "");
-            const title = inferred || fallbackTitle;
+            const noteTitle = inferred || fallbackTitle;
             const body = inferred
               ? raw
               : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-            await createNote(body, title, workspaceId);
+            await createNote(body, noteTitle, workspaceId);
             toast.success(`${file.name} added as note`, { id: toastId });
           } else if (isCodeSnippetFile(file)) {
-            const content = await file.text();
+            const content = dedentCode(await file.text());
             await createVaultSnippet(content, {
               title: file.name,
               language:
@@ -127,12 +161,25 @@ export function CreateDialog({
           <DialogHeader>
             <DialogTitle>Capture</DialogTitle>
           </DialogHeader>
+          {codeMode ? (
+            <Input
+              value={title}
+              onChange={(e) => {
+                setTitleTouched(true);
+                setTitle(e.target.value);
+              }}
+              placeholder="Snippet title"
+              className="text-xs"
+              disabled={busy}
+              aria-label="Snippet title"
+            />
+          ) : null}
           <Textarea
             autoFocus
             value={captureInput}
             onChange={(e) => setCaptureInput(e.target.value)}
             placeholder="Paste a URL, text, or code…"
-            className="min-h-28 resize-none text-xs"
+            className="min-h-28 resize-none font-mono text-xs placeholder:font-sans"
             disabled={busy}
           />
           <input
@@ -166,7 +213,11 @@ export function CreateDialog({
               type="submit"
               disabled={!captureInput.trim() || busy || !workspaceId}
             >
-              {captureMutation.isPending ? "Adding…" : "Add"}
+              {captureMutation.isPending
+                ? codeMode
+                  ? "Saving…"
+                  : "Adding…"
+                : "Add"}
             </Button>
           </DialogFooter>
         </form>

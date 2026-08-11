@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -8,18 +9,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
+  updateVaultItem,
   vaultFileTextQueryOptions,
   vaultItemQueryOptions,
   vaultSheetQueryOptions,
   type VaultItem,
+  type VaultItemDetail,
 } from "@features/vault/api";
 import { PdfViewer } from "@features/vault/components/pdf-viewer";
 import { SheetViewer } from "@features/vault/components/sheet-viewer";
 import { SnippetViewer } from "@features/vault/components/snippet-viewer";
 import { isTextPreviewable } from "@features/vault/lib/preview";
 import { isSheetPreviewable } from "@features/vault/lib/sheet";
+
+const SNIPPET_SAVE_MS = 500;
 
 function TextPreview({
   content,
@@ -106,6 +112,7 @@ export function VaultViewer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const queryClient = useQueryClient();
   const isTextItem = item.kind === "text";
   const isSnippet = item.kind === "snippet";
   const isLinkLike = item.kind === "link";
@@ -139,13 +146,15 @@ export function VaultViewer({
   });
 
   const textContent =
-    isTextItem || isSnippet
+    isTextItem
       ? (detail?.content?.trim() || null)
-      : isLinkLike
-        ? (detail?.content?.trim() ||
-          detail?.extractedMarkdown?.trim() ||
-          null)
-        : (fileText ?? null);
+      : isSnippet
+        ? (detail?.content ?? null)
+        : isLinkLike
+          ? (detail?.content?.trim() ||
+            detail?.extractedMarkdown?.trim() ||
+            null)
+          : (fileText ?? null);
 
   const displayItem = detail
     ? {
@@ -157,6 +166,108 @@ export function VaultViewer({
         language: detail.language ?? item.language,
       }
     : item;
+
+  const [titleDraft, setTitleDraft] = useState("");
+  const [snippetContent, setSnippetContent] = useState<string | null>(null);
+  const [snippetLanguage, setSnippetLanguage] = useState<string | null>(null);
+  const savedTitleRef = useRef("");
+  const savedContentRef = useRef("");
+  const savedLanguageRef = useRef<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirtyRef = useRef(false);
+
+  useEffect(() => {
+    if (!open || !isSnippet) {
+      dirtyRef.current = false;
+      setSnippetContent(null);
+      return;
+    }
+    if (detailPending || textContent === null) return;
+    if (dirtyRef.current) return;
+    const nextTitle = displayItem.title ?? "";
+    const nextLanguage = displayItem.language;
+    setTitleDraft(nextTitle);
+    setSnippetContent(textContent);
+    setSnippetLanguage(nextLanguage);
+    savedTitleRef.current = nextTitle;
+    savedContentRef.current = textContent;
+    savedLanguageRef.current = nextLanguage;
+  }, [
+    open,
+    isSnippet,
+    detailPending,
+    item.id,
+    displayItem.title,
+    displayItem.language,
+    textContent,
+  ]);
+
+  const saveSnippet = useMutation({
+    mutationFn: (patch: {
+      title?: string | null;
+      content?: string;
+      language?: string | null;
+    }) => updateVaultItem(item.id, patch),
+    onSuccess: (updated) => {
+      savedTitleRef.current = updated.title ?? "";
+      savedContentRef.current = updated.content ?? "";
+      savedLanguageRef.current = updated.language;
+      dirtyRef.current = false;
+      queryClient.setQueryData(
+        vaultItemQueryOptions(item.id).queryKey,
+        (current: VaultItemDetail | undefined) =>
+          current
+            ? {
+                ...current,
+                ...updated,
+                content: updated.content ?? current.content,
+              }
+            : current,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+    },
+    onError: () => toast.error("Couldn’t save snippet"),
+  });
+
+  function scheduleSnippetSave(next: {
+    title?: string;
+    content?: string;
+    language?: string | null;
+  }) {
+    dirtyRef.current = true;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const title = next.title ?? titleDraft;
+      const content = next.content ?? snippetContent ?? "";
+      const language =
+        next.language !== undefined ? next.language : snippetLanguage;
+      const patch: {
+        title?: string | null;
+        content?: string;
+        language?: string | null;
+      } = {};
+      if (title !== savedTitleRef.current) {
+        patch.title = title.trim() || "Snippet";
+      }
+      if (content !== savedContentRef.current) {
+        patch.content = content;
+      }
+      if (language !== savedLanguageRef.current) {
+        patch.language = language;
+      }
+      if (Object.keys(patch).length === 0) {
+        dirtyRef.current = false;
+        return;
+      }
+      saveSnippet.mutate(patch);
+    }, SNIPPET_SAVE_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
 
   const showLoading =
     ((isTextItem || isLinkLike || isSnippet) && detailPending) ||
@@ -172,9 +283,33 @@ export function VaultViewer({
         )}
       >
         <DialogHeader className="min-w-0">
-          <DialogTitle className="truncate pr-8">
-            {displayItem.title ?? "Untitled"}
-          </DialogTitle>
+          {isSnippet ? (
+            <>
+              <DialogTitle className="sr-only">
+                {titleDraft.trim() || "Snippet"}
+              </DialogTitle>
+              <Input
+                value={titleDraft}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setTitleDraft(next);
+                  scheduleSnippetSave({ title: next });
+                }}
+                onBlur={() => {
+                  const next = titleDraft.trim() || "Snippet";
+                  if (next !== titleDraft) setTitleDraft(next);
+                  scheduleSnippetSave({ title: next });
+                }}
+                placeholder="Snippet title"
+                className="h-8 border-0 px-0 text-sm shadow-none focus-visible:ring-0"
+                aria-label="Snippet title"
+              />
+            </>
+          ) : (
+            <DialogTitle className="truncate pr-8">
+              {displayItem.title ?? "Untitled"}
+            </DialogTitle>
+          )}
         </DialogHeader>
 
         {showLoading ? (
@@ -182,10 +317,18 @@ export function VaultViewer({
             Loading…
           </p>
         ) : isSnippet ? (
-          textContent !== null ? (
+          snippetContent !== null ? (
             <SnippetViewer
-              content={textContent}
-              language={displayItem.language}
+              content={snippetContent}
+              language={snippetLanguage}
+              onContentChange={(next) => {
+                setSnippetContent(next);
+                scheduleSnippetSave({ content: next });
+              }}
+              onLanguageChange={(next) => {
+                setSnippetLanguage(next);
+                scheduleSnippetSave({ language: next });
+              }}
             />
           ) : (
             <p className="py-16 text-center text-sm text-muted-foreground">

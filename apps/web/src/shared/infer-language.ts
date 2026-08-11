@@ -1,5 +1,6 @@
 /**
  * Heuristic language id from pasted source. Prefer filename/mime when available.
+ * Ids align with `@codemirror/language-data` names/aliases (e.g. jsx, tsx, shell).
  */
 export function inferLanguageFromContent(content: string): string | null {
   const sample = content.slice(0, 6_000);
@@ -17,6 +18,24 @@ export function inferLanguageFromContent(content: string): string | null {
   ) {
     return "yaml";
   }
+
+  const hasJsxTag =
+    /<\/?[A-Z][\w.]*\b[^>]*>/.test(trimmed) ||
+    /<\/?(?:Fragment|Suspense|StrictMode)\b/.test(trimmed) ||
+    /\bclassName\s*=/.test(trimmed) ||
+    /\b(?:return\s*\(\s*)?<[A-Za-z][\w.]*[\s/>]/.test(trimmed);
+
+  if (hasJsxTag) {
+    if (
+      /\b(interface|type)\s+\w+|:\s*(string|number|boolean|unknown|React\.)\b|import\s+type\b|\bas\s+const\b/.test(
+        sample,
+      )
+    ) {
+      return "tsx";
+    }
+    return "jsx";
+  }
+
   if (/<\/?[a-zA-Z][\w:-]*\b[^>]*>/.test(trimmed)) return "html";
   if (/@(media|import|keyframes)\b|^\s*[\w.#-]+\s*\{/m.test(trimmed)) {
     return "css";
@@ -55,7 +74,7 @@ export function inferLanguageFromContent(content: string): string | null {
 export function looksLikeCode(content: string): boolean {
   const trimmed = content.trim();
   if (!trimmed) return false;
-  const lines = trimmed.split(/\n/);
+  const lines = trimmed.split("\n");
   if (lines.length < 2 && !/^[{<[#!]/.test(trimmed)) return false;
   if (inferLanguageFromContent(trimmed)) return true;
   const codey =

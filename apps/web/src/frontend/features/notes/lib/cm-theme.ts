@@ -1,13 +1,20 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { type Extension, EditorState } from "@codemirror/state";
 import {
   EditorView,
   keymap,
   placeholder as placeholderExt,
 } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+
+import { createHtmlPasteHandler } from "@features/notes/lib/cm-html-paste";
+import { createImagePreviewExtension } from "@features/notes/lib/cm-image-preview";
+import {
+  createWikiLinkExtensions,
+  type WikiLinkEditorOptions,
+} from "@features/notes/lib/cm-wiki-links";
 
 export const pworHighlight = HighlightStyle.define([
   { tag: tags.heading, fontWeight: "700", color: "var(--foreground)" },
@@ -162,30 +169,34 @@ export function createNoteEditorState({
   placeholder,
   onChange,
   uploadImage,
+  wikiLinks,
 }: {
   doc: string;
   placeholder?: string;
   onChange: (value: string) => void;
   uploadImage?: (file: File) => Promise<{ url: string }>;
+  wikiLinks?: WikiLinkEditorOptions;
 }) {
-  return EditorState.create({
-    doc,
-    extensions: [
-      history(),
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-      // No codeLanguages — @codemirror/language-data loads every grammar and
-      // will freeze the tab on larger notes / fenced blocks.
-      markdown({ base: markdownLanguage }),
-      syntaxHighlighting(pworHighlight),
-      pworEditorTheme,
-      EditorView.lineWrapping,
-      placeholder ? placeholderExt(placeholder) : [],
-      uploadImage ? createImageUploadHandler(uploadImage) : [],
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          onChange(update.state.doc.toString());
-        }
-      }),
-    ],
-  });
+  const extensions: Extension[] = [
+    history(),
+    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+    // No codeLanguages — @codemirror/language-data loads every grammar and
+    // will freeze the tab on larger notes / fenced blocks.
+    markdown({ base: markdownLanguage }),
+    syntaxHighlighting(pworHighlight),
+    pworEditorTheme,
+    EditorView.lineWrapping,
+    placeholder ? placeholderExt(placeholder) : [],
+    createHtmlPasteHandler(),
+    createImagePreviewExtension(),
+    uploadImage ? createImageUploadHandler(uploadImage) : [],
+    wikiLinks ? createWikiLinkExtensions(wikiLinks) : [],
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        onChange(update.state.doc.toString());
+      }
+    }),
+  ];
+
+  return EditorState.create({ doc, extensions });
 }

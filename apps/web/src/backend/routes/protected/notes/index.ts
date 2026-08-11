@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
-import { note, noteImage } from "../../../db/schema";
+import { note, noteImage, workspace } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 import { deleteNoteImagesFromR2 } from "./cleanup";
 import {
@@ -30,6 +30,8 @@ const updateNoteSchema = z
     body: z.string().optional(),
     title: z.string().nullable().optional(),
     workspaceId: z.string().nullable().optional(),
+    /** Client's last-seen `updatedAt` (ISO or epoch ms). Required when saving body/title. */
+    expectedUpdatedAt: z.union([z.string(), z.number()]).optional(),
   })
   .refine(
     (value) =>
@@ -37,6 +39,14 @@ const updateNoteSchema = z
       value.title !== undefined ||
       value.workspaceId !== undefined,
     { message: "body, title, or workspaceId is required" },
+  )
+  .refine(
+    (value) => {
+      const touchesContent =
+        value.body !== undefined || value.title !== undefined;
+      return !touchesContent || value.expectedUpdatedAt !== undefined;
+    },
+    { message: "expectedUpdatedAt is required when updating body or title" },
   );
 
 function normalizeTitle(title: string | null | undefined) {
@@ -44,6 +54,29 @@ function normalizeTitle(title: string | null | undefined) {
   if (title === null) return null;
   const trimmed = title.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function toEpochMs(value: string | number | Date): number {
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
+async function assertOwnedWorkspace(
+  db: ReturnType<typeof createDb>,
+  workspaceId: string | null | undefined,
+  userId: string,
+) {
+  if (workspaceId == null) return;
+  const [row] = await db
+    .select({ id: workspace.id })
+    .from(workspace)
+    .where(ownedBy(workspace.id, workspaceId, workspace.userId, userId))
+    .limit(1);
+  if (!row) {
+    throw new HTTPException(400, { message: "Invalid workspace" });
+  }
 }
 
 const app = new Hono<AppEnv>()
@@ -74,6 +107,9 @@ const app = new Hono<AppEnv>()
     const user = c.get("user")!;
     const { body, title, workspaceId } = c.req.valid("json");
     const db = createDb(c.env.DB);
+
+    await assertOwnedWorkspace(db, workspaceId, user.id);
+
     const id = crypto.randomUUID();
 
     const [created] = await db
@@ -189,8 +225,31 @@ const app = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", updateNoteSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { body, title, workspaceId } = c.req.valid("json");
+    const { body, title, workspaceId, expectedUpdatedAt } = c.req.valid("json");
     const db = createDb(c.env.DB);
+
+    await assertOwnedWorkspace(db, workspaceId, user.id);
+
+    const [existing] = await db
+      .select()
+      .from(note)
+      .where(ownedBy(note.id, id, note.userId, user.id))
+      .limit(1);
+
+    if (!existing) throw new HTTPException(404, { message: "Not found" });
+
+    const touchesContent = body !== undefined || title !== undefined;
+    if (touchesContent) {
+      const expectedMs = toEpochMs(expectedUpdatedAt!);
+      const actualMs = toEpochMs(existing.updatedAt);
+      if (
+        Number.isNaN(expectedMs) ||
+        Number.isNaN(actualMs) ||
+        expectedMs !== actualMs
+      ) {
+        return c.json({ error: "conflict", note: existing }, 409);
+      }
+    }
 
     const normalizedTitle = normalizeTitle(title);
 

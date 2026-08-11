@@ -16,6 +16,23 @@ export type Note = NoteListItem & {
   workspaceId: string | null;
 };
 
+export class NoteConflictError extends Error {
+  readonly note: Note;
+
+  constructor(note: Note) {
+    super("Note was edited elsewhere");
+    this.name = "NoteConflictError";
+    this.note = note;
+  }
+}
+
+export function toEpochMs(value: string | Date | number): number {
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
 async function fetchNotes(workspaceId?: string): Promise<NoteListItem[]> {
   const params = new URLSearchParams();
   if (workspaceId) params.set("workspaceId", workspaceId);
@@ -60,15 +77,31 @@ export async function createNote(
 
 export async function updateNote(
   id: string,
-  patch: { body?: string; title?: string | null; workspaceId?: string | null },
+  patch: {
+    body?: string;
+    title?: string | null;
+    workspaceId?: string | null;
+    expectedUpdatedAt?: string | Date | number;
+  },
 ): Promise<Note> {
-  return parseJson<Note>(
-    await fetch(`/api/notes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+  const res = await fetch(`/api/notes/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...patch,
+      ...(patch.expectedUpdatedAt !== undefined
+        ? { expectedUpdatedAt: toEpochMs(patch.expectedUpdatedAt) }
+        : {}),
     }),
-  );
+  });
+
+  if (res.status === 409) {
+    const data = (await res.json()) as { error?: string; note?: Note };
+    if (data.note) throw new NoteConflictError(data.note);
+    throw new Error("Note conflict");
+  }
+
+  return parseJson<Note>(res);
 }
 
 export async function updateNoteProject(

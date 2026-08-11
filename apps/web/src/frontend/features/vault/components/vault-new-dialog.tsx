@@ -25,8 +25,10 @@ import {
 
 export function VaultNewButton({
   categoryId,
+  className,
 }: {
   categoryId?: string | null;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -35,7 +37,10 @@ export function VaultNewButton({
       <Button
         type="button"
         variant="new"
-        className="w-full"
+        className={cn(
+          "h-auto px-1.5 py-1 text-xs leading-none font-normal",
+          className,
+        )}
         onClick={() => setOpen(true)}
       >
         New

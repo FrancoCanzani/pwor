@@ -262,13 +262,10 @@ export function VaultSidebar({
         className,
       )}
     >
-      <div className="flex h-12 shrink-0 items-center px-4">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-2 px-4">
         <h1 className="text-xs leading-none font-normal text-muted-foreground">
           Vault
         </h1>
-      </div>
-
-      <div className="shrink-0 px-2 pb-2">
         <VaultNewButton categoryId={activeCategoryId} />
       </div>
 

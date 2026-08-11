@@ -27,7 +27,7 @@ import { useFloatingNote } from "@features/notes/floating-note-context";
 import type { NoteEditorMode } from "@features/notes/lib/cm-theme";
 import { useNoteDocumentSave } from "@features/notes/lib/use-note-document-save";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-import { EMPTY_NOTE_BODY } from "@shared/note-frontmatter";
+import { EMPTY_NOTE_BODY, noteDisplayTitle } from "@shared/note-frontmatter";
 
 const EDITOR_MODE_KEY = "pwor-note-editor-mode";
 const DEFAULT_WIDTH = 420;
@@ -56,9 +56,7 @@ function defaultPosition() {
 
 /** UI-only label when the note has no real title yet. */
 function displayTitle(title: string | null | undefined): string {
-  const trimmed = title?.trim();
-  if (!trimmed || trimmed === "tags: []") return "Untitled";
-  return trimmed;
+  return noteDisplayTitle(title);
 }
 
 function seedNotesList(
@@ -123,22 +121,16 @@ export function FloatingNoteHost({
   }, [noteId, workspaceId, queryClient]);
 
   return createPortal(
-    <>
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-40 bg-black/10 supports-backdrop-filter:backdrop-blur-[1px]"
-      />
-      <FloatingNoteShell onClose={onClose}>
-        {noteId ? (
-          <FloatingNoteContent key={noteId} noteId={noteId} onClose={onClose} />
-        ) : (
-          <FloatingNoteDraft
-            draftBodyRef={draftBodyRef}
-            onClose={onClose}
-          />
-        )}
-      </FloatingNoteShell>
-    </>,
+    <FloatingNoteShell onClose={onClose}>
+      {noteId ? (
+        <FloatingNoteContent key={noteId} noteId={noteId} onClose={onClose} />
+      ) : (
+        <FloatingNoteDraft
+          draftBodyRef={draftBodyRef}
+          onClose={onClose}
+        />
+      )}
+    </FloatingNoteShell>,
     document.body,
   );
 }

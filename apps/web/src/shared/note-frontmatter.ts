@@ -67,7 +67,15 @@ export function inferTitleFromRaw(raw: string): {
 export function normalizeNoteTitle(title: string | null | undefined): string | null {
   if (title == null) return null;
   const trimmed = title.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  if (trimmed.length === 0) return null;
+  // Guard against corrupted frontmatter leaking into the title column.
+  if (/^tags:\s*\[.*\]$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+/** Sidebar / chrome label — Untitled only when there is no real name. */
+export function noteDisplayTitle(title: string | null | undefined): string {
+  return normalizeNoteTitle(title) ?? "Untitled";
 }
 
 /** Ensure the editor document carries a title (and empty tags) when we only had a DB title. */
@@ -109,7 +117,8 @@ function getFrontmatterTitle(frontmatter: string | null): string | null {
   const match = frontmatter.match(/^title:\s*(.*)$/m);
   if (!match) return null;
   const value = parseYamlScalar(match[1] ?? "");
-  return value === "" ? null : value;
+  if (value === "" || /^tags:\s*\[/.test(value)) return null;
+  return value;
 }
 
 function getFrontmatterTags(frontmatter: string | null): string[] {

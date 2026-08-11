@@ -33,6 +33,7 @@ import {
 import { CreateWorkspaceDialog } from "@features/workspaces/components/create-workspace-dialog";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { noteDisplayTitle } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
 
 type RecentRow =
@@ -161,7 +162,7 @@ function SpaceRow({
       rows.push({
         key: `note:${note.id}`,
         kind: "note",
-        title: note.title?.trim() || "Untitled",
+        title: noteDisplayTitle(note.title),
         noteId: note.id,
         at: toEpochMs(note.updatedAt),
       });
@@ -230,10 +231,11 @@ function SpaceRow({
                     <SidebarMenuSubButton
                       size="sm"
                       isActive={active}
-                      className="h-6 w-full flex-1 text-[11px] font-normal text-muted-foreground"
+                      className="h-6 w-full justify-start gap-2 text-left text-[11px] font-normal text-muted-foreground"
                       render={
                         <button
                           type="button"
+                          className="flex w-full items-center justify-start text-left"
                           onClick={() => {
                             setStoredWorkspaceId(space.id);
                             if (!isActive) {
@@ -247,8 +249,10 @@ function SpaceRow({
                         />
                       }
                     >
-                      <span className="min-w-0 flex-1 truncate">{row.title}</span>
-                      <span className="ml-auto shrink-0 text-[10px] opacity-70">
+                      <span className="min-w-0 flex-1 truncate text-left">
+                        {row.title}
+                      </span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground opacity-70">
                         note
                       </span>
                     </SidebarMenuSubButton>
@@ -262,18 +266,21 @@ function SpaceRow({
                   <SidebarMenuSubButton
                     size="sm"
                     isActive={active}
-                    className="h-6 w-full flex-1 text-[11px] font-normal text-muted-foreground"
+                    className="h-6 w-full justify-start gap-2 text-left text-[11px] font-normal text-muted-foreground"
                     render={
                       <Link
                         to="/$workspaceId"
                         params={{ workspaceId: space.id }}
                         search={{ item: row.itemId }}
+                        className="flex w-full items-center justify-start text-left"
                         onClick={() => setStoredWorkspaceId(space.id)}
                       />
                     }
                   >
-                    <span className="min-w-0 flex-1 truncate">{row.title}</span>
-                    <span className="ml-auto shrink-0 text-[10px] opacity-70">
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {row.title}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground opacity-70">
                       {row.label}
                     </span>
                   </SidebarMenuSubButton>

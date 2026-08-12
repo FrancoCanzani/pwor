@@ -337,7 +337,7 @@ export function VaultViewer({
         showCloseButton={!isSnippet}
         className={cn(
           "max-w-[calc(100%-2rem)] overflow-hidden",
-          isSheet ? "gap-2 p-2 sm:max-w-5xl" : "sm:max-w-3xl",
+          isSheet || isLinkLike ? "gap-2 p-2 sm:max-w-5xl" : "sm:max-w-3xl",
         )}
       >
         {isSnippet ? (

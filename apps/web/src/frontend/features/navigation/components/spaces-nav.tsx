@@ -29,6 +29,7 @@ import {
   vaultItemsQueryOptions,
 } from "@features/vault/api";
 import { kindLabel } from "@features/vault/lib/list";
+import { feedsQueryOptions } from "@features/feeds/api";
 import {
   workspacesQueryOptions,
   type Workspace,
@@ -66,9 +67,11 @@ export function SpacesNav() {
   });
   const segments = pathname.split("/").filter(Boolean);
   const isInbox = segments[0] === "inbox";
+  const isFeeds = segments[0] === "feeds";
   const routeSpaceId =
     segments[0] &&
     segments[0] !== "inbox" &&
+    segments[0] !== "feeds" &&
     segments[0] !== "settings" &&
     segments[0] !== "onboarding"
       ? segments[0]
@@ -104,6 +107,12 @@ export function SpacesNav() {
 
   const { data: inboxList } = useQuery(inboxItemsQueryOptions());
   const inboxCount = inboxList?.items.length ?? 0;
+  const { data: feeds = [] } = useQuery(feedsQueryOptions());
+  const feedsUnread = feeds.reduce(
+    (sum, feed) => sum + (feed.unreadCount ?? 0),
+    0,
+  );
+  const activeFeedId = isFeeds ? segments[1] : null;
 
   return (
     <>
@@ -149,6 +158,61 @@ export function SpacesNav() {
                 isActive={space.id === routeSpaceId}
                 onSelect={() => selectSpace(space.id)}
               />
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup className="relative">
+        <SidebarGroupLabel className="mb-1.5 font-mono text-sm font-normal tracking-wide uppercase">
+          Feeds
+        </SidebarGroupLabel>
+        <SidebarGroupAction
+          aria-label="Add feed"
+          className="top-2.5 [&_svg]:size-4"
+          render={<Link to="/feeds" search={{ item: undefined }} />}
+        >
+          <PlusIcon />
+        </SidebarGroupAction>
+        <SidebarGroupContent className="pt-1.5">
+          <SidebarMenu className="gap-0.5">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={isFeeds && !activeFeedId}
+                render={<Link to="/feeds" search={{ item: undefined }} />}
+                className="font-normal"
+              >
+                <span className="truncate">All</span>
+                {feedsUnread > 0 ? (
+                  <span className="ml-auto font-nums text-xs text-muted-foreground">
+                    {feedsUnread}
+                  </span>
+                ) : null}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            {feeds.map((feed) => (
+              <SidebarMenuItem key={feed.id}>
+                <SidebarMenuButton
+                  isActive={activeFeedId === feed.id}
+                  render={
+                    <Link
+                      to="/feeds/$feedId"
+                      params={{ feedId: feed.id }}
+                      search={{ item: undefined }}
+                    />
+                  }
+                  className="font-normal"
+                >
+                  <span className="truncate">
+                    {feed.title?.trim() || feed.siteName || "Feed"}
+                  </span>
+                  {(feed.unreadCount ?? 0) > 0 ? (
+                    <span className="ml-auto font-nums text-xs text-muted-foreground">
+                      {feed.unreadCount}
+                    </span>
+                  ) : null}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             ))}
           </SidebarMenu>
         </SidebarGroupContent>

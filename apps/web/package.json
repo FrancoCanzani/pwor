@@ -48,6 +48,7 @@
     "codemirror": "^6.0.2",
     "cuelume": "^0.2.1",
     "drizzle-orm": "^0.45.2",
+    "fast-xml-parser": "^5",
     "hashvatar": "^0.1.2",
     "hono": "^4.12.32",
     "next-themes": "^0.4.6",

@@ -18,8 +18,10 @@ import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 import { useFloatingNote } from "@features/notes/floating-note-context";
 
-/** Destinations reachable without a workspace param. */
-const GLOBAL_NAV_ITEMS = [{ to: "/inbox", label: "Inbox" }] as const;
+const GLOBAL_NAV_ITEMS = [
+  { to: "/inbox", label: "Inbox" },
+  { to: "/feeds", label: "Feeds" },
+] as const;
 
 /** Every space destination shares a single `{ workspaceId }` param. */
 const SPACE_NAV_ITEMS = [

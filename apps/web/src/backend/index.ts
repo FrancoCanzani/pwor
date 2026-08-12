@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 
 import { handleInboundEmail } from "./email";
 import { createAuth } from "./lib/auth";
+import { syncAllFeeds } from "./lib/feed-sync";
 import {
   authMiddleware,
   requireAuthUnlessPublic,
@@ -67,6 +68,7 @@ export default {
 
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
     await cleanupOrphanNoteImages(env);
+    await syncAllFeeds(env);
   },
 
   async email(

@@ -49,12 +49,13 @@ export function VaultDropZone() {
 
       let notesChanged = false;
       let vaultChanged = false;
+      const spaceId = workspaceId ?? null;
 
       await Promise.all(
         list.map(async (file) => {
           const toastId = toast.loading(`Adding ${file.name}…`);
           try {
-            if (isMarkdownFile(file)) {
+            if (isMarkdownFile(file) && spaceId) {
               const raw = await file.text();
               const inferred = inferTitleFromRaw(raw).title;
               const fallbackTitle = file.name.replace(/\.md$/i, "");
@@ -62,7 +63,7 @@ export function VaultDropZone() {
               const body = inferred
                 ? raw
                 : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-              await createNote(body, title, workspaceId);
+              await createNote(body, title, spaceId);
               notesChanged = true;
               toast.success(`${file.name} added as note`, { id: toastId });
               return;
@@ -75,16 +76,36 @@ export function VaultDropZone() {
                 language:
                   languageFromFilename(file.name) ||
                   inferLanguageFromContent(content),
-                workspaceId,
+                workspaceId: spaceId,
               });
               vaultChanged = true;
-              toast.success(`${file.name} added as snippet`, { id: toastId });
+              toast.success(
+                spaceId
+                  ? `${file.name} added as snippet`
+                  : `${file.name} saved to Inbox`,
+                { id: toastId },
+              );
               return;
             }
 
-            await uploadVaultItem(file, workspaceId);
+            if (isMarkdownFile(file)) {
+              const raw = await file.text();
+              await createVaultSnippet(dedentCode(raw), {
+                title: file.name.replace(/\.md$/i, "") || file.name,
+                language: "markdown",
+                workspaceId: null,
+              });
+              vaultChanged = true;
+              toast.success(`${file.name} saved to Inbox`, { id: toastId });
+              return;
+            }
+
+            await uploadVaultItem(file, spaceId);
             vaultChanged = true;
-            toast.success(`${file.name} added`, { id: toastId });
+            toast.success(
+              spaceId ? `${file.name} added` : `${file.name} saved to Inbox`,
+              { id: toastId },
+            );
           } catch {
             toast.error(`Failed to add ${file.name}`, { id: toastId });
           }
@@ -153,7 +174,7 @@ export function VaultDropZone() {
       {isDraggingOver ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center border border-dashed border-foreground/20 bg-background/80">
           <p className="text-sm text-muted-foreground">
-            Drop to add to this space
+            {workspaceId ? "Drop to add to this space" : "Drop to save to Inbox"}
           </p>
         </div>
       ) : null}

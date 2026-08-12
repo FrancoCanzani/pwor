@@ -1,8 +1,6 @@
 import {
   capture,
   getStoredUser,
-  getStoredWorkspaceId,
-  listWorkspaces,
 } from "../lib/api";
 import { STORAGE_KEYS } from "../lib/config";
 
@@ -11,12 +9,12 @@ export default defineBackground(() => {
     void browser.contextMenus.removeAll().then(() => {
       browser.contextMenus.create({
         id: "pwor-save-page",
-        title: "Save to Pwor",
+        title: "Save to Pwor Inbox",
         contexts: ["page", "link"],
       });
       browser.contextMenus.create({
         id: "pwor-save-selection",
-        title: "Save selection to Pwor",
+        title: "Save selection to Pwor Inbox",
         contexts: ["selection"],
       });
     });
@@ -27,13 +25,11 @@ export default defineBackground(() => {
       const user = await getStoredUser();
       if (!user) return;
 
-      const preferred = await getStoredWorkspaceId();
       try {
         if (info.menuItemId === "pwor-save-selection" && info.selectionText) {
           await capture({
             input: info.selectionText,
-            workspaceId: preferred,
-            preferredWorkspaceId: preferred,
+            workspaceId: null,
           });
           return;
         }
@@ -42,8 +38,7 @@ export default defineBackground(() => {
         if (!url) return;
         await capture({
           input: url,
-          workspaceId: preferred,
-          preferredWorkspaceId: preferred,
+          workspaceId: null,
         });
       } catch (error) {
         console.error("context menu capture failed", error);
@@ -61,18 +56,10 @@ export default defineBackground(() => {
       if (!tab?.url) return;
       const user = await getStoredUser();
       if (!user) return;
-      const preferred = await getStoredWorkspaceId();
       try {
-        const spaces = await listWorkspaces();
-        const workspaceId =
-          (preferred && spaces.some((space) => space.id === preferred)
-            ? preferred
-            : spaces[0]?.id) ?? null;
-        if (!workspaceId) return;
         await capture({
           input: tab.url,
-          workspaceId,
-          preferredWorkspaceId: preferred,
+          workspaceId: null,
         });
       } catch (error) {
         console.error("hotkey capture failed", error);
@@ -92,7 +79,6 @@ export default defineBackground(() => {
             return;
           }
 
-          const preferred = await getStoredWorkspaceId();
           const settings = await browser.storage.local.get([
             STORAGE_KEYS.saveOnBookmark,
           ]);
@@ -106,26 +92,15 @@ export default defineBackground(() => {
 
           const item = await capture({
             input: message.url as string,
-            autoSpace: true,
+            workspaceId: null,
             hint: (message.hint as string | undefined) ?? null,
             tags: ["x", "bookmark"],
-            preferredWorkspaceId: preferred,
           });
-
-          let spaceName = "space";
-          try {
-            const spaces = await listWorkspaces();
-            spaceName =
-              spaces.find((space) => space.id === item.workspaceId)?.name ??
-              spaceName;
-          } catch {
-            // ignore name lookup failures
-          }
 
           sendResponse({
             ok: true,
             workspaceId: item.workspaceId,
-            spaceName,
+            spaceName: "Inbox",
           });
         } catch (error) {
           sendResponse({

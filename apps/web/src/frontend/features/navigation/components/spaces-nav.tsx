@@ -24,7 +24,10 @@ import {
 import { SpacePic } from "@features/navigation/components/space-pic";
 import { notesQueryOptions } from "@features/notes/api";
 import { useFloatingNote } from "@features/notes/floating-note-context";
-import { vaultItemsQueryOptions } from "@features/vault/api";
+import {
+  inboxItemsQueryOptions,
+  vaultItemsQueryOptions,
+} from "@features/vault/api";
 import { kindLabel } from "@features/vault/lib/list";
 import {
   workspacesQueryOptions,
@@ -32,7 +35,6 @@ import {
 } from "@features/workspaces/api";
 import { CreateWorkspaceDialog } from "@features/workspaces/components/create-workspace-dialog";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 import { noteDisplayTitle } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
 
@@ -57,21 +59,27 @@ export function SpacesNav() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
-  const { id: currentId } = useCurrentWorkspace();
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
 
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
   const segments = pathname.split("/").filter(Boolean);
-  const activeSpaceId = segments[0] || currentId;
+  const isInbox = segments[0] === "inbox";
+  const routeSpaceId =
+    segments[0] &&
+    segments[0] !== "inbox" &&
+    segments[0] !== "settings" &&
+    segments[0] !== "onboarding"
+      ? segments[0]
+      : null;
 
   const ordered = useMemo(() => {
-    if (!activeSpaceId) return spaces;
-    const current = spaces.find((space) => space.id === activeSpaceId);
-    const rest = spaces.filter((space) => space.id !== activeSpaceId);
+    if (!routeSpaceId) return spaces;
+    const current = spaces.find((space) => space.id === routeSpaceId);
+    const rest = spaces.filter((space) => space.id !== routeSpaceId);
     return current ? [current, ...rest] : spaces;
-  }, [spaces, activeSpaceId]);
+  }, [spaces, routeSpaceId]);
 
   function selectSpace(id: string) {
     setStoredWorkspaceId(id);
@@ -94,8 +102,32 @@ export function SpacesNav() {
     });
   }
 
+  const { data: inboxList } = useQuery(inboxItemsQueryOptions());
+  const inboxCount = inboxList?.items.length ?? 0;
+
   return (
     <>
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={isInbox}
+                render={<Link to="/inbox" />}
+                className="font-normal"
+              >
+                <span className="truncate">Inbox</span>
+                {inboxCount > 0 ? (
+                  <span className="ml-auto font-nums text-xs text-muted-foreground">
+                    {inboxCount}
+                  </span>
+                ) : null}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
       <SidebarGroup className="relative">
         <SidebarGroupLabel className="mb-1.5 font-mono text-sm font-normal tracking-wide uppercase">
           Spaces
@@ -114,7 +146,7 @@ export function SpacesNav() {
               <SpaceRow
                 key={space.id}
                 space={space}
-                isActive={space.id === activeSpaceId}
+                isActive={space.id === routeSpaceId}
                 onSelect={() => selectSpace(space.id)}
               />
             ))}

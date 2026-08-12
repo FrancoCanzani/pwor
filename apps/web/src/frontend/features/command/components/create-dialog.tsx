@@ -78,7 +78,6 @@ export function CreateDialog({
 
   const captureMutation = useMutation({
     mutationFn: async () => {
-      if (!workspaceId) throw new Error("No space selected");
       const trimmed = captureInput.trim();
       if (looksLikeCode(trimmed)) {
         const content = dedentCode(trimmed);
@@ -86,16 +85,16 @@ export function CreateDialog({
         return createVaultSnippet(content, {
           title: title.trim() || titleFromSnippet(content, language),
           language,
-          workspaceId,
+          workspaceId: null,
         });
       }
-      return captureVaultInput(trimmed, workspaceId, null, {
+      return captureVaultInput(trimmed, null, null, {
         title: captureTitle.trim() || null,
       });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
-      toast.success(codeMode ? "Snippet added" : "Added");
+      toast.success(codeMode ? "Snippet added" : "Saved to Inbox");
       onOpenChange(false);
     },
     onError: () => toast.error("Couldn’t add item"),
@@ -105,10 +104,6 @@ export function CreateDialog({
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0 || busy) return;
-    if (!workspaceId) {
-      toast.error("Open a space first");
-      return;
-    }
     const list = Array.from(files);
     setUploading(true);
     try {
@@ -117,14 +112,21 @@ export function CreateDialog({
         try {
           if (isMarkdownFile(file)) {
             const raw = await file.text();
-            const inferred = inferTitleFromRaw(raw).title;
-            const fallbackTitle = file.name.replace(/\.md$/i, "");
-            const noteTitle = inferred || fallbackTitle;
-            const body = inferred
-              ? raw
-              : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-            await createNote(body, noteTitle, workspaceId);
-            toast.success(`${file.name} added as note`, { id: toastId });
+            if (workspaceId) {
+              const inferred = inferTitleFromRaw(raw).title;
+              const fallbackTitle = file.name.replace(/\.md$/i, "");
+              const noteTitle = inferred || fallbackTitle;
+              const body = inferred
+                ? raw
+                : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
+              await createNote(body, noteTitle, workspaceId);
+              toast.success(`${file.name} added as note`, { id: toastId });
+            } else {
+              await captureVaultInput(raw, null, null, {
+                title: file.name.replace(/\.md$/i, "") || null,
+              });
+              toast.success(`${file.name} saved to Inbox`, { id: toastId });
+            }
           } else if (isCodeSnippetFile(file)) {
             const content = dedentCode(await file.text());
             await createVaultSnippet(content, {
@@ -132,12 +134,12 @@ export function CreateDialog({
               language:
                 languageFromFilename(file.name) ||
                 inferLanguageFromContent(content),
-              workspaceId,
+              workspaceId: null,
             });
             toast.success(`${file.name} added as snippet`, { id: toastId });
           } else {
-            await uploadVaultItem(file, workspaceId);
-            toast.success(`${file.name} added`, { id: toastId });
+            await uploadVaultItem(file, null);
+            toast.success(`${file.name} saved to Inbox`, { id: toastId });
           }
         } catch {
           toast.error(`Failed to add ${file.name}`, { id: toastId });
@@ -204,7 +206,7 @@ export function CreateDialog({
           />
           <button
             type="button"
-            disabled={busy || !workspaceId}
+            disabled={busy}
             onClick={() => fileRef.current?.click()}
             className={cn(
               "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-xs text-muted-foreground hover:border-foreground/30 hover:text-foreground",
@@ -223,7 +225,7 @@ export function CreateDialog({
             </Button>
             <Button
               type="submit"
-              disabled={!captureInput.trim() || busy || !workspaceId}
+              disabled={!captureInput.trim() || busy}
             >
               {captureMutation.isPending
                 ? codeMode

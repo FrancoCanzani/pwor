@@ -30,6 +30,11 @@ import type { AppEnv } from "../../../types";
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
+  /** When true, only items not filed into a space (the Inbox). */
+  inbox: z
+    .union([z.literal("1"), z.literal("true"), z.literal("0"), z.literal("false")])
+    .optional()
+    .transform((value) => value === "1" || value === "true"),
 });
 
 const updateVaultItemSchema = z
@@ -463,11 +468,15 @@ const app = new Hono<AppEnv>()
 
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { workspaceId } = c.req.valid("query");
+    const { workspaceId, inbox } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(vaultItem.userId, user.id)];
-    if (workspaceId) conditions.push(eq(vaultItem.workspaceId, workspaceId));
+    if (inbox) {
+      conditions.push(isNull(vaultItem.workspaceId));
+    } else if (workspaceId) {
+      conditions.push(eq(vaultItem.workspaceId, workspaceId));
+    }
 
     const rows = await db
       .select()

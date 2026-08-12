@@ -5,14 +5,11 @@ import {
   clearSession,
   fetchMe,
   getStoredUser,
-  getStoredWorkspaceId,
-  listWorkspaces,
   pollLink,
   setSession,
-  setStoredWorkspaceId,
   startLink,
 } from "../../lib/api";
-import { APP_URL, STORAGE_KEYS, type Workspace } from "../../lib/config";
+import { APP_URL, STORAGE_KEYS } from "../../lib/config";
 import { cn } from "../../lib/utils";
 
 type PageInfo = {
@@ -73,8 +70,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [linking, setLinking] = useState(false);
   const [page, setPage] = useState<PageInfo | null>(null);
-  const [spaces, setSpaces] = useState<Workspace[]>([]);
-  const [workspaceId, setWorkspaceId] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -111,14 +106,6 @@ export default function App() {
         }
 
         setEmail(me.email);
-        const items = await listWorkspaces();
-        setSpaces(items);
-        const stored = await getStoredWorkspaceId();
-        const initial =
-          (stored && items.some((item) => item.id === stored)
-            ? stored
-            : items[0]?.id) ?? "";
-        setWorkspaceId(initial);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load");
       } finally {
@@ -141,11 +128,6 @@ export default function App() {
         if (result.status === "approved") {
           await setSession(result.apiKey, result.user);
           setEmail(result.user.email);
-          const items = await listWorkspaces();
-          setSpaces(items);
-          const initial = items[0]?.id ?? "";
-          setWorkspaceId(initial);
-          if (initial) await setStoredWorkspaceId(initial);
           setLinking(false);
           return;
         }
@@ -163,28 +145,24 @@ export default function App() {
   async function handleSignOut() {
     await clearSession();
     setEmail(null);
-    setSpaces([]);
-    setWorkspaceId("");
     setStatus(null);
   }
 
   async function handleSave(kind: "page" | "selection") {
-    if (!page?.url || !workspaceId) return;
+    if (!page?.url) return;
     setBusy(true);
     setError(null);
     setStatus(null);
     try {
-      const space = spaces.find((item) => item.id === workspaceId);
       if (kind === "selection") {
         if (!page.selection.trim()) {
           throw new Error("Nothing selected on the page.");
         }
-        await capture({ input: page.selection, workspaceId });
+        await capture({ input: page.selection, workspaceId: null });
       } else {
-        await capture({ input: page.url, workspaceId });
+        await capture({ input: page.url, workspaceId: null });
       }
-      await setStoredWorkspaceId(workspaceId);
-      setStatus(`Saved to ${space?.name ?? "space"}`);
+      setStatus("Saved to Inbox");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -216,7 +194,7 @@ export default function App() {
           Pwor
         </h1>
         <p className="mt-1.5 text-xs text-muted-foreground">
-          Capture the web into your spaces.
+          Capture the web into your Inbox.
         </p>
         {error ? (
           <p className="mt-3 text-xs text-destructive">{error}</p>
@@ -246,34 +224,13 @@ export default function App() {
   return (
     <div className="flex min-h-[280px] flex-col p-4">
       <h1 className="mb-3 font-pixel text-base font-normal tracking-tight">
-        Save to Pwor
+        Save to Inbox
       </h1>
 
-      <div className="mb-3 min-w-0">
+      <div className="mb-4 min-w-0">
         <div className="truncate text-xs">{page?.title || "This page"}</div>
         <div className="truncate text-xs text-muted-foreground">{host}</div>
       </div>
-
-      <label className="mb-1 text-xs text-muted-foreground">Space</label>
-      <select
-        className="mb-4 h-7 w-full rounded-md border border-input bg-background px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
-        value={workspaceId}
-        onChange={(event) => {
-          setWorkspaceId(event.target.value);
-          void setStoredWorkspaceId(event.target.value);
-        }}
-        disabled={spaces.length === 0}
-      >
-        {spaces.length === 0 ? (
-          <option value="">No spaces yet</option>
-        ) : (
-          spaces.map((space) => (
-            <option key={space.id} value={space.id}>
-              {space.name}
-            </option>
-          ))
-        )}
-      </select>
 
       {error ? <p className="mb-2 text-xs text-destructive">{error}</p> : null}
       {status ? <p className="mb-2 text-xs">{status}</p> : null}
@@ -281,7 +238,7 @@ export default function App() {
       <Button
         type="button"
         className="w-full"
-        disabled={busy || !workspaceId || !page?.url}
+        disabled={busy || !page?.url}
         onClick={() => void handleSave("page")}
       >
         {busy ? "Saving…" : "Save page"}
@@ -292,7 +249,7 @@ export default function App() {
           type="button"
           variant="outline"
           className="flex-1"
-          disabled={busy || !workspaceId || !page?.selection.trim()}
+          disabled={busy || !page?.selection.trim()}
           onClick={() => void handleSave("selection")}
         >
           Save selection
@@ -301,11 +258,8 @@ export default function App() {
           type="button"
           variant="outline"
           className="flex-1"
-          disabled={!workspaceId}
           onClick={() => {
-            void browser.tabs.create({
-              url: workspaceId ? `${APP_URL}/${workspaceId}/vault` : APP_URL,
-            });
+            void browser.tabs.create({ url: `${APP_URL}/inbox` });
           }}
         >
           Open

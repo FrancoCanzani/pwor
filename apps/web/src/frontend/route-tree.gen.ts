@@ -15,6 +15,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppWorkspaceIdRouteImport } from './routes/_app/$workspaceId'
 import { Route as ExtensionLinkRouteImport } from './routes/extension/link'
 import { Route as AppWorkspaceIdIndexRouteImport } from './routes/_app/$workspaceId/index'
+import { Route as AppInboxIndexRouteImport } from './routes/_app/inbox/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppWorkspaceIdVaultIndexRouteImport } from './routes/_app/$workspaceId/vault/index'
@@ -48,6 +49,11 @@ const AppWorkspaceIdIndexRoute = AppWorkspaceIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppWorkspaceIdRoute,
 } as any)
+const AppInboxIndexRoute = AppInboxIndexRouteImport.update({
+  id: '/inbox/',
+  path: '/inbox/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   id: '/onboarding/',
   path: '/onboarding/',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/$workspaceId': typeof AppWorkspaceIdRouteWithChildren
   '/extension/link': typeof ExtensionLinkRoute
   '/$workspaceId/': typeof AppWorkspaceIdIndexRoute
+  '/inbox/': typeof AppInboxIndexRoute
   '/onboarding/': typeof AppOnboardingIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/extension/link': typeof ExtensionLinkRoute
   '/': typeof AppIndexRoute
   '/$workspaceId': typeof AppWorkspaceIdIndexRoute
+  '/inbox': typeof AppInboxIndexRoute
   '/onboarding': typeof AppOnboardingIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/$workspaceId/vault': typeof AppWorkspaceIdVaultIndexRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/extension/link': typeof ExtensionLinkRoute
   '/_app/': typeof AppIndexRoute
   '/_app/$workspaceId/': typeof AppWorkspaceIdIndexRoute
+  '/_app/inbox/': typeof AppInboxIndexRoute
   '/_app/onboarding/': typeof AppOnboardingIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '/$workspaceId'
     | '/extension/link'
     | '/$workspaceId/'
+    | '/inbox/'
     | '/onboarding/'
     | '/settings/'
     | '/$workspaceId/vault/'
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/extension/link'
     | '/'
     | '/$workspaceId'
+    | '/inbox'
     | '/onboarding'
     | '/settings'
     | '/$workspaceId/vault'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/extension/link'
     | '/_app/'
     | '/_app/$workspaceId/'
+    | '/_app/inbox/'
     | '/_app/onboarding/'
     | '/_app/settings/'
     | '/_app/$workspaceId/vault/'
@@ -179,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceIdIndexRouteImport
       parentRoute: typeof AppWorkspaceIdRoute
     }
+    '/_app/inbox/': {
+      id: '/_app/inbox/'
+      path: '/inbox'
+      fullPath: '/inbox/'
+      preLoaderRoute: typeof AppInboxIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/onboarding/': {
       id: '/_app/onboarding/'
       path: '/onboarding'
@@ -220,6 +239,7 @@ const AppWorkspaceIdRouteWithChildren = AppWorkspaceIdRoute._addFileChildren(
 interface AppRouteChildren {
   AppWorkspaceIdRoute: typeof AppWorkspaceIdRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppInboxIndexRoute: typeof AppInboxIndexRoute
   AppOnboardingIndexRoute: typeof AppOnboardingIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
@@ -227,6 +247,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppWorkspaceIdRoute: AppWorkspaceIdRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppInboxIndexRoute: AppInboxIndexRoute,
   AppOnboardingIndexRoute: AppOnboardingIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }

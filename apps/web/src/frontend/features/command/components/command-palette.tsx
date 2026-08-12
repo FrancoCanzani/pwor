@@ -18,8 +18,11 @@ import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 import { useFloatingNote } from "@features/notes/floating-note-context";
 
-/** Every destination shares a single `{ workspaceId }` param, keeping `navigate` type-safe across the union. */
-const NAV_ITEMS = [
+/** Destinations reachable without a workspace param. */
+const GLOBAL_NAV_ITEMS = [{ to: "/inbox", label: "Inbox" }] as const;
+
+/** Every space destination shares a single `{ workspaceId }` param. */
+const SPACE_NAV_ITEMS = [
   { to: "/$workspaceId", label: "Library" },
   { to: "/$workspaceId/vault", label: "Vault" },
 ] as const;
@@ -74,38 +77,47 @@ export function CommandPalette() {
       run();
     }
 
-    if (currentWorkspaceId) {
-      const jumps: Omit<PaletteItem, "index">[] = [
-        ...NAV_ITEMS.map((item) => ({
-          id: `nav:${item.to}`,
-          label: item.label,
+    const jumps: Omit<PaletteItem, "index">[] = [
+      ...GLOBAL_NAV_ITEMS.map((item) => ({
+        id: `nav:${item.to}`,
+        label: item.label,
+        run: () => {
+          setOpen(false);
+          setQuery("");
+          void navigate({ to: item.to });
+        },
+      })),
+      ...(currentWorkspaceId
+        ? SPACE_NAV_ITEMS.map((item) => ({
+            id: `nav:${item.to}`,
+            label: item.label,
+            run: () =>
+              select(currentWorkspaceId, () =>
+                navigate({
+                  to: item.to,
+                  params: { workspaceId: currentWorkspaceId },
+                }),
+              ),
+          }))
+        : []),
+      ...workspaces
+        .filter((workspace) => workspace.id !== currentWorkspaceId)
+        .map((workspace) => ({
+          id: `workspace:${workspace.id}`,
+          label: workspace.name,
+          meta: "Space",
           run: () =>
-            select(currentWorkspaceId, () =>
+            select(workspace.id, () =>
               navigate({
-                to: item.to,
-                params: { workspaceId: currentWorkspaceId },
+                to: "/$workspaceId",
+                params: { workspaceId: workspace.id },
               }),
             ),
         })),
-        ...workspaces
-          .filter((workspace) => workspace.id !== currentWorkspaceId)
-          .map((workspace) => ({
-            id: `workspace:${workspace.id}`,
-            label: workspace.name,
-            meta: "Workspace",
-            run: () =>
-              select(workspace.id, () =>
-                navigate({
-                  to: "/$workspaceId",
-                  params: { workspaceId: workspace.id },
-                }),
-              ),
-          })),
-      ];
+    ];
 
-      const matched = term ? rank(jumps, term) : jumps;
-      if (matched.length > 0) groups.push({ label: "Go to", items: matched });
-    }
+    const matched = term ? rank(jumps, term) : jumps;
+    if (matched.length > 0) groups.push({ label: "Go to", items: matched });
 
     for (const kind of KIND_ORDER) {
       const matches = hits.filter((hit) => hit.kind === kind);
@@ -119,6 +131,15 @@ export function CommandPalette() {
           detail: hit.snippet,
           meta: workspaceLabel(hit, currentWorkspaceId, workspaces),
           run: () => {
+            if (hit.kind === "vault_item" && !hit.workspaceId) {
+              setOpen(false);
+              setQuery("");
+              void navigate({
+                to: "/inbox",
+                search: { item: hit.id },
+              });
+              return;
+            }
             const workspaceId = hit.workspaceId ?? currentWorkspaceId;
             if (!workspaceId) return;
             select(workspaceId, () => {
@@ -317,7 +338,7 @@ function workspaceLabel(
   currentWorkspaceId: string | undefined,
   workspaces: { id: string; name: string }[],
 ) {
-  if (!hit.workspaceId || hit.workspaceId === currentWorkspaceId)
-    return undefined;
+  if (!hit.workspaceId) return hit.kind === "vault_item" ? "Inbox" : undefined;
+  if (hit.workspaceId === currentWorkspaceId) return undefined;
   return workspaces.find((workspace) => workspace.id === hit.workspaceId)?.name;
 }

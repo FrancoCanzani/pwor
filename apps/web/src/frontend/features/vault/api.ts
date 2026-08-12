@@ -36,9 +36,13 @@ export type VaultList = {
   totalBytes: number;
 };
 
-async function fetchVaultItems(workspaceId?: string): Promise<VaultList> {
+async function fetchVaultItems(options?: {
+  workspaceId?: string;
+  inbox?: boolean;
+}): Promise<VaultList> {
   const params = new URLSearchParams();
-  if (workspaceId) params.set("workspaceId", workspaceId);
+  if (options?.inbox) params.set("inbox", "1");
+  else if (options?.workspaceId) params.set("workspaceId", options.workspaceId);
   const query = params.toString();
   return parseJson<VaultList>(
     await fetch(`/api/vault${query ? `?${query}` : ""}`),
@@ -48,7 +52,14 @@ async function fetchVaultItems(workspaceId?: string): Promise<VaultList> {
 export function vaultItemsQueryOptions(workspaceId?: string) {
   return queryOptions({
     queryKey: ["vault", "items", workspaceId] as const,
-    queryFn: () => fetchVaultItems(workspaceId),
+    queryFn: () => fetchVaultItems({ workspaceId }),
+  });
+}
+
+export function inboxItemsQueryOptions() {
+  return queryOptions({
+    queryKey: ["vault", "items", "inbox"] as const,
+    queryFn: () => fetchVaultItems({ inbox: true }),
   });
 }
 

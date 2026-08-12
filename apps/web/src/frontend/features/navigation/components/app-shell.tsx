@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import { CreateDialog } from "@features/command/components/create-dialog";
 import { CreateDialogProvider } from "@features/command/create-dialog-context";
+import { PasteCapture } from "@features/inbox/components/paste-capture";
 import {
   NavUser,
   type ShellUser,
@@ -47,7 +48,6 @@ export function AppShell({
   const [floatingNoteId, setFloatingNoteId] = useState<string | null>(null);
 
   function openCreate() {
-    if (!workspaceId) return;
     setCreateOpen(true);
   }
 
@@ -80,6 +80,7 @@ export function AppShell({
             className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
           >
             <CommandPalette />
+            <PasteCapture />
             <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
             {floatingOpen ? (
               <FloatingNoteHost

@@ -19,6 +19,8 @@ export type VaultItem = {
   categoryId: string | null;
   workspaceId: string | null;
   parseStatus: VaultParseStatus | null;
+  /** True when a full-page site screenshot is available. */
+  hasPreview?: boolean;
   sizeBytes?: number | null;
   createdAt: string;
 };

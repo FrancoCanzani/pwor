@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "customer-web",
   "main": "src/backend/index.ts",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2026-03-24",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "dist/client",
@@ -29,6 +29,9 @@
   ],
   "ai": {
     "binding": "AI",
+  },
+  "browser": {
+    "binding": "BROWSER",
   },
   "triggers": {
     "crons": ["0 6 * * *"],

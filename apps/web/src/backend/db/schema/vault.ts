@@ -49,6 +49,8 @@ export const vaultItem = sqliteTable("vault_item", {
   siteName: text("site_name"),
   content: text("content"),
   extractedMarkdown: text("extracted_markdown"),
+  /** Full-page site screenshot in R2 (links). */
+  previewR2Key: text("preview_r2_key"),
   parseStatus: text("parse_status", {
     enum: ["pending", "ready", "failed", "skipped"],
   }),

@@ -7,6 +7,7 @@ import { createDb } from "../db";
 import { vaultItem } from "../db/schema";
 import { fetchPageMetadata, normalizeVaultKind } from "./vault-capture";
 import { extractVaultItemMarkdown } from "./vault-markdown";
+import { storeSiteScreenshot } from "./vault-screenshot";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
@@ -70,6 +71,20 @@ export async function enrichVaultItem(
       [page.description, page.text].filter(Boolean).join("\n\n") ||
       item.content;
 
+    let previewR2Key = item.previewR2Key;
+    if (!previewR2Key) {
+      try {
+        previewR2Key = await storeSiteScreenshot(
+          env,
+          item.userId,
+          vaultItemId,
+          item.url,
+        );
+      } catch (error) {
+        console.error("link preview screenshot failed", vaultItemId, error);
+      }
+    }
+
     await db
       .update(vaultItem)
       .set({
@@ -78,6 +93,7 @@ export async function enrichVaultItem(
         siteName,
         summary,
         content,
+        ...(previewR2Key ? { previewR2Key } : {}),
       })
       .where(eq(vaultItem.id, vaultItemId));
 
@@ -88,6 +104,7 @@ export async function enrichVaultItem(
       siteName,
       summary,
       content,
+      previewR2Key: previewR2Key ?? item.previewR2Key,
     };
   }
 

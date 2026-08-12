@@ -28,6 +28,7 @@ import { SnippetViewer } from "@features/vault/components/snippet-viewer";
 import { kindLabel } from "@features/vault/lib/list";
 import { isTextPreviewable } from "@features/vault/lib/preview";
 import { isSheetPreviewable } from "@features/vault/lib/sheet";
+import { SitePreviewSheet } from "@features/vault/components/site-preview-sheet";
 import { inferLanguageFromContent } from "@shared/infer-language";
 import {
   dedentCode,
@@ -82,35 +83,7 @@ function LinkPreview({
   item: VaultItem;
   content: string | null;
 }) {
-  return (
-    <div className="flex max-h-[70vh] flex-col gap-3 overflow-auto">
-      {item.url ? (
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noreferrer"
-          className="truncate text-xs text-muted-foreground underline"
-        >
-          {item.url}
-        </a>
-      ) : null}
-      {item.summary ? (
-        <p className="text-sm text-foreground">{item.summary}</p>
-      ) : null}
-      {item.tags && item.tags.length > 0 ? (
-        <p className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {item.tags.map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
-        </p>
-      ) : null}
-      {content ? (
-        <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
-          {content}
-        </pre>
-      ) : null}
-    </div>
-  );
+  return <SitePreviewSheet item={item} content={content} />;
 }
 
 export function VaultViewer({
@@ -150,6 +123,12 @@ export function VaultViewer({
   const { data: detail, isPending: detailPending } = useQuery({
     ...vaultItemQueryOptions(item.id),
     enabled: open && (isTextItem || isLinkLike || isSnippet),
+    refetchInterval: (query) => {
+      if (!isLinkLike) return false;
+      const data = query.state.data;
+      if (data?.parseStatus === "pending" && !data.hasPreview) return 2500;
+      return false;
+    },
   });
 
   const { data: fileText, isPending: textPending } = useQuery({
@@ -185,6 +164,8 @@ export function VaultViewer({
         tags: detail.tags ?? item.tags,
         url: detail.url ?? item.url,
         language: detail.language ?? item.language,
+        hasPreview: detail.hasPreview ?? item.hasPreview,
+        parseStatus: detail.parseStatus ?? item.parseStatus,
       }
     : item;
 

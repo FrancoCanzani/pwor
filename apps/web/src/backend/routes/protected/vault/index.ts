@@ -104,8 +104,17 @@ const categoriesQuerySchema = z.object({
   workspaceId: z.string().optional(),
 });
 
-function serializeVaultItem<T extends { kind: string }>(item: T) {
-  return { ...item, kind: normalizeVaultKind(item.kind) };
+function serializeVaultItem<T extends { kind: string; previewR2Key?: string | null }>(
+  item: T,
+) {
+  const { previewR2Key, ...rest } = item as T & {
+    previewR2Key?: string | null;
+  };
+  return {
+    ...rest,
+    kind: normalizeVaultKind(item.kind),
+    hasPreview: Boolean(previewR2Key),
+  };
 }
 
 async function assertCategoryForWorkspace(
@@ -589,6 +598,7 @@ const app = new Hono<AppEnv>()
 
     await db.delete(vaultItem).where(eq(vaultItem.id, id));
     if (item.r2Key) await c.env.VAULT_BUCKET.delete(item.r2Key);
+    if (item.previewR2Key) await c.env.VAULT_BUCKET.delete(item.previewR2Key);
 
     return c.json({ id });
   })
@@ -637,6 +647,39 @@ const app = new Hono<AppEnv>()
 
     return new Response(object.body, {
       headers: { "Content-Type": item.mimeType },
+    });
+  })
+
+  .get("/:id/preview", async (c) => {
+    const user = c.get("user")!;
+    const id = c.req.param("id");
+    const db = createDb(c.env.DB);
+
+    const [item] = await db
+      .select({
+        id: vaultItem.id,
+        previewR2Key: vaultItem.previewR2Key,
+      })
+      .from(vaultItem)
+      .where(ownedBy(vaultItem.id, id, vaultItem.userId, user.id))
+      .limit(1);
+
+    if (!item?.previewR2Key) {
+      throw new HTTPException(404, { message: "Not found" });
+    }
+
+    const object = await c.env.VAULT_BUCKET.get(item.previewR2Key);
+    if (!object) throw new HTTPException(404, { message: "Preview not found" });
+
+    const contentType =
+      object.httpMetadata?.contentType ||
+      (item.previewR2Key.endsWith(".png") ? "image/png" : "image/jpeg");
+
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "private, max-age=3600",
+      },
     });
   });
 

@@ -48,6 +48,8 @@ export const vaultItem = sqliteTable("vault_item", {
   url: text("url"),
   siteName: text("site_name"),
   content: text("content"),
+  /** Readability HTML for link articles. */
+  contentHtml: text("content_html"),
   extractedMarkdown: text("extracted_markdown"),
   /** Full-page site screenshot in R2 (links). */
   previewR2Key: text("preview_r2_key"),

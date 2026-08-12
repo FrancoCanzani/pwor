@@ -108,3 +108,14 @@ export async function markFeedItemRead(id: string): Promise<FeedItem> {
     await fetch(`/api/feeds/items/${id}/read`, { method: "POST" }),
   );
 }
+
+async function fetchFeedItem(id: string): Promise<FeedItem> {
+  return parseJson<FeedItem>(await fetch(`/api/feeds/items/${id}`));
+}
+
+export function feedItemQueryOptions(id: string) {
+  return queryOptions({
+    queryKey: ["feeds", "item", id] as const,
+    queryFn: () => fetchFeedItem(id),
+  });
+}

@@ -19,6 +19,7 @@ import { PageEmpty } from "@components/page-empty";
 import {
   createFeed,
   deleteFeed,
+  feedItemQueryOptions,
   feedItemsQueryOptions,
   feedsQueryOptions,
   markFeedItemRead,
@@ -163,25 +164,44 @@ export function FeedsPage({
   const [addOpen, setAddOpen] = useState(false);
   const { data: feeds = [] } = useQuery(feedsQueryOptions());
   const { data: items = [] } = useQuery(feedItemsQueryOptions({ feedId }));
+  const listItem = useMemo(
+    () => (itemId ? (items.find((item) => item.id === itemId) ?? null) : null),
+    [itemId, items],
+  );
+  const { data: detailItem } = useQuery({
+    ...feedItemQueryOptions(itemId ?? ""),
+    enabled: Boolean(itemId),
+  });
 
   const activeFeed = feedId
     ? (feeds.find((feed) => feed.id === feedId) ?? null)
     : null;
 
-  const openItem = useMemo(
-    () => (itemId ? (items.find((item) => item.id === itemId) ?? null) : null),
-    [itemId, items],
-  );
+  const openItem: FeedItem | null = detailItem ?? listItem;
 
   useEffect(() => {
     if (!openItem || openItem.readAt) return;
     const id = openItem.id;
     void markFeedItemRead(id)
-      .then(() => queryClient.invalidateQueries({ queryKey: ["feeds"] }))
+      .then((updated) => {
+        queryClient.setQueryData(feedItemQueryOptions(id).queryKey, updated);
+        void queryClient.invalidateQueries({ queryKey: ["feeds"] });
+      })
       .catch(() => {
         // ignore — open still works
       });
   }, [openItem?.id, openItem?.readAt, queryClient]);
+
+  useEffect(() => {
+    if (!detailItem) return;
+    queryClient.setQueryData(
+      feedItemsQueryOptions({ feedId }).queryKey,
+      (current: FeedItem[] | undefined) =>
+        current?.map((row) =>
+          row.id === detailItem.id ? { ...row, ...detailItem } : row,
+        ),
+    );
+  }, [detailItem, feedId, queryClient]);
 
   const syncMutation = useMutation({
     mutationFn: async () => {

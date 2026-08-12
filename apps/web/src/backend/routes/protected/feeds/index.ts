@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import { feed, feedItem } from "../../../db/schema";
+import { ensureFeedItemArticle } from "../../../lib/feed-article";
 import { resolveFeedUrl } from "../../../lib/feed-discover";
 import {
   syncAllFeedsForUser,
@@ -214,7 +215,18 @@ const app = new Hono<AppEnv>()
       .limit(1);
 
     if (!item) throw new HTTPException(404, { message: "Not found" });
-    return c.json(serializeItem(item));
+
+    const readable = await ensureFeedItemArticle(c.env, item);
+    return c.json(
+      serializeItem({
+        ...item,
+        title: readable.title,
+        author: readable.author,
+        summary: readable.summary,
+        contentHtml: readable.contentHtml,
+        imageUrl: readable.imageUrl,
+      }),
+    );
   })
 
   .post("/items/:id/read", async (c) => {
@@ -223,8 +235,25 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
 
     const [existing] = await db
-      .select({ id: feedItem.id, readAt: feedItem.readAt })
+      .select({
+        id: feedItem.id,
+        feedId: feedItem.feedId,
+        title: feedItem.title,
+        url: feedItem.url,
+        author: feedItem.author,
+        summary: feedItem.summary,
+        contentHtml: feedItem.contentHtml,
+        imageUrl: feedItem.imageUrl,
+        videoId: feedItem.videoId,
+        publishedAt: feedItem.publishedAt,
+        readAt: feedItem.readAt,
+        createdAt: feedItem.createdAt,
+        feedTitle: feed.title,
+        feedKind: feed.kind,
+        feedImageUrl: feed.imageUrl,
+      })
       .from(feedItem)
+      .innerJoin(feed, eq(feedItem.feedId, feed.id))
       .where(ownedBy(feedItem.id, id, feedItem.userId, user.id))
       .limit(1);
 
@@ -237,13 +266,18 @@ const app = new Hono<AppEnv>()
         .where(eq(feedItem.id, id));
     }
 
-    const [item] = await db
-      .select()
-      .from(feedItem)
-      .where(eq(feedItem.id, id))
-      .limit(1);
-
-    return c.json(serializeItem(item!));
+    const readable = await ensureFeedItemArticle(c.env, existing);
+    return c.json(
+      serializeItem({
+        ...existing,
+        readAt: existing.readAt ?? new Date(),
+        title: readable.title,
+        author: readable.author,
+        summary: readable.summary,
+        contentHtml: readable.contentHtml,
+        imageUrl: readable.imageUrl,
+      }),
+    );
   });
 
 export default app;

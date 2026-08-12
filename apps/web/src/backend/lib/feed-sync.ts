@@ -2,6 +2,8 @@ import { and, eq } from "drizzle-orm";
 
 import { createDb } from "../db";
 import { feed, feedItem } from "../db/schema";
+import { preferRicherHtml } from "./extract-article";
+import { enrichThinFeedItems } from "./feed-article";
 import { parseFeedXml } from "./feed-parse";
 
 const MAX_ITEMS_PER_SYNC = 50;
@@ -80,10 +82,14 @@ export async function syncFeed(
     let added = 0;
     let updated = 0;
     const entries = parsed.items.slice(0, MAX_ITEMS_PER_SYNC);
+    const touchedIds: string[] = [];
 
     for (const entry of entries) {
       const [existing] = await db
-        .select({ id: feedItem.id })
+        .select({
+          id: feedItem.id,
+          contentHtml: feedItem.contentHtml,
+        })
         .from(feedItem)
         .where(
           and(eq(feedItem.feedId, feedId), eq(feedItem.guid, entry.guid)),
@@ -91,6 +97,10 @@ export async function syncFeed(
         .limit(1);
 
       if (existing) {
+        const contentHtml = preferRicherHtml(
+          existing.contentHtml,
+          entry.contentHtml,
+        );
         await db
           .update(feedItem)
           .set({
@@ -98,16 +108,18 @@ export async function syncFeed(
             url: entry.url,
             author: entry.author,
             summary: entry.summary,
-            contentHtml: entry.contentHtml,
+            contentHtml,
             imageUrl: entry.imageUrl,
             videoId: entry.videoId,
             publishedAt: entry.publishedAt,
           })
           .where(eq(feedItem.id, existing.id));
+        touchedIds.push(existing.id);
         updated += 1;
       } else {
+        const id = crypto.randomUUID();
         await db.insert(feedItem).values({
-          id: crypto.randomUUID(),
+          id,
           feedId,
           userId,
           guid: entry.guid,
@@ -120,8 +132,13 @@ export async function syncFeed(
           videoId: entry.videoId,
           publishedAt: entry.publishedAt,
         });
+        touchedIds.push(id);
         added += 1;
       }
+    }
+
+    if (parsed.kind !== "youtube") {
+      await enrichThinFeedItems(env, userId, feedId, touchedIds);
     }
 
     await db

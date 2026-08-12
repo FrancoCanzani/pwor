@@ -5,6 +5,7 @@ import { createWorkersAI } from "workers-ai-provider";
 
 import { createDb } from "../db";
 import { vaultItem } from "../db/schema";
+import { extractArticleFromUrl } from "./extract-article";
 import { fetchPageMetadata, normalizeVaultKind } from "./vault-capture";
 import { extractVaultItemMarkdown } from "./vault-markdown";
 import { storeSiteScreenshot } from "./vault-screenshot";
@@ -64,12 +65,21 @@ export async function enrichVaultItem(
 
   if (kind === "link" && item.url) {
     const page = await fetchPageMetadata(item.url);
-    const title = page.title || item.title || item.url;
-    const siteName = page.siteName ?? item.siteName;
-    const summary = page.description ?? item.summary;
+    const article = await extractArticleFromUrl(item.url).catch((error) => {
+      console.error("link article extract failed", vaultItemId, error);
+      return null;
+    });
+
+    const title =
+      article?.title || page.title || item.title || item.url;
+    const siteName = article?.siteName || page.siteName || item.siteName;
+    const summary =
+      article?.excerpt || page.description || item.summary;
     const content =
+      article?.textContent ||
       [page.description, page.text].filter(Boolean).join("\n\n") ||
       item.content;
+    const contentHtml = article?.contentHtml || item.contentHtml || null;
 
     let previewR2Key = item.previewR2Key;
     if (!previewR2Key) {
@@ -93,6 +103,7 @@ export async function enrichVaultItem(
         siteName,
         summary,
         content,
+        contentHtml,
         ...(previewR2Key ? { previewR2Key } : {}),
       })
       .where(eq(vaultItem.id, vaultItemId));
@@ -104,6 +115,7 @@ export async function enrichVaultItem(
       siteName,
       summary,
       content,
+      contentHtml,
       previewR2Key: previewR2Key ?? item.previewR2Key,
     };
   }

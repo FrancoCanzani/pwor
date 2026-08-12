@@ -67,6 +67,7 @@ export function inboxItemsQueryOptions() {
 
 export type VaultItemDetail = VaultItem & {
   content: string | null;
+  contentHtml: string | null;
   extractedMarkdown: string | null;
   language: string | null;
 };

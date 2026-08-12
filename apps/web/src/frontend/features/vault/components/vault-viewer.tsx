@@ -79,11 +79,15 @@ function TextPreview({
 function LinkPreview({
   item,
   content,
+  contentHtml,
 }: {
   item: VaultItem;
   content: string | null;
+  contentHtml: string | null;
 }) {
-  return <SitePreviewSheet item={item} content={content} />;
+  return (
+    <SitePreviewSheet item={item} content={content} contentHtml={contentHtml} />
+  );
 }
 
 export function VaultViewer({
@@ -126,7 +130,9 @@ export function VaultViewer({
     refetchInterval: (query) => {
       if (!isLinkLike) return false;
       const data = query.state.data;
-      if (data?.parseStatus === "pending" && !data.hasPreview) return 2500;
+      if (data?.parseStatus === "pending" && !data.hasPreview && !data.contentHtml) {
+        return 2500;
+      }
       return false;
     },
   });
@@ -446,7 +452,11 @@ export function VaultViewer({
             </p>
           )
         ) : isLinkLike ? (
-          <LinkPreview item={displayItem} content={textContent} />
+          <LinkPreview
+            item={displayItem}
+            content={textContent}
+            contentHtml={detail?.contentHtml?.trim() || null}
+          />
         ) : isTextItem || isTextFile ? (
           <TextPreview
             content={textContent}

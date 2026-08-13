@@ -1,7 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
+import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import {
   captureVaultInput,
   createVaultSnippet,
@@ -23,24 +25,25 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return Boolean(tag);
 }
 
-/**
- * When focus is not in an editable field, paste captures into Inbox
- * (Shiori-style: paste a URL/text anywhere in the app).
- */
 export function PasteCapture() {
   const queryClient = useQueryClient();
+  const { workspaceId } = useParams({ strict: false });
+  const spaceId = workspaceId ?? null;
   const busyRef = useRef(false);
 
   useEffect(() => {
+    const destination = spaceId ? "space" : "Inbox";
+
     async function captureText(text: string) {
       const trimmed = text.trim();
       if (!trimmed || busyRef.current) return;
       busyRef.current = true;
-      const toastId = toast.loading("Saving to Inbox…");
+      const toastId = toast.loading(`Saving to ${destination}…`);
       try {
-        await captureVaultInput(trimmed, null);
+        await captureVaultInput(trimmed, spaceId);
         await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
-        toast.success("Saved to Inbox", { id: toastId });
+        markCaptureHintSeen();
+        toast.success(`Saved to ${destination}`, { id: toastId });
       } catch {
         toast.error("Couldn’t save paste", { id: toastId });
       } finally {
@@ -62,12 +65,15 @@ export function PasteCapture() {
                 language:
                   languageFromFilename(file.name) ||
                   inferLanguageFromContent(content),
-                workspaceId: null,
+                workspaceId: spaceId,
               });
             } else {
-              await uploadVaultItem(file, null);
+              await uploadVaultItem(file, spaceId);
             }
-            toast.success(`${file.name} saved to Inbox`, { id: toastId });
+            markCaptureHintSeen();
+            toast.success(`${file.name} saved to ${destination}`, {
+              id: toastId,
+            });
           } catch {
             toast.error(`Failed to add ${file.name}`, { id: toastId });
           }
@@ -98,7 +104,7 @@ export function PasteCapture() {
 
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [queryClient]);
+  }, [queryClient, spaceId]);
 
   return null;
 }

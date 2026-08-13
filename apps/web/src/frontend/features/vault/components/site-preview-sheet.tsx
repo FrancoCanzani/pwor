@@ -1,11 +1,14 @@
+import { cn } from "@/lib/utils";
 import type { VaultItem } from "@features/vault/api";
 
 export function SitePreviewSheet({
   item,
   content,
+  className,
 }: {
   item: VaultItem;
   content: string | null;
+  className?: string;
 }) {
   const previewUrl = item.hasPreview
     ? `/api/vault/${item.id}/preview`
@@ -13,7 +16,12 @@ export function SitePreviewSheet({
   const pending = item.parseStatus === "pending" && !previewUrl;
 
   return (
-    <div className="flex max-h-[75vh] flex-col gap-4 overflow-hidden">
+    <div
+      className={cn(
+        "flex flex-col gap-4 overflow-hidden",
+        className ?? "max-h-[75vh]",
+      )}
+    >
       <div className="flex shrink-0 flex-col gap-2 px-0.5">
         {item.url ? (
           <a

@@ -1,10 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
+import { decode } from "he";
 
-import {
-  htmlToPlainText,
-  plainTextToHtml,
-  sanitizeFeedHtml,
-} from "./feed-html";
+import { htmlToPlainText, plainTextToHtml, sanitizeFeedHtml } from "./feed-html";
 
 export type ParsedFeedMeta = {
   kind: "rss" | "atom" | "youtube";
@@ -46,7 +43,10 @@ function asArray<T>(value: T | T[] | undefined | null): T[] {
 
 function textOf(value: unknown): string | null {
   if (value == null) return null;
-  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "string") {
+    const trimmed = decode(value).trim();
+    return trimmed || null;
+  }
   if (typeof value === "number") return String(value);
   if (typeof value === "object" && value !== null && "#text" in value) {
     return textOf((value as { "#text"?: unknown })["#text"]);

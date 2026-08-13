@@ -1,27 +1,17 @@
 import {
   CaretDownIcon,
-  CaretSortIcon,
-  CaretUpIcon,
+  CodeIcon,
   DotsHorizontalIcon,
-  PlusIcon,
+  EyeOpenIcon,
+  FileIcon,
+  FileTextIcon,
+  ImageIcon,
+  Link2Icon,
+  ReaderIcon,
 } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import {
-  columnFilteringFeature,
-  createFilteredRowModel,
-  createSortedRowModel,
-  globalFilteringFeature,
-  rowSortingFeature,
-  sortFns,
-  tableFeatures,
-  useTable,
-  type ColumnDef,
-  type ColumnFiltersState,
-  type Header,
-  type SortingState,
-} from "@tanstack/react-table";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -38,50 +28,62 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { PageEmpty } from "@components/page-empty";
-import { useCreateDialog } from "@features/command/create-dialog-context";
+import { CaptureButton } from "@features/command/components/capture-button";
 import {
   deleteNote,
   notesQueryOptions,
   type NoteListItem,
 } from "@features/notes/api";
 import { useFloatingNote } from "@features/notes/floating-note-context";
+import { SpacePic } from "@features/spaces/components/space-pic";
 import {
   deleteVaultItem,
   vaultItemsQueryOptions,
   type VaultItem,
 } from "@features/vault/api";
+import { VaultItemPreview } from "@features/vault/components/vault-item-preview";
 import { VaultRenameDialog } from "@features/vault/components/vault-rename-dialog";
-import { VaultViewer } from "@features/vault/components/vault-viewer";
-import { formatBytes } from "@features/vault/lib/size";
+import {
+  endPworItemDrag,
+  setPworItemDrag,
+} from "@features/vault/lib/drag";
+import { isSheetPreviewable } from "@features/vault/lib/sheet";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { toEpochMs } from "@shared/time";
 
-type LibraryKind = "all" | "notes" | "snippets" | "links" | "files" | "text";
+type LibraryFacet = "notes" | "snippets" | "links" | "files" | "text";
 
 type LibraryRow = {
   key: string;
   title: string;
   typeLabel: string;
-  facet: Exclude<LibraryKind, "all">;
+  facet: LibraryFacet;
   searchText: string;
   uploadedAt: number;
   kind: "note" | "vault";
   tags: string[];
-  sizeBytes: number | null;
   pending: boolean;
   note?: NoteListItem;
   item?: VaultItem;
 };
 
-const FILTERS: { id: LibraryKind; label: string }[] = [
-  { id: "all", label: "All" },
+const FACETS: { id: LibraryFacet; label: string }[] = [
   { id: "notes", label: "Notes" },
   { id: "snippets", label: "Snippets" },
   { id: "links", label: "Links" },
@@ -89,7 +91,7 @@ const FILTERS: { id: LibraryKind; label: string }[] = [
   { id: "text", label: "Text" },
 ];
 
-const FACET_TYPE_LABEL: Record<Exclude<LibraryKind, "all">, string> = {
+const FACET_TYPE_LABEL: Record<LibraryFacet, string> = {
   notes: "Note",
   snippets: "Snippet",
   links: "Link",
@@ -97,68 +99,65 @@ const FACET_TYPE_LABEL: Record<Exclude<LibraryKind, "all">, string> = {
   text: "Text",
 };
 
-const spaceLibraryFeatures = tableFeatures({
-  columnFilteringFeature,
-  globalFilteringFeature,
-  rowSortingFeature,
-  filteredRowModel: createFilteredRowModel(),
-  sortedRowModel: createSortedRowModel(),
-  sortFns,
-});
-
-function formatUploadDate(ms: number): string {
+function formatShortDate(ms: number): string {
   if (!Number.isFinite(ms)) return "";
   return new Date(ms).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
-    year: "numeric",
   });
 }
 
-function SortableHeader({
-  header,
-  children,
-  className,
-  align = "start",
-}: {
-  header: Header<typeof spaceLibraryFeatures, LibraryRow, unknown>;
-  children: ReactNode;
-  className?: string;
-  align?: "start" | "end";
-}) {
-  const sorted = header.column.getIsSorted();
-  const icon =
-    sorted === "asc" ? (
-      <CaretUpIcon className="size-3 shrink-0" />
-    ) : sorted === "desc" ? (
-      <CaretDownIcon className="size-3 shrink-0" />
-    ) : (
-      <CaretSortIcon className="size-3 shrink-0 opacity-50" />
-    );
+function rowIcon(row: LibraryRow) {
+  if (row.kind === "note") return ReaderIcon;
+  const item = row.item;
+  if (!item) return FileIcon;
+  switch (item.kind) {
+    case "snippet":
+      return CodeIcon;
+    case "link":
+      return Link2Icon;
+    case "text":
+      return FileTextIcon;
+    case "file":
+      if (item.mimeType?.startsWith("image/")) return ImageIcon;
+      if (item.mimeType === "application/pdf") return FileTextIcon;
+      if (isSheetPreviewable(item.mimeType, item.title)) return FileIcon;
+      return FileIcon;
+    default: {
+      const _exhaustive: never = item.kind;
+      return _exhaustive;
+    }
+  }
+}
 
+function LibraryThumb({ row }: { row: LibraryRow }) {
+  if (row.kind === "vault" && row.item) {
+    const item = row.item;
+    if (item.mimeType?.startsWith("image/")) {
+      return (
+        <img
+          src={`/api/vault/${item.id}/file`}
+          alt=""
+          className="size-9 shrink-0 rounded-sm object-cover"
+        />
+      );
+    }
+    if (item.hasPreview) {
+      return (
+        <img
+          src={`/api/vault/${item.id}/preview`}
+          alt=""
+          className="size-9 shrink-0 rounded-sm object-cover object-top"
+        />
+      );
+    }
+  }
+
+  const Icon = rowIcon(row);
   return (
-    <button
-      type="button"
-      className={
-        className ??
-        (align === "end"
-          ? "inline-flex w-full items-center justify-end gap-1 text-sm font-normal text-muted-foreground hover:text-foreground"
-          : "inline-flex items-center gap-1 text-sm font-normal text-muted-foreground hover:text-foreground")
-      }
-      onClick={header.column.getToggleSortingHandler()}
-    >
-      {align === "end" ? (
-        <>
-          {icon}
-          {children}
-        </>
-      ) : (
-        <>
-          {children}
-          {icon}
-        </>
-      )}
-    </button>
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground">
+      <Icon className="size-4" />
+    </div>
   );
 }
 
@@ -208,11 +207,11 @@ function LibraryRowActions({
         >
           <DotsHorizontalIcon />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-          <DropdownMenuItem
-            className="font-normal text-xs"
-            onClick={onView}
-          >
+        <DropdownMenuContent
+          align="end"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <DropdownMenuItem className="font-normal text-xs" onClick={onView}>
             View
           </DropdownMenuItem>
           {row.kind === "vault" && row.item ? (
@@ -267,17 +266,116 @@ function LibraryRowActions({
   );
 }
 
+function LibraryListItem({
+  row,
+  active,
+  workspaceId,
+  onOpen,
+}: {
+  row: LibraryRow;
+  active: boolean;
+  workspaceId: string;
+  onOpen: () => void;
+}) {
+  const meta = [row.typeLabel, formatShortDate(row.uploadedAt)]
+    .filter(Boolean)
+    .join(" · ");
+  const [dragging, setDragging] = useState(false);
+  const didDrag = useRef(false);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      draggable
+      className={cn(
+        "group flex w-full cursor-grab items-start gap-3 border-b border-dashed border-border/40 px-4 py-3 text-left hover:bg-muted/40 active:cursor-grabbing",
+        active && "bg-muted/50",
+        row.pending && "animate-pulse",
+        dragging && "opacity-40",
+      )}
+      onDragStart={(event) => {
+        if ((event.target as HTMLElement).closest("[data-no-drag]")) {
+          event.preventDefault();
+          return;
+        }
+        const id = row.kind === "note" ? row.note?.id : row.item?.id;
+        if (!id) {
+          event.preventDefault();
+          return;
+        }
+        didDrag.current = true;
+        setPworItemDrag(event, {
+          kind: row.kind,
+          ids: [id],
+          title: row.title,
+          meta: row.typeLabel.toLowerCase(),
+          fromWorkspaceId: workspaceId,
+        });
+        setDragging(true);
+      }}
+      onDragEnd={() => {
+        endPworItemDrag();
+        setDragging(false);
+      }}
+      onClick={() => {
+        if (didDrag.current) {
+          didDrag.current = false;
+          return;
+        }
+        onOpen();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+    >
+      <LibraryThumb row={row} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-normal">{row.title}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p>
+        {row.tags.length > 0 ? (
+          <p className="mt-1 flex min-w-0 flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+            {row.tags.slice(0, 4).map((tag) => (
+              <span key={tag} className="shrink-0 capitalize">
+                {tag}
+              </span>
+            ))}
+          </p>
+        ) : null}
+      </div>
+      <div
+        data-no-drag
+        className="flex shrink-0 items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Preview"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        >
+          <EyeOpenIcon />
+        </Button>
+        <LibraryRowActions row={row} onView={onOpen} />
+      </div>
+    </div>
+  );
+}
+
 export function SpaceLibraryPage() {
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
   const search = useSearch({ from: "/_app/$workspaceId/" });
   const navigate = useNavigate({ from: "/$workspaceId/" });
-  const { open: openCreate } = useCreateDialog();
-  const { openNew: openNewNote, openNote } = useFloatingNote();
+  const isMobile = useIsMobile();
+  const { openNew: openNewNote, openNote, activeNoteId } = useFloatingNote();
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<LibraryKind>("all");
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "uploadedAt", desc: true },
-  ]);
+  const [filters, setFilters] = useState<Set<LibraryFacet>>(() => new Set());
 
   const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
   const space = workspaces.find((item) => item.id === workspaceId);
@@ -289,7 +387,11 @@ export function SpaceLibraryPage() {
   const hasCaptured = notes.length > 0 || vaultItems.length > 0;
 
   const filterLabel =
-    FILTERS.find((item) => item.id === filter)?.label ?? "All";
+    filters.size === 0
+      ? "All"
+      : FACETS.filter((item) => filters.has(item.id))
+          .map((item) => item.label)
+          .join(", ");
 
   const data = useMemo(() => {
     const list: LibraryRow[] = [];
@@ -305,7 +407,6 @@ export function SpaceLibraryPage() {
         searchText: title.toLowerCase(),
         uploadedAt: toEpochMs(note.createdAt),
         tags: [],
-        sizeBytes: null,
         pending: false,
         note,
       });
@@ -313,7 +414,7 @@ export function SpaceLibraryPage() {
 
     for (const item of vaultItems) {
       const title = item.title?.trim() || "Untitled";
-      const facet: Exclude<LibraryKind, "all"> =
+      const facet: LibraryFacet =
         item.kind === "snippet"
           ? "snippets"
           : item.kind === "link"
@@ -340,7 +441,6 @@ export function SpaceLibraryPage() {
         searchText,
         uploadedAt: toEpochMs(item.createdAt),
         tags: item.tags ?? [],
-        sizeBytes: item.sizeBytes ?? null,
         pending: item.parseStatus === "pending",
         item,
       });
@@ -349,10 +449,25 @@ export function SpaceLibraryPage() {
     return list;
   }, [notes, vaultItems]);
 
-  const columnFilters = useMemo<ColumnFiltersState>(
-    () => (filter === "all" ? [] : [{ id: "type", value: filter }]),
-    [filter],
-  );
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return data
+      .filter((row) => {
+        if (filters.size > 0 && !filters.has(row.facet)) return false;
+        if (!q) return true;
+        return row.searchText.includes(q);
+      })
+      .sort((a, b) => b.uploadedAt - a.uploadedAt);
+  }, [data, filters, query]);
+
+  function toggleFilter(id: LibraryFacet) {
+    setFilters((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function setOpenItem(item: VaultItem | null) {
     void navigate({
@@ -363,6 +478,7 @@ export function SpaceLibraryPage() {
 
   function openRow(row: LibraryRow) {
     if (row.kind === "note" && row.note) {
+      setOpenItem(null);
       openNote(row.note.id);
       return;
     }
@@ -371,146 +487,24 @@ export function SpaceLibraryPage() {
     }
   }
 
-  const columns: ColumnDef<typeof spaceLibraryFeatures, LibraryRow>[] = [
-    {
-      accessorKey: "title",
-      header: ({ header }) => (
-        <SortableHeader header={header}>Name</SortableHeader>
-      ),
-      cell: ({ row: { original: row } }) => (
-        <div
-          className={
-            row.pending
-              ? "flex min-w-0 flex-col gap-0.5 animate-pulse"
-              : "flex min-w-0 flex-col gap-0.5"
-          }
-        >
-          <span className="min-w-0 truncate text-sm">{row.title}</span>
-          {row.tags.length > 0 ? (
-            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-              {row.tags.slice(0, 3).map((tag) => (
-                <span key={tag} className="shrink-0 capitalize">
-                  {tag}
-                </span>
-              ))}
-            </span>
-          ) : null}
-        </div>
-      ),
-      enableGlobalFilter: true,
-    },
-    {
-      id: "type",
-      accessorKey: "typeLabel",
-      header: ({ header }) => (
-        <SortableHeader header={header} align="end">
-          Type
-        </SortableHeader>
-      ),
-      cell: ({ getValue }) => (
-        <span className="block text-xs text-muted-foreground capitalize">
-          {getValue<string>()}
-        </span>
-      ),
-      filterFn: (row, _columnId, filterValue) => {
-        if (!filterValue || filterValue === "all") return true;
-        return row.original.facet === filterValue;
-      },
-      enableGlobalFilter: false,
-    },
-    {
-      id: "size",
-      accessorKey: "sizeBytes",
-      header: ({ header }) => (
-        <SortableHeader header={header} align="end">
-          Size
-        </SortableHeader>
-      ),
-      cell: ({ getValue }) => (
-        <span className="block font-nums text-xs whitespace-nowrap text-muted-foreground">
-          {formatBytes(getValue<number | null>())}
-        </span>
-      ),
-      enableGlobalFilter: false,
-    },
-    {
-      accessorKey: "uploadedAt",
-      header: ({ header }) => (
-        <SortableHeader header={header} align="end">
-          Uploaded
-        </SortableHeader>
-      ),
-      cell: ({ getValue }) => (
-        <span className="block font-nums text-xs whitespace-nowrap text-muted-foreground">
-          {formatUploadDate(getValue<number>())}
-        </span>
-      ),
-      enableGlobalFilter: false,
-    },
-    {
-      id: "actions",
-      header: () => null,
-      cell: ({ row }) => (
-        <LibraryRowActions
-          row={row.original}
-          onView={() => openRow(row.original)}
-        />
-      ),
-      enableSorting: false,
-      enableGlobalFilter: false,
-    },
-  ];
-
-  const table = useTable({
-    key: "space-library",
-    features: spaceLibraryFeatures,
-    columns,
-    data,
-    getRowId: (row) => row.key,
-    state: {
-      globalFilter: query,
-      columnFilters,
-      sorting,
-    },
-    onGlobalFilterChange: setQuery,
-    onColumnFiltersChange: (updater) => {
-      const next =
-        typeof updater === "function" ? updater(columnFilters) : updater;
-      const value = next.find((item) => item.id === "type")?.value;
-      if (
-        value === "notes" ||
-        value === "snippets" ||
-        value === "links" ||
-        value === "files" ||
-        value === "text"
-      ) {
-        setFilter(value);
-        return;
-      }
-      setFilter("all");
-    },
-    onSortingChange: setSorting,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const q = String(filterValue ?? "")
-        .trim()
-        .toLowerCase();
-      if (!q) return true;
-      return row.original.searchText.includes(q);
-    },
-  });
-
-  const rows = table.getRowModel().rows;
-
   const openItem =
     search.item != null
       ? (vaultItems.find((item) => item.id === search.item) ?? null)
       : null;
 
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border/40">
-        <div className="mx-auto flex h-12 w-full max-w-4xl items-center gap-2 px-4">
-          <h1 className="min-w-0 flex-1 truncate text-sm font-normal">
+  const previewOpen = openItem != null;
+
+  const listPane = (
+    <div
+      className={cn(
+        "flex min-h-0 min-w-0 flex-1 flex-col",
+        previewOpen && isMobile && "hidden",
+      )}
+    >
+      <div className="shrink-0">
+        <div className="flex h-12 w-full items-center gap-2 px-4">
+          <SpacePic shaderId={space?.shader} className="size-4" />
+          <h1 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
             {spaceTitle}
           </h1>
           {hasCaptured ? (
@@ -519,29 +513,32 @@ export function SpaceLibraryPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="h-7 max-w-[10rem] border-0 bg-transparent px-0 text-xs shadow-none focus-visible:border-0 focus-visible:ring-0 sm:max-w-xs"
+                className="h-7 max-w-[10rem] text-xs sm:max-w-xs"
               />
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
-                    <button
+                    <Button
                       type="button"
-                      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground"
+                      variant="outline"
+                      size="sm"
+                      className="max-w-[8rem] font-normal text-muted-foreground"
                     />
                   }
                 >
-                  {filterLabel}
-                  <CaretDownIcon className="size-3" />
+                  <span className="truncate">{filterLabel}</span>
+                  <CaretDownIcon data-icon="inline-end" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-32">
-                  {FILTERS.map((item) => (
-                    <DropdownMenuItem
+                  {FACETS.map((item) => (
+                    <DropdownMenuCheckboxItem
                       key={item.id}
                       className="font-normal text-xs"
-                      onClick={() => setFilter(item.id)}
+                      checked={filters.has(item.id)}
+                      onCheckedChange={() => toggleFilter(item.id)}
                     >
                       {item.label}
-                    </DropdownMenuItem>
+                    </DropdownMenuCheckboxItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -550,114 +547,108 @@ export function SpaceLibraryPage() {
           <Button
             type="button"
             variant="new"
-            className="h-auto shrink-0 px-1.5 py-1 text-xs leading-none font-normal"
+            size="sm"
+            className="shrink-0 font-normal"
             onClick={() => openNewNote()}
           >
-            Note
+            New note
+            <Kbd>⌘N</Kbd>
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Capture"
-            onClick={() => openCreate()}
-          >
-            <PlusIcon />
-          </Button>
+          <CaptureButton />
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-4xl px-4 pt-6 pb-20">
-          {!hasCaptured ? (
+        {!hasCaptured ? (
+          <div className="px-4 pt-6 pb-20">
             <PageEmpty
               title="Nothing here yet"
               description="Open a note or capture a URL, text, or file into this space."
+              action={<CaptureButton />}
             />
-          ) : rows.length === 0 ? (
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="px-4 pt-6 pb-20">
             <PageEmpty
               title="No matches"
               description="Try a different search or filter."
             />
-          ) : (
-            <table className="w-full table-fixed border-collapse">
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr
-                    key={headerGroup.id}
-                    className="border-b border-dashed border-border/40"
-                  >
-                    {headerGroup.headers.map((header) => {
-                      const id = header.column.id;
-                      return (
-                        <th
-                          key={header.id}
-                          className={
-                            id === "uploadedAt"
-                              ? "h-8 w-32 px-2 text-right"
-                              : id === "size"
-                                ? "h-8 w-16 px-2 text-right"
-                                : id === "type"
-                                  ? "h-8 w-20 px-2 text-right"
-                                  : id === "actions"
-                                    ? "h-8 w-8 px-2"
-                                    : "h-8 px-2 text-left"
-                          }
-                        >
-                          {header.isPlaceholder ? null : (
-                            <table.FlexRender header={header} />
-                          )}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="cursor-pointer border-b border-dashed border-border/40 hover:bg-muted/40"
-                    onClick={() => openRow(row.original)}
-                  >
-                    {row.getAllCells().map((cell) => {
-                      const id = cell.column.id;
-                      return (
-                        <td
-                          key={cell.id}
-                          className={
-                            id === "uploadedAt"
-                              ? "min-h-8 px-2 py-1.5 text-right align-middle"
-                              : id === "size"
-                                ? "min-h-8 px-2 py-1.5 text-right align-middle"
-                                : id === "type"
-                                  ? "min-h-8 px-2 py-1.5 text-right align-middle"
-                                  : id === "actions"
-                                    ? "min-h-8 px-2 py-1.5 text-right align-middle"
-                                    : "min-h-8 min-w-0 px-2 py-1.5 align-middle"
-                          }
-                        >
-                          <table.FlexRender cell={cell} />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex flex-col pb-16">
+            {rows.map((row) => {
+              const active =
+                row.kind === "vault"
+                  ? row.item?.id === openItem?.id
+                  : row.note?.id === activeNoteId;
+              return (
+                <LibraryListItem
+                  key={row.key}
+                  row={row}
+                  active={Boolean(active)}
+                  workspaceId={workspaceId}
+                  onOpen={() => openRow(row)}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
-
-      {openItem ? (
-        <VaultViewer
-          item={openItem}
-          open
-          onOpenChange={(next) => {
-            if (!next) setOpenItem(null);
-          }}
-        />
-      ) : null}
     </div>
+  );
+
+  const previewPane = openItem ? (
+    <VaultItemPreview
+      key={openItem.id}
+      item={openItem}
+      variant="panel"
+      onClose={() => setOpenItem(null)}
+    />
+  ) : null;
+
+  if (isMobile) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        {listPane}
+        {previewOpen ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {previewPane}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!previewOpen) {
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        {listPane}
+      </div>
+    );
+  }
+
+  return (
+    <ResizablePanelGroup
+      orientation="horizontal"
+      className="h-full min-h-0 overflow-hidden"
+    >
+      <ResizablePanel
+        id="library-list"
+        defaultSize="58%"
+        minSize="32%"
+        className="min-h-0 min-w-0 overflow-hidden"
+      >
+        {listPane}
+      </ResizablePanel>
+      <ResizableHandle className="w-px bg-border/40 after:w-px" />
+      <ResizablePanel
+        id="library-preview"
+        defaultSize="42%"
+        minSize="28%"
+        className="min-h-0 min-w-0 overflow-hidden"
+      >
+        {previewPane}
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 }

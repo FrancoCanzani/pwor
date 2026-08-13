@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { toast } from "sonner";
 
@@ -13,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
 import {
   captureVaultInput,
@@ -24,7 +26,6 @@ import {
   isMarkdownFile,
   languageFromFilename,
 } from "@features/vault/lib/snippet-language";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 import { inferLanguageFromContent, looksLikeCode } from "@shared/infer-language";
 import {
   inferTitleFromRaw,
@@ -49,7 +50,8 @@ export function CreateDialog({
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
-  const { id: workspaceId } = useCurrentWorkspace();
+  const { workspaceId: routeWorkspaceId } = useParams({ strict: false });
+  const spaceId = routeWorkspaceId ?? null;
 
   const codeMode = looksLikeCode(captureInput);
   const inferredLanguage = codeMode
@@ -85,16 +87,19 @@ export function CreateDialog({
         return createVaultSnippet(content, {
           title: title.trim() || titleFromSnippet(content, language),
           language,
-          workspaceId: null,
+          workspaceId: spaceId,
         });
       }
-      return captureVaultInput(trimmed, null, null, {
+      return captureVaultInput(trimmed, spaceId, null, {
         title: captureTitle.trim() || null,
       });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
-      toast.success(codeMode ? "Snippet added" : "Saved to Inbox");
+      markCaptureHintSeen();
+      toast.success(
+        codeMode ? "Snippet added" : `Saved to ${spaceId ? "space" : "Inbox"}`,
+      );
       onOpenChange(false);
     },
     onError: () => toast.error("Couldn’t add item"),
@@ -112,19 +117,21 @@ export function CreateDialog({
         try {
           if (isMarkdownFile(file)) {
             const raw = await file.text();
-            if (workspaceId) {
+            if (spaceId) {
               const inferred = inferTitleFromRaw(raw).title;
               const fallbackTitle = file.name.replace(/\.md$/i, "");
               const noteTitle = inferred || fallbackTitle;
               const body = inferred
                 ? raw
                 : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-              await createNote(body, noteTitle, workspaceId);
+              await createNote(body, noteTitle, spaceId);
+              markCaptureHintSeen();
               toast.success(`${file.name} added as note`, { id: toastId });
             } else {
               await captureVaultInput(raw, null, null, {
                 title: file.name.replace(/\.md$/i, "") || null,
               });
+              markCaptureHintSeen();
               toast.success(`${file.name} saved to Inbox`, { id: toastId });
             }
           } else if (isCodeSnippetFile(file)) {
@@ -134,12 +141,17 @@ export function CreateDialog({
               language:
                 languageFromFilename(file.name) ||
                 inferLanguageFromContent(content),
-              workspaceId: null,
+              workspaceId: spaceId,
             });
+            markCaptureHintSeen();
             toast.success(`${file.name} added as snippet`, { id: toastId });
           } else {
-            await uploadVaultItem(file, null);
-            toast.success(`${file.name} saved to Inbox`, { id: toastId });
+            await uploadVaultItem(file, spaceId);
+            markCaptureHintSeen();
+            toast.success(
+              `${file.name} saved to ${spaceId ? "space" : "Inbox"}`,
+              { id: toastId },
+            );
           }
         } catch {
           toast.error(`Failed to add ${file.name}`, { id: toastId });

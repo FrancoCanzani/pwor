@@ -1,55 +1,30 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import { CreateDialog } from "@features/command/components/create-dialog";
 import { CreateDialogProvider } from "@features/command/create-dialog-context";
 import { PasteCapture } from "@features/inbox/components/paste-capture";
-import {
-  NavUser,
-  type ShellUser,
-} from "@features/navigation/components/nav-user";
-import { SpacesNav } from "@features/navigation/components/spaces-nav";
 import { noteQueryOptions } from "@features/notes/api";
 import { FloatingNoteHost } from "@features/notes/components/floating-note-window";
 import { FloatingNoteProvider } from "@features/notes/floating-note-context";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
-export function AppShell({
-  user,
-  children,
-}: {
-  user: ShellUser;
-  children: ReactNode;
-}) {
+export function Providers({ children }: { children: ReactNode }) {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const segments = pathname.split("/").filter(Boolean);
-  const isSettings = segments[0] === "settings";
-  const isFlush = !isSettings;
+  const isFlush = pathname.split("/").filter(Boolean)[0] !== "settings";
   const { id: workspaceId } = useCurrentWorkspace();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [floatingOpen, setFloatingOpen] = useState(false);
   const [floatingNoteId, setFloatingNoteId] = useState<string | null>(null);
-
-  function openCreate() {
-    setCreateOpen(true);
-  }
 
   function openNewNote() {
     if (!workspaceId) return;
@@ -65,10 +40,11 @@ export function AppShell({
   }
 
   useHotkey("Mod+N", () => openNewNote(), { enabled: Boolean(workspaceId) });
+  useHotkey("Mod+U", () => setCreateOpen(true));
 
   return (
     <TooltipProvider>
-      <CreateDialogProvider value={{ open: openCreate }}>
+      <CreateDialogProvider value={{ open: () => setCreateOpen(true) }}>
         <FloatingNoteProvider
           value={{
             openNew: openNewNote,
@@ -93,42 +69,7 @@ export function AppShell({
               />
             ) : null}
 
-            <Sidebar collapsible="icon">
-              <SidebarHeader className="h-12 flex-row items-center gap-0 border-b border-sidebar-border/40 p-2">
-                <Link
-                  to="/"
-                  className="px-2 font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
-                >
-                  Pwor
-                </Link>
-              </SidebarHeader>
-
-              <SidebarContent>
-                <SpacesNav />
-              </SidebarContent>
-
-              <SidebarFooter>
-                <NavUser user={user} />
-              </SidebarFooter>
-            </Sidebar>
-
-            <SidebarInset
-              className={cn(isFlush && "h-full min-h-0 overflow-hidden")}
-            >
-              <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/40 px-3 md:hidden">
-                <SidebarTrigger />
-                <span className="font-pixel text-base leading-none tracking-tight">
-                  Pwor
-                </span>
-              </div>
-              {isFlush ? (
-                <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
-              ) : (
-                <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
-                  {children}
-                </div>
-              )}
-            </SidebarInset>
+            {children}
           </SidebarProvider>
         </FloatingNoteProvider>
       </CreateDialogProvider>

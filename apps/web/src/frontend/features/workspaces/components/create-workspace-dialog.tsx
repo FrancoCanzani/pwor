@@ -10,11 +10,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { SpaceShaderPicker } from "@features/navigation/components/space-shader-picker";
+import { SpaceShaderPicker } from "@features/spaces/components/space-shader-picker";
 import {
   DEFAULT_SPACE_SHADER,
   type SpaceShaderId,
-} from "@features/navigation/lib/space-shaders";
+} from "@features/spaces/lib/space-shaders";
 import { createWorkspace, type Workspace } from "@features/workspaces/api";
 
 export function CreateWorkspaceDialog({

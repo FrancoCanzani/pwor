@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import {
   captureVaultInput,
   createVaultSnippet,
@@ -118,6 +119,7 @@ export function VaultNewDialog({
       });
     },
     onSuccess: () => {
+      markCaptureHintSeen();
       toast.success(codeMode ? "Snippet added" : "Added to Vault — parsing…");
       setInput("");
       setTitle("");
@@ -157,6 +159,7 @@ export function VaultNewDialog({
               });
               toast.success(`${file.name} added to Vault`, { id: toastId });
             }
+            markCaptureHintSeen();
           } catch {
             toast.error(`Failed to upload ${file.name}`, { id: toastId });
           }

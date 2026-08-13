@@ -14,6 +14,8 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import {
   createNote,
   noteQueryOptions,
@@ -141,6 +143,7 @@ function FloatingNoteShell({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const isMobile = useIsMobile();
   const [pos, setPos] = useState(defaultPosition);
   const shellRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -154,14 +157,20 @@ function FloatingNoteShell({
   useLayoutEffect(() => {
     const shell = shellRef.current;
     if (!shell || shell.dataset.sized === "1") return;
+    if (isMobile) {
+      shell.style.width = "";
+      shell.style.height = "";
+      return;
+    }
     shell.style.width = `${DEFAULT_WIDTH}px`;
     shell.style.height = `${DEFAULT_HEIGHT}px`;
     shell.dataset.sized = "1";
-  }, []);
+  }, [isMobile]);
 
   useHotkey("Escape", () => onClose(), { enabled: true });
 
   function onDragPointerDown(event: ReactPointerEvent<HTMLElement>) {
+    if (isMobile) return;
     if (event.button !== 0) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest("button")) return;
@@ -180,6 +189,7 @@ function FloatingNoteShell({
   }
 
   function onDragPointerMove(event: ReactPointerEvent<HTMLElement>) {
+    if (isMobile) return;
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const nextX = drag.originX + (event.clientX - drag.startX);
@@ -206,13 +216,22 @@ function FloatingNoteShell({
       ref={shellRef}
       role="dialog"
       aria-label="Note"
-      className="fixed z-50 flex min-h-0 min-w-0 resize flex-col overflow-hidden rounded-md border border-border bg-background shadow-[0_16px_48px_rgba(0,0,0,0.14)] ring-1 ring-black/5"
-      style={{
-        left: pos.x,
-        top: pos.y,
-        minWidth: MIN_WIDTH,
-        minHeight: MIN_HEIGHT,
-      }}
+      className={cn(
+        "fixed z-50 flex min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+        isMobile
+          ? "inset-0"
+          : "resize rounded-md border border-border shadow-[0_16px_48px_rgba(0,0,0,0.14)] ring-1 ring-black/5",
+      )}
+      style={
+        isMobile
+          ? undefined
+          : {
+              left: pos.x,
+              top: pos.y,
+              minWidth: MIN_WIDTH,
+              minHeight: MIN_HEIGHT,
+            }
+      }
       onPointerDown={onDragPointerDown}
       onPointerMove={onDragPointerMove}
       onPointerUp={onDragPointerUp}
@@ -242,12 +261,29 @@ function NoteChrome({
   onReload?: () => void;
   children: ReactNode;
 }) {
+  const isMobile = useIsMobile();
+
   return (
     <>
       <div
         data-floating-note-drag
-        className="flex h-9 shrink-0 cursor-grab items-center gap-2 border-b border-border/40 px-2 active:cursor-grabbing"
+        className={cn(
+          "flex h-9 shrink-0 items-center gap-2 px-2",
+          !isMobile &&
+            "cursor-grab border-b border-border/40 active:cursor-grabbing",
+        )}
       >
+        {isMobile ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="shrink-0 font-normal"
+            onClick={onClose}
+          >
+            Back
+          </Button>
+        ) : null}
         <span className="min-w-0 flex-1 truncate text-[11px] font-normal">
           {title}
         </span>
@@ -276,16 +312,18 @@ function NoteChrome({
             {mode === "preview" ? "Source" : "Preview"}
           </Button>
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Close note"
-          className="shrink-0"
-          onClick={onClose}
-        >
-          <Cross2Icon />
-        </Button>
+        {!isMobile ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Close note"
+            className="shrink-0"
+            onClick={onClose}
+          >
+            <Cross2Icon />
+          </Button>
+        ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-3">
         {children}

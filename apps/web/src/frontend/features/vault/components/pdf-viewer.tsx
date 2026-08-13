@@ -8,7 +8,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const FRAME_PADDING = 12;
 
-export function PdfViewer({ fileUrl }: { fileUrl: string }) {
+export function PdfViewer({
+  fileUrl,
+  className,
+}: {
+  fileUrl: string;
+  className?: string;
+}) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [docReady, setDocReady] = useState(false);
   const [width, setWidth] = useState<number | null>(null);
@@ -61,7 +67,7 @@ export function PdfViewer({ fileUrl }: { fileUrl: string }) {
   const showLoading = width == null || !docReady;
 
   return (
-    <div className="flex h-[70vh] flex-col">
+    <div className={className ?? "flex h-[70vh] flex-col"}>
       <div
         ref={shellRef}
         className="relative min-h-0 flex-1 overflow-hidden rounded-md border border-border bg-muted/30"

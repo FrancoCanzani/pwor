@@ -1,3 +1,5 @@
+import { decode } from "he";
+
 /** Strip scripts/styles and dangerous attrs; keep a reading-friendly allowlist. */
 export function sanitizeFeedHtml(input: string): string {
   let html = input
@@ -14,16 +16,12 @@ export function sanitizeFeedHtml(input: string): string {
 }
 
 export function htmlToPlainText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+  return decode(
+    html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]+>/g, " "),
+  )
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -5,11 +5,11 @@ import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SpaceShaderPicker } from "@features/navigation/components/space-shader-picker";
+import { SpaceShaderPicker } from "@features/spaces/components/space-shader-picker";
 import {
   DEFAULT_SPACE_SHADER,
   type SpaceShaderId,
-} from "@features/navigation/lib/space-shaders";
+} from "@features/spaces/lib/space-shaders";
 import {
   createWorkspace,
   workspacesQueryOptions,

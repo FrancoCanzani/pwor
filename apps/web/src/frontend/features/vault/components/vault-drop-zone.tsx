@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SweepEffect } from "@components/sweep-effect";
+import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
 import {
   createVaultSnippet,
@@ -118,6 +119,7 @@ export function VaultDropZone() {
       if (vaultChanged) {
         await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
       }
+      if (notesChanged || vaultChanged) markCaptureHintSeen();
     },
     [queryClient, workspaceId],
   );

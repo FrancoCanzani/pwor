@@ -7,6 +7,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: 0.375rem;
+    height: 0.375rem;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #111111;
@@ -32,13 +48,13 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.25rem;
-  --sidebar: #ffffff;
+  --sidebar: #f6f6f8;
   --sidebar-foreground: #111111;
   --sidebar-primary: #111111;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f5f5f5;
+  --sidebar-accent: #ececef;
   --sidebar-accent-foreground: #111111;
-  --sidebar-border: #e8e8e8;
+  --sidebar-border: #ebebef;
   --sidebar-ring: #a3a3a3;
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;

@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
-import { SpacePic } from "@features/navigation/components/space-pic";
+import { SpacePic } from "@features/spaces/components/space-pic";
 import {
   SPACE_SHADERS,
   type SpaceShaderId,
-} from "@features/navigation/lib/space-shaders";
+} from "@features/spaces/lib/space-shaders";
 
 export function SpaceShaderPicker({
   value,

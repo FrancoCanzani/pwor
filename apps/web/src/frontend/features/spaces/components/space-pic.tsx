@@ -5,7 +5,7 @@ import {
   DEFAULT_SPACE_SHADER,
   getSpaceShader,
   type SpaceShaderPreset,
-} from "@features/navigation/lib/space-shaders";
+} from "@features/spaces/lib/space-shaders";
 
 const cache = new Map<string, string>();
 const CAPTURE_SIZE = 64;

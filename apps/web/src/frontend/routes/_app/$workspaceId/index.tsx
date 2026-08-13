@@ -9,9 +9,5 @@ const spaceSearchSchema = z.object({
 
 export const Route = createFileRoute("/_app/$workspaceId/")({
   validateSearch: spaceSearchSchema,
-  component: SpaceLibraryRoute,
+  component: SpaceLibraryPage,
 });
-
-function SpaceLibraryRoute() {
-  return <SpaceLibraryPage />;
-}

@@ -7,6 +7,7 @@ import { tags } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   displayLanguageLabel,
   SNIPPET_LANGUAGE_OPTIONS,
@@ -110,11 +111,13 @@ export function SnippetViewer({
   language,
   onContentChange,
   onLanguageChange,
+  className,
 }: {
   content: string;
   language: string | null;
   onContentChange?: (content: string) => void;
   onLanguageChange?: (language: string | null) => void;
+  className?: string;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -189,7 +192,7 @@ export function SnippetViewer({
   }
 
   return (
-    <div className="flex h-[70vh] flex-col gap-3">
+    <div className={cn("flex flex-col gap-3", className ?? "h-[70vh]")}>
       <div className="flex shrink-0 items-center justify-between gap-2">
         {onLanguageChange ? (
           <select

@@ -1,7 +1,3 @@
-/**
- * Heuristic language id from pasted source. Prefer filename/mime when available.
- * Ids align with `@codemirror/language-data` names/aliases (e.g. jsx, tsx, shell).
- */
 export function inferLanguageFromContent(content: string): string | null {
   const sample = content.slice(0, 6_000);
   const trimmed = sample.trim();

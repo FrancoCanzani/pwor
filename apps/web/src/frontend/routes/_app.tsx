@@ -5,11 +5,11 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 
+import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { Loading } from "@components/loading";
 import { NotFound } from "@components/not-found";
 import { RouteError } from "@components/route-error";
-import { AppShell } from "@features/navigation/components/app-shell";
 import { VaultDropZone } from "@features/vault/components/vault-drop-zone";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { sessionQueryOptions } from "@lib/session";
@@ -50,7 +50,6 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
-  const { user } = Route.useRouteContext();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -60,7 +59,7 @@ function AppLayout() {
   }
 
   return (
-    <AppShell user={user}>
+    <AppShell>
       <VaultDropZone />
       <Toaster />
       <Outlet />

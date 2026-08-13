@@ -12,6 +12,7 @@ import {
   type SearchHit,
   type SearchKind,
 } from "@features/command/api";
+import { useCreateDialog } from "@features/command/create-dialog-context";
 import { fuzzyScore } from "@features/command/lib/score";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
@@ -61,6 +62,7 @@ export function CommandPalette() {
   const navigate = useNavigate();
   const { id: currentWorkspaceId } = useCurrentWorkspace();
   const { openNote } = useFloatingNote();
+  const { open: openCreate } = useCreateDialog();
   const { data: workspaces = NO_WORKSPACES } = useQuery(workspacesQueryOptions);
 
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
@@ -121,6 +123,23 @@ export function CommandPalette() {
     const matched = term ? rank(jumps, term) : jumps;
     if (matched.length > 0) groups.push({ label: "Go to", items: matched });
 
+    const actions: Omit<PaletteItem, "index">[] = [
+      {
+        id: "action:capture",
+        label: "Capture",
+        meta: "⌘U",
+        run: () => {
+          setOpen(false);
+          setQuery("");
+          openCreate();
+        },
+      },
+    ];
+    const matchedActions = term ? rank(actions, term) : actions;
+    if (matchedActions.length > 0) {
+      groups.push({ label: "Actions", items: matchedActions });
+    }
+
     for (const kind of KIND_ORDER) {
       const matches = hits.filter((hit) => hit.kind === kind);
       if (matches.length === 0) continue;
@@ -173,7 +192,15 @@ export function CommandPalette() {
     }));
 
     return { sections, items: sections.flatMap((section) => section.items) };
-  }, [query, hits, workspaces, currentWorkspaceId, navigate, openNote]);
+  }, [
+    query,
+    hits,
+    workspaces,
+    currentWorkspaceId,
+    navigate,
+    openNote,
+    openCreate,
+  ]);
 
   // Keyed on the query and the result count, not on `items` identity — a
   // reset on every re-render would undo each arrow press.

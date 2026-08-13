@@ -1,23 +1,35 @@
-import { PlusIcon, ReloadIcon } from "@radix-ui/react-icons";
+import {
+  DotsHorizontalIcon,
+  PlusIcon,
+  ReloadIcon,
+} from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { PageEmpty } from "@components/page-empty";
 import {
-  createFeed,
   deleteFeed,
   feedItemsQueryOptions,
   feedsQueryOptions,
@@ -26,6 +38,7 @@ import {
   syncFeed,
   type FeedItem,
 } from "@features/feeds/api";
+import { AddFeedDialog } from "@features/feeds/components/add-feed-dialog";
 import { ArticleReader } from "@features/feeds/components/article-reader";
 
 export const feedsSearchSchema = z.object({
@@ -57,7 +70,7 @@ function FeedItemRow({
       type="button"
       onClick={onOpen}
       className={cn(
-        "flex w-full flex-col gap-0.5 border-b border-dashed border-border/40 px-3 py-3 text-left hover:bg-muted/40",
+        "flex w-full flex-col gap-0.5 border-b border-dashed border-border/40 px-4 py-3 text-left hover:bg-muted/40",
         active && "bg-muted/50",
       )}
     >
@@ -79,75 +92,6 @@ function FeedItemRow({
         </span>
       </span>
     </button>
-  );
-}
-
-function AddFeedDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [url, setUrl] = useState("");
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!open) setUrl("");
-  }, [open]);
-
-  const create = useMutation({
-    mutationFn: () => createFeed(url.trim()),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["feeds"] });
-      toast.success("Feed added");
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Couldn’t add feed");
-    },
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton className="sm:max-w-md">
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!url.trim() || create.isPending) return;
-            create.mutate();
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Add feed</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            Paste a site, RSS/Atom URL, or YouTube channel.
-          </p>
-          <Input
-            autoFocus
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://"
-            className="h-8 text-xs"
-            disabled={create.isPending}
-          />
-          <DialogFooter className="-mx-0 -mb-0 border-0 bg-transparent p-0">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!url.trim() || create.isPending}>
-              {create.isPending ? "Adding…" : "Add"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -223,59 +167,77 @@ export function FeedsPage({
   }
 
   const title = activeFeed?.title?.trim() || activeFeed?.siteName || "Feeds";
+  const paneEmptyClass = "min-h-0 py-0";
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border/40">
-        <div className="flex h-12 items-center gap-2 px-3">
-          <h1 className="min-w-0 flex-1 truncate text-sm font-normal">
+    <div className="flex h-full min-h-0">
+      <div
+        className={cn(
+          "flex min-h-0 w-full flex-col border-r border-border/40 md:w-80 md:shrink-0",
+          openItem && "hidden md:flex",
+        )}
+      >
+        <div className="flex h-12 shrink-0 items-center gap-2 px-4">
+          <h1 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
             {feedId ? title : "Feeds"}
           </h1>
           {feedId ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              className="font-normal text-muted-foreground"
-              disabled={deleteMutation.isPending}
-              onClick={() => deleteMutation.mutate(feedId)}
-            >
-              Remove
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Sync"
-            disabled={syncMutation.isPending}
-            onClick={() => syncMutation.mutate()}
-          >
-            <ReloadIcon
-              className={cn(syncMutation.isPending && "animate-spin")}
-            />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Add feed"
-            onClick={() => setAddOpen(true)}
-          >
-            <PlusIcon />
-          </Button>
-        </div>
-      </div>
+            <AlertDialog>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Actions"
+                      disabled={deleteMutation.isPending}
+                    />
+                  }
+                >
+                  <DotsHorizontalIcon />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <AlertDialogTrigger
+                    render={
+                      <DropdownMenuItem
+                        variant="destructive"
+                        className="font-normal text-xs"
+                      />
+                    }
+                  >
+                    Remove
+                  </AlertDialogTrigger>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-      <div className="flex min-h-0 flex-1">
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove {title}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This removes the feed and its saved items. This can’t be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => deleteMutation.mutate(feedId)}
+                  >
+                    Remove
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
+        </div>
         <div
-          className={cn(
-            "min-h-0 w-full overflow-y-auto border-r border-border/40 md:w-80 md:shrink-0",
-            openItem && "hidden md:block",
-          )}
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin"
         >
           {items.length === 0 ? (
             <PageEmpty
+              className={paneEmptyClass}
               title={feeds.length === 0 ? "No feeds yet" : "Nothing here"}
               description={
                 feeds.length === 0
@@ -309,36 +271,59 @@ export function FeedsPage({
             </div>
           )}
         </div>
+      </div>
 
+      <div
+        className={cn(
+          "flex min-h-0 min-w-0 flex-1 flex-col",
+          !openItem && "hidden md:flex",
+        )}
+      >
+        <div className="flex h-12 shrink-0 items-center justify-end gap-2 px-4">
+          {openItem ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="mr-auto font-normal md:hidden"
+              onClick={() => setItem(undefined)}
+            >
+              Back
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Sync"
+            disabled={syncMutation.isPending}
+            onClick={() => syncMutation.mutate()}
+          >
+            <ReloadIcon
+              className={cn(syncMutation.isPending && "animate-spin")}
+            />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Add feed"
+            onClick={() => setAddOpen(true)}
+          >
+            <PlusIcon />
+          </Button>
+        </div>
         <div
-          className={cn(
-            "min-h-0 flex-1 overflow-y-auto",
-            !openItem && "hidden md:block",
-          )}
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin"
         >
           {openItem ? (
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="flex h-10 shrink-0 items-center border-b border-border/40 px-3 md:hidden">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  className="font-normal"
-                  onClick={() => setItem(undefined)}
-                >
-                  Back
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <ArticleReader item={openItem} />
-              </div>
-            </div>
+            <ArticleReader item={openItem} />
           ) : (
-            <div className="hidden h-full items-center justify-center md:flex">
-              <p className="text-xs text-muted-foreground">
-                Select an item to read
-              </p>
-            </div>
+            <PageEmpty
+              className={paneEmptyClass}
+              title=""
+              description="Select an item to read"
+            />
           )}
         </div>
       </div>

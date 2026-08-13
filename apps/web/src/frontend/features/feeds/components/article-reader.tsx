@@ -1,3 +1,5 @@
+import { ExternalLinkIcon } from "@radix-ui/react-icons";
+
 import { cn } from "@/lib/utils";
 import type { FeedItem } from "@features/feeds/api";
 
@@ -34,19 +36,22 @@ export function ArticleReader({
         <h1 className="text-xl font-normal tracking-tight text-balance">
           {title}
         </h1>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {source ? <span>{source}</span> : null}
-          {item.publishedAt ? (
-            <span className="font-nums">{formatDate(item.publishedAt)}</span>
-          ) : null}
+        <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            {source ? <span>{source}</span> : null}
+            {item.publishedAt ? (
+              <span className="font-nums">{formatDate(item.publishedAt)}</span>
+            ) : null}
+          </div>
           {item.url ? (
             <a
               href={item.url}
               target="_blank"
               rel="noreferrer"
-              className="hover:text-foreground hover:underline"
+              aria-label="Open original"
+              className="shrink-0 text-muted-foreground hover:text-foreground"
             >
-              Original
+              <ExternalLinkIcon className="size-3.5" />
             </a>
           ) : null}
         </div>

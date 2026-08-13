@@ -1,5 +1,5 @@
 import { CaretSortIcon } from "@radix-ui/react-icons";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 
 import {
   DropdownMenu,
@@ -23,7 +23,10 @@ export type ShellUser = {
   image: string | null;
 };
 
-export function NavUser({ user }: { user: ShellUser }) {
+const routeApi = getRouteApi("/_app");
+
+export function NavUser() {
+  const { user } = routeApi.useRouteContext();
   const { isMobile } = useSidebar();
   const label = user.name.trim() || user.email;
 

@@ -5,14 +5,14 @@ import { toast } from "sonner";
 
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import {
-  captureVaultInput,
-  createVaultSnippet,
-  uploadVaultItem,
-} from "@features/vault/api";
+  captureItemInput,
+  createItemSnippet,
+  uploadItem,
+} from "@features/items/api";
 import {
   isCodeSnippetFile,
   languageFromFilename,
-} from "@features/vault/lib/snippet-language";
+} from "@features/items/lib/snippet-language";
 import { inferLanguageFromContent } from "@shared/infer-language";
 import { dedentCode } from "@shared/snippet-format";
 
@@ -40,8 +40,8 @@ export function PasteCapture() {
       busyRef.current = true;
       const toastId = toast.loading(`Saving to ${destination}…`);
       try {
-        await captureVaultInput(trimmed, spaceId);
-        await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+        await captureItemInput(trimmed, spaceId);
+        await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
         markCaptureHintSeen();
         toast.success(`Saved to ${destination}`, { id: toastId });
       } catch {
@@ -60,7 +60,7 @@ export function PasteCapture() {
           try {
             if (isCodeSnippetFile(file)) {
               const content = dedentCode(await file.text());
-              await createVaultSnippet(content, {
+              await createItemSnippet(content, {
                 title: file.name,
                 language:
                   languageFromFilename(file.name) ||
@@ -68,7 +68,7 @@ export function PasteCapture() {
                 workspaceId: spaceId,
               });
             } else {
-              await uploadVaultItem(file, spaceId);
+              await uploadItem(file, spaceId);
             }
             markCaptureHintSeen();
             toast.success(`${file.name} saved to ${destination}`, {
@@ -78,7 +78,7 @@ export function PasteCapture() {
             toast.error(`Failed to add ${file.name}`, { id: toastId });
           }
         }
-        await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+        await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
       } finally {
         busyRef.current = false;
       }

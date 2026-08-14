@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
-import { note, vaultItem, workspace } from "../../../db/schema";
+import { note, item, workspace } from "../../../db/schema";
 import type { AppEnv } from "../../../types";
 
 const createWorkspaceSchema = z.object({
@@ -68,15 +68,15 @@ const app = new Hono<AppEnv>()
     const id = c.req.param("id");
     const db = createDb(c.env.DB);
 
-    const [item] = await db
+    const [space] = await db
       .select()
       .from(workspace)
       .where(ownedBy(workspace.id, id, workspace.userId, user.id))
       .limit(1);
 
-    if (!item) throw new HTTPException(404, { message: "Not found" });
+    if (!space) throw new HTTPException(404, { message: "Not found" });
 
-    const [notes, vaultItems] = await Promise.all([
+    const [notes, items] = await Promise.all([
       db
         .select({
           id: note.id,
@@ -89,14 +89,12 @@ const app = new Hono<AppEnv>()
         .orderBy(desc(note.updatedAt)),
       db
         .select()
-        .from(vaultItem)
-        .where(
-          and(eq(vaultItem.workspaceId, id), eq(vaultItem.userId, user.id)),
-        )
-        .orderBy(desc(vaultItem.createdAt)),
+        .from(item)
+        .where(and(eq(item.workspaceId, id), eq(item.userId, user.id)))
+        .orderBy(desc(item.createdAt)),
     ]);
 
-    return c.json({ ...item, notes, vaultItems });
+    return c.json({ ...space, notes, items });
   })
 
   .patch("/:id", zValidator("json", updateWorkspaceSchema), async (c) => {

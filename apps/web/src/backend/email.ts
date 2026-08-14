@@ -2,10 +2,11 @@ import { eq } from "drizzle-orm";
 import PostalMime, { type Attachment } from "postal-mime";
 
 import { createDb } from "./db";
-import { userInbox, vaultItem } from "./db/schema";
-import { scheduleVaultEnrichment } from "./lib/vault-enrichment";
-import { putVaultObject } from "./lib/vault-storage";
-import { titleFromText } from "./lib/vault-capture";
+import { userInbox, item } from "./db/schema";
+import { randomToken } from "./lib/extension-token";
+import { scheduleItemEnrichment } from "./lib/item-enrichment";
+import { putItemObject } from "./lib/item-storage";
+import { titleFromText } from "./lib/item-capture";
 
 function attachmentBytes(
   attachment: Attachment,
@@ -23,7 +24,7 @@ function attachmentBytes(
 }
 
 function newInboxToken(): string {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  return randomToken(6);
 }
 
 export async function ensureUserInbox(
@@ -70,7 +71,7 @@ export async function regenerateUserInbox(
   return { id, token };
 }
 
-/** Inbound mail for `{token}@…` lands in that user's Inbox (uncategorized vault). */
+/** Inbound mail for `{token}@…` lands in that user's Inbox (uncategorized item). */
 export async function handleInboundEmail(
   message: ForwardableEmailMessage,
   env: Env,
@@ -105,7 +106,7 @@ export async function handleInboundEmail(
   const content = contentParts.join("\n");
 
   const textId = crypto.randomUUID();
-  await db.insert(vaultItem).values({
+  await db.insert(item).values({
     id: textId,
     userId: inbox.userId,
     workspaceId: null,
@@ -115,32 +116,33 @@ export async function handleInboundEmail(
     tags: ["email"],
     parseStatus: "pending",
   });
-  scheduleVaultEnrichment(ctx, env, textId);
+  scheduleItemEnrichment(ctx, env, textId);
 
   for (const attachment of parsed.attachments) {
     const id = crypto.randomUUID();
     const filename = attachment.filename || "attachment";
     const r2Key = `${inbox.userId}/${id}/${filename}`;
 
-    await putVaultObject(
-      env.VAULT_BUCKET,
+    const sizeBytes = await putItemObject(
+      env.ITEMS_BUCKET,
       r2Key,
       attachmentBytes(attachment),
       attachment.mimeType || "application/octet-stream",
     );
 
-    await db.insert(vaultItem).values({
+    await db.insert(item).values({
       id,
       userId: inbox.userId,
       workspaceId: null,
       kind: "file",
       title: filename,
       r2Key,
+      sizeBytes,
       mimeType: attachment.mimeType || "application/octet-stream",
       tags: ["email"],
       parseStatus: "pending",
     });
 
-    scheduleVaultEnrichment(ctx, env, id);
+    scheduleItemEnrichment(ctx, env, id);
   }
 }

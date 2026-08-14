@@ -27,18 +27,18 @@ const GLOBAL_NAV_ITEMS = [
 /** Every space destination shares a single `{ workspaceId }` param. */
 const SPACE_NAV_ITEMS = [
   { to: "/$workspaceId", label: "Library" },
-  { to: "/$workspaceId/vault", label: "Vault" },
+  { to: "/$workspaceId/items", label: "Items" },
 ] as const;
 
 const KIND_META = {
   note: { label: "Notes" },
-  vault_item: { label: "Vault", to: "/$workspaceId/vault" },
+  item: { label: "Items", to: "/$workspaceId/items" },
 } as const satisfies Record<
   SearchKind,
-  { label: string; to?: "/$workspaceId/vault" }
+  { label: string; to?: "/$workspaceId/items" }
 >;
 
-const KIND_ORDER: SearchKind[] = ["note", "vault_item"];
+const KIND_ORDER: SearchKind[] = ["note", "item"];
 type PaletteItem = {
   id: string;
   label: string;
@@ -152,7 +152,7 @@ export function CommandPalette() {
           detail: hit.snippet,
           meta: workspaceLabel(hit, currentWorkspaceId, workspaces),
           run: () => {
-            if (hit.kind === "vault_item" && !hit.workspaceId) {
+            if (hit.kind === "item" && !hit.workspaceId) {
               setOpen(false);
               setQuery("");
               void navigate({
@@ -168,9 +168,9 @@ export function CommandPalette() {
                 case "note":
                   openNote(hit.id);
                   return;
-                case "vault_item":
+                case "item":
                   return navigate({
-                    to: "/$workspaceId/vault",
+                    to: "/$workspaceId/items",
                     params: { workspaceId },
                     search: { item: hit.id },
                   });
@@ -367,7 +367,7 @@ function workspaceLabel(
   currentWorkspaceId: string | undefined,
   workspaces: { id: string; name: string }[],
 ) {
-  if (!hit.workspaceId) return hit.kind === "vault_item" ? "Inbox" : undefined;
+  if (!hit.workspaceId) return hit.kind === "item" ? "Inbox" : undefined;
   if (hit.workspaceId === currentWorkspaceId) return undefined;
   return workspaces.find((workspace) => workspace.id === hit.workspaceId)?.name;
 }

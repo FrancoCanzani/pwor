@@ -1,14 +1,17 @@
 import {
+  ArrowLeftIcon,
   DotsHorizontalIcon,
   PlusIcon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { format, isValid } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,8 +30,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { TooltipIconButton } from "@/components/ui/tooltip";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
 import { PageEmpty } from "@components/page-empty";
+import { HoverPreview, Mention } from "@features/items/components/item-mention";
 import {
   deleteFeed,
   feedItemsQueryOptions,
@@ -48,11 +55,8 @@ export const feedsSearchSchema = z.object({
 function formatListDate(value: string | null): string {
   if (!value) return "";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  if (!isValid(date)) return "";
+  return format(date, "MMM d");
 }
 
 function FeedItemRow({
@@ -65,48 +69,58 @@ function FeedItemRow({
   onOpen: () => void;
 }) {
   const unread = !item.readAt;
+  const title = item.title?.trim() || "Untitled";
+  const label =
+    item.feedTitle?.trim() ||
+    (item.feedKind === "youtube" ? "YouTube" : "Feed");
+
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        "flex w-full flex-col gap-0.5 border-b border-dashed border-border/40 px-4 py-3 text-left hover:bg-muted/40",
-        active && "bg-muted/50",
-      )}
+    <HoverPreview
+      content={
+        item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt=""
+            className="aspect-video w-full object-cover"
+          />
+        ) : null
+      }
     >
-      <span
+      <button
+        type="button"
+        onClick={onOpen}
         className={cn(
-          "line-clamp-2 text-sm",
-          unread ? "font-bold text-foreground" : "text-muted-foreground",
+          "flex w-full items-center gap-2 border-b border-dashed border-border/40 px-4 py-3 text-left select-none hover:bg-muted/40 active:bg-muted/40",
+          active && "bg-muted/50",
         )}
       >
-        {item.title?.trim() || "Untitled"}
-      </span>
-      <span className="flex items-baseline gap-2 text-xs text-muted-foreground">
-        <span className="truncate">
-          {item.feedTitle?.trim() ||
-            (item.feedKind === "youtube" ? "YouTube" : "Feed")}
-        </span>
-        <span className="shrink-0 font-nums">
+        <Mention
+          title={title}
+          label={label}
+          siteUrl={item.url}
+          className="min-w-0 flex-1"
+          titleClassName={unread ? undefined : "text-muted-foreground"}
+        />
+        <span className="shrink-0 font-nums text-xs text-muted-foreground">
           {formatListDate(item.publishedAt)}
         </span>
-      </span>
-    </button>
+      </button>
+    </HoverPreview>
   );
 }
 
-export function FeedsPage({
-  feedId,
-  itemId,
-}: {
-  feedId?: string;
-  itemId?: string;
-}) {
+export function FeedsPage() {
+  const { feedId } = useParams({ strict: false });
+  const { item: itemId } = useSearch({ strict: false });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const q = useDebouncedValue(query.trim(), 250);
   const { data: feeds = [] } = useQuery(feedsQueryOptions());
-  const { data: items = [] } = useQuery(feedItemsQueryOptions({ feedId }));
+  const { data: items = [] } = useQuery(
+    feedItemsQueryOptions({ feedId, q: q || undefined }),
+  );
 
   const activeFeed = feedId
     ? (feeds.find((feed) => feed.id === feedId) ?? null)
@@ -178,6 +192,7 @@ export function FeedsPage({
         )}
       >
         <div className="flex h-12 shrink-0 items-center gap-2 px-4">
+          <SidebarTrigger className="md:hidden" />
           <h1 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
             {feedId ? title : "Feeds"}
           </h1>
@@ -199,6 +214,7 @@ export function FeedsPage({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <AlertDialogTrigger
+                    nativeButton={false}
                     render={
                       <DropdownMenuItem
                         variant="destructive"
@@ -232,17 +248,30 @@ export function FeedsPage({
             </AlertDialog>
           ) : null}
         </div>
-        <div
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin"
-        >
+        <div className="shrink-0 px-4 pb-2">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search…"
+          />
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
           {items.length === 0 ? (
             <PageEmpty
               className={paneEmptyClass}
-              title={feeds.length === 0 ? "No feeds yet" : "Nothing here"}
+              title={
+                q
+                  ? "No matches"
+                  : feeds.length === 0
+                    ? "No feeds yet"
+                    : "Nothing here"
+              }
               description={
-                feeds.length === 0
-                  ? "Add a site, RSS feed, or YouTube channel."
-                  : "Sync or wait for new posts."
+                q
+                  ? "Try a different search."
+                  : feeds.length === 0
+                    ? "Add a site, RSS feed, or YouTube channel."
+                    : "Sync or wait for new posts."
               }
               action={
                 feeds.length === 0 ? (
@@ -279,7 +308,8 @@ export function FeedsPage({
           !openItem && "hidden md:flex",
         )}
       >
-        <div className="flex h-12 shrink-0 items-center justify-end gap-2 px-4">
+        <div className="flex h-12 shrink-0 items-center gap-2 px-4">
+          <SidebarTrigger className="md:hidden" />
           {openItem ? (
             <Button
               type="button"
@@ -288,34 +318,31 @@ export function FeedsPage({
               className="mr-auto font-normal md:hidden"
               onClick={() => setItem(undefined)}
             >
+              <ArrowLeftIcon data-icon="inline-start" />
               Back
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Sync"
-            disabled={syncMutation.isPending}
-            onClick={() => syncMutation.mutate()}
-          >
-            <ReloadIcon
-              className={cn(syncMutation.isPending && "animate-spin")}
-            />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Add feed"
-            onClick={() => setAddOpen(true)}
-          >
-            <PlusIcon />
-          </Button>
+          <span className="ml-auto flex items-center gap-2">
+            <TooltipIconButton
+              label="Sync"
+              size="icon-sm"
+              disabled={syncMutation.isPending}
+              onClick={() => syncMutation.mutate()}
+            >
+              <ReloadIcon
+                className={cn(syncMutation.isPending && "animate-spin")}
+              />
+            </TooltipIconButton>
+            <TooltipIconButton
+              label="Add feed"
+              size="icon-sm"
+              onClick={() => setAddOpen(true)}
+            >
+              <PlusIcon />
+            </TooltipIconButton>
+          </span>
         </div>
-        <div
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin"
-        >
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
           {openItem ? (
             <ArticleReader item={openItem} />
           ) : (

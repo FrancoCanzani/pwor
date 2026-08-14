@@ -49,7 +49,7 @@ export async function cleanupOrphanNoteImages(env: Env): Promise<number> {
   });
 
   if (orphans.length > 0) {
-    await deleteNoteImagesFromR2(env.VAULT_BUCKET, orphans);
+    await deleteNoteImagesFromR2(env.ITEMS_BUCKET, orphans);
     await db.delete(noteImage).where(
       inArray(
         noteImage.id,

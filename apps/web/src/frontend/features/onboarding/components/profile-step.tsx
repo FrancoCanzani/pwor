@@ -135,7 +135,7 @@ export function ProfileStep({
             void handleFile(event.dataTransfer.files[0]);
           }}
           className={cn(
-            "flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-transparent text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground",
+            "flex aspect-square w-full items-center justify-center overflow-hidden rounded-md border border-dashed border-input bg-transparent text-xs text-muted-foreground transition-colors select-none hover:border-ring hover:text-foreground active:border-ring active:text-foreground",
             dragging && "border-ring text-foreground",
             avatarError && "border-destructive",
           )}

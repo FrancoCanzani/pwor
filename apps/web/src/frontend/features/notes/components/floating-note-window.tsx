@@ -2,34 +2,29 @@ import { Cross2Icon } from "@radix-ui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import {
-  createNote,
   noteQueryOptions,
   notesQueryOptions,
   uploadNoteImage,
   type Note,
-  type NoteListItem,
 } from "@features/notes/api";
 import { NoteEditor } from "@features/notes/components/note-editor";
 import { useFloatingNote } from "@features/notes/floating-note-context";
 import type { NoteEditorMode } from "@features/notes/lib/cm-theme";
 import { useNoteDocumentSave } from "@features/notes/lib/use-note-document-save";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-import { EMPTY_NOTE_BODY, noteDisplayTitle } from "@shared/note-frontmatter";
+import { noteDisplayTitle } from "@shared/note-frontmatter";
 
 const EDITOR_MODE_KEY = "pwor-note-editor-mode";
 const DEFAULT_WIDTH = 420;
@@ -60,77 +55,16 @@ function displayTitle(title: string | null | undefined): string {
   return noteDisplayTitle(title);
 }
 
-function seedNotesList(
-  queryClient: ReturnType<typeof useQueryClient>,
-  workspaceId: string,
-  note: Note,
-) {
-  const item: NoteListItem = {
-    id: note.id,
-    title: note.title,
-    workspaceId: note.workspaceId,
-    updatedAt: note.updatedAt,
-    createdAt: note.createdAt,
-  };
-  queryClient.setQueryData(
-    notesQueryOptions(workspaceId).queryKey,
-    (current: NoteListItem[] | undefined) => {
-      if (!current) return [item];
-      return [item, ...current.filter((row) => row.id !== note.id)];
-    },
-  );
-}
-
 export function FloatingNoteHost({
   noteId,
   onClose,
-  onOpened,
 }: {
-  noteId: string | null;
+  noteId: string;
   onClose: () => void;
-  onOpened: (noteId: string) => void;
 }) {
-  const { id: workspaceId } = useCurrentWorkspace();
-  const queryClient = useQueryClient();
-  const creatingRef = useRef(false);
-  const draftBodyRef = useRef(EMPTY_NOTE_BODY);
-  const onCloseRef = useRef(onClose);
-  const onOpenedRef = useRef(onOpened);
-  onCloseRef.current = onClose;
-  onOpenedRef.current = onOpened;
-
-  useEffect(() => {
-    if (noteId || !workspaceId || creatingRef.current) return;
-    creatingRef.current = true;
-    draftBodyRef.current = EMPTY_NOTE_BODY;
-
-    void createNote(EMPTY_NOTE_BODY, null, workspaceId)
-      .then((note) => {
-        const body = draftBodyRef.current;
-        const seeded: Note = { ...note, body };
-        queryClient.setQueryData(noteQueryOptions(note.id).queryKey, seeded);
-        seedNotesList(queryClient, workspaceId, seeded);
-        onOpenedRef.current(note.id);
-      })
-      .catch(() => {
-        toast.error("Couldn’t create note");
-        onCloseRef.current();
-      })
-      .finally(() => {
-        creatingRef.current = false;
-      });
-  }, [noteId, workspaceId, queryClient]);
-
   return createPortal(
     <FloatingNoteShell onClose={onClose}>
-      {noteId ? (
-        <FloatingNoteContent key={noteId} noteId={noteId} onClose={onClose} />
-      ) : (
-        <FloatingNoteDraft
-          draftBodyRef={draftBodyRef}
-          onClose={onClose}
-        />
-      )}
+      <FloatingNoteContent key={noteId} noteId={noteId} onClose={onClose} />
     </FloatingNoteShell>,
     document.body,
   );
@@ -219,7 +153,7 @@ function FloatingNoteShell({
       className={cn(
         "fixed z-50 flex min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         isMobile
-          ? "inset-0"
+          ? "inset-0 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
           : "resize rounded-md border border-border shadow-[0_16px_48px_rgba(0,0,0,0.14)] ring-1 ring-black/5",
       )}
       style={
@@ -349,41 +283,6 @@ function useEditorMode() {
   }
 
   return { mode, toggleEditorMode };
-}
-
-function FloatingNoteDraft({
-  draftBodyRef,
-  onClose,
-}: {
-  draftBodyRef: MutableRefObject<string>;
-  onClose: () => void;
-}) {
-  const { mode, toggleEditorMode } = useEditorMode();
-  const [body, setBody] = useState(EMPTY_NOTE_BODY);
-
-  useHotkey("Mod+Alt+M", () => toggleEditorMode());
-
-  return (
-    <NoteChrome
-      title="Untitled"
-      saveLabel={null}
-      mode={mode}
-      conflict={false}
-      onClose={onClose}
-      onToggleMode={toggleEditorMode}
-    >
-      <NoteEditor
-        key={`draft:${mode}`}
-        mode={mode}
-        initialDoc={body}
-        onChange={(value) => {
-          setBody(value);
-          draftBodyRef.current = value;
-        }}
-        className="min-h-full [&_.cm-editor]:min-h-[12rem]"
-      />
-    </NoteChrome>
-  );
 }
 
 function FloatingNoteContent({

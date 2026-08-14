@@ -4,13 +4,13 @@ import {
   ExclamationTriangleIcon,
   InfoCircledIcon,
   UpdateIcon,
-} from "@radix-ui/react-icons"
-import { useTheme } from "next-themes"
-import type { CSSProperties } from "react"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+} from "@radix-ui/react-icons";
+import { useTheme } from "next-themes";
+import type { CSSProperties } from "react";
+import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { theme = "system" } = useTheme();
 
   return (
     <Sonner
@@ -33,12 +33,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast px-3 py-2 text-xs gap-2",
+          title: "text-xs font-normal",
+          description: "text-xs",
+          icon: "size-3.5",
         },
       }}
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };

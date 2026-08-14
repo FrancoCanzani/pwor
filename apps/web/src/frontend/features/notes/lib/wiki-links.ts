@@ -55,15 +55,13 @@ export function resolveWikiLinkTarget(
   if (!needle) return null;
 
   const exact = notes.find(
-    (note) =>
-      note.id !== currentNoteId && wikiTitleKey(note.title) === needle,
+    (note) => note.id !== currentNoteId && wikiTitleKey(note.title) === needle,
   );
   if (exact) return exact.id;
 
   if (needle === "untitled") {
     const untitled = notes.find(
-      (note) =>
-        note.id !== currentNoteId && wikiTitleKey(note.title) === "",
+      (note) => note.id !== currentNoteId && wikiTitleKey(note.title) === "",
     );
     if (untitled) return untitled.id;
   }
@@ -84,15 +82,16 @@ export function filterNotesByQuery(
   const scored = pool
     .map((note) => {
       const title = wikiTitleKey(note.title) || "untitled";
-      let score = 0;
+      let score: number;
       if (title === q) score = 3;
       else if (title.startsWith(q)) score = 2;
       else if (title.includes(q)) score = 1;
       else return null;
       return { note, score, title };
     })
-    .filter((row): row is { note: NoteTitleRef; score: number; title: string } =>
-      row != null,
+    .filter(
+      (row): row is { note: NoteTitleRef; score: number; title: string } =>
+        row != null,
     )
     .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
 

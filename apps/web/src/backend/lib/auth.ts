@@ -11,8 +11,29 @@ export const EXTENSION_API_KEY_PREFIX = "pwor_";
 /** Default extension key lifetime: 1 year (revocable anytime). */
 export const EXTENSION_API_KEY_TTL_SECONDS = 60 * 60 * 24 * 365;
 
+/** EXTENSION_ORIGINS allowlist; empty trusts any extension origin (dev — WXT IDs aren't stable). */
+export function extensionOrigins(env: Env): string[] {
+  return (env.EXTENSION_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+}
+
+export function isAllowedExtensionOrigin(env: Env, origin: string): boolean {
+  if (
+    !origin.startsWith("chrome-extension://") &&
+    !origin.startsWith("moz-extension://")
+  ) {
+    return false;
+  }
+  const configured = extensionOrigins(env);
+  if (configured.length > 0) return configured.includes(origin);
+  return true;
+}
+
 export function createAuth(env: Env) {
   const appOrigin = env.BETTER_AUTH_URL.replace(/\/$/, "");
+  const configured = extensionOrigins(env);
 
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
@@ -22,13 +43,13 @@ export function createAuth(env: Env) {
       schema,
     }),
     emailAndPassword: { enabled: false },
-    // chrome-extension://* for local WXT builds; lock to the store ID in prod.
     trustedOrigins: [
       appOrigin,
       "http://localhost:5173",
       "http://127.0.0.1:5173",
-      "chrome-extension://*",
-      "moz-extension://*",
+      ...(configured.length > 0
+        ? configured
+        : ["chrome-extension://*", "moz-extension://*"]),
     ],
     plugins: [
       magicLink({

@@ -6,7 +6,8 @@ import { z } from "zod";
 
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
-import { note, noteImage, workspace } from "../../../db/schema";
+import { note, noteImage } from "../../../db/schema";
+import { assertOwnedWorkspace } from "../../../lib/ownership";
 import type { AppEnv } from "../../../types";
 import {
   EMPTY_NOTE_BODY,
@@ -63,22 +64,6 @@ function titleFromBody(body: string): string | null {
   return normalizeNoteTitle(inferTitleFromRaw(body).title);
 }
 
-async function assertOwnedWorkspace(
-  db: ReturnType<typeof createDb>,
-  workspaceId: string | null | undefined,
-  userId: string,
-) {
-  if (workspaceId == null) return;
-  const [row] = await db
-    .select({ id: workspace.id })
-    .from(workspace)
-    .where(ownedBy(workspace.id, workspaceId, workspace.userId, userId))
-    .limit(1);
-  if (!row) {
-    throw new HTTPException(400, { message: "Invalid workspace" });
-  }
-}
-
 const app = new Hono<AppEnv>()
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
@@ -113,8 +98,7 @@ const app = new Hono<AppEnv>()
     const id = crypto.randomUUID();
     const body =
       payload.body.trim().length > 0 ? payload.body : EMPTY_NOTE_BODY;
-    const title =
-      normalizeTitle(payload.title) ?? titleFromBody(body) ?? null;
+    const title = normalizeTitle(payload.title) ?? titleFromBody(body) ?? null;
 
     const [created] = await db
       .insert(note)
@@ -143,7 +127,7 @@ const app = new Hono<AppEnv>()
 
     if (!image) throw new HTTPException(404, { message: "Not found" });
 
-    const object = await c.env.VAULT_BUCKET.get(image.r2Key);
+    const object = await c.env.ITEMS_BUCKET.get(image.r2Key);
     if (!object) throw new HTTPException(404, { message: "File not found" });
 
     return new Response(object.body, {
@@ -188,7 +172,7 @@ const app = new Hono<AppEnv>()
       mimeType: file.type,
     });
 
-    await c.env.VAULT_BUCKET.put(r2Key, file.stream(), {
+    await c.env.ITEMS_BUCKET.put(r2Key, file.stream(), {
       httpMetadata: { contentType: file.type },
     });
 
@@ -234,40 +218,50 @@ const app = new Hono<AppEnv>()
 
     await assertOwnedWorkspace(db, workspaceId, user.id);
 
-    const [existing] = await db
-      .select()
-      .from(note)
-      .where(ownedBy(note.id, id, note.userId, user.id))
-      .limit(1);
-
-    if (!existing) throw new HTTPException(404, { message: "Not found" });
-
-    const touchesContent = body !== undefined || title !== undefined;
-    if (touchesContent) {
-      const expectedMs = toEpochMs(expectedUpdatedAt!);
-      const actualMs = toEpochMs(existing.updatedAt);
-      if (
-        Number.isNaN(expectedMs) ||
-        Number.isNaN(actualMs) ||
-        expectedMs !== actualMs
-      ) {
-        return c.json({ error: "conflict", note: existing }, 409);
-      }
-    }
-
     const normalizedTitle =
       body !== undefined
         ? (normalizeTitle(title) ?? titleFromBody(body))
         : normalizeTitle(title);
+    const patch = {
+      ...(body !== undefined ? { body } : {}),
+      ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
+      ...(workspaceId !== undefined ? { workspaceId } : {}),
+      updatedAt: new Date(),
+    };
+
+    const touchesContent = body !== undefined || title !== undefined;
+    if (touchesContent) {
+      // Single-statement compare-and-swap on updatedAt; no read-write race.
+      const expectedMs = toEpochMs(expectedUpdatedAt!);
+      if (Number.isNaN(expectedMs)) {
+        throw new HTTPException(400, { message: "Invalid expectedUpdatedAt" });
+      }
+
+      const [updated] = await db
+        .update(note)
+        .set(patch)
+        .where(
+          and(
+            ownedBy(note.id, id, note.userId, user.id),
+            eq(note.updatedAt, new Date(expectedMs)),
+          ),
+        )
+        .returning();
+
+      if (updated) return c.json(updated);
+
+      const [existing] = await db
+        .select()
+        .from(note)
+        .where(ownedBy(note.id, id, note.userId, user.id))
+        .limit(1);
+      if (!existing) throw new HTTPException(404, { message: "Not found" });
+      return c.json({ error: "conflict", note: existing }, 409);
+    }
 
     const [updated] = await db
       .update(note)
-      .set({
-        ...(body !== undefined ? { body } : {}),
-        ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
-        ...(workspaceId !== undefined ? { workspaceId } : {}),
-        updatedAt: new Date(),
-      })
+      .set(patch)
       .where(ownedBy(note.id, id, note.userId, user.id))
       .returning();
 
@@ -294,11 +288,9 @@ const app = new Hono<AppEnv>()
       .from(noteImage)
       .where(ownedBy(noteImage.noteId, id, noteImage.userId, user.id));
 
-    await deleteNoteImagesFromR2(c.env.VAULT_BUCKET, images);
+    await deleteNoteImagesFromR2(c.env.ITEMS_BUCKET, images);
 
-    await db
-      .delete(note)
-      .where(ownedBy(note.id, id, note.userId, user.id));
+    await db.delete(note).where(ownedBy(note.id, id, note.userId, user.id));
 
     return c.json({ ok: true });
   });

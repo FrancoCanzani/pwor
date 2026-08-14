@@ -7,9 +7,5 @@ import {
 
 export const Route = createFileRoute("/_app/inbox/")({
   validateSearch: inboxSearchSchema,
-  component: InboxRoute,
+  component: InboxPage,
 });
-
-function InboxRoute() {
-  return <InboxPage />;
-}

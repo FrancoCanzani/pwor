@@ -1,6 +1,7 @@
 /** Discover an RSS/Atom feed URL from a site or feed URL. */
 
 import { isYoutubeUrl, resolveYoutubeFeedUrl } from "./feed-youtube";
+import { assertPublicHttpUrl } from "./safe-url";
 
 const FEED_LINK_RE =
   /<link[^>]+type=["']application\/(rss|atom)\+xml["'][^>]*>/gi;
@@ -21,7 +22,9 @@ export async function resolveFeedUrl(input: string): Promise<{
   const trimmed = input.trim();
   let url: URL;
   try {
-    url = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    url = assertPublicHttpUrl(
+      trimmed.includes("://") ? trimmed : `https://${trimmed}`,
+    );
   } catch {
     throw new Error("Enter a valid URL");
   }
@@ -43,9 +46,11 @@ export async function resolveFeedUrl(input: string): Promise<{
 
   const response = await fetch(url.toString(), {
     redirect: "follow",
+    signal: AbortSignal.timeout(15_000),
     headers: {
       "User-Agent": "PworFeedBot/1.0 (+https://pwor.app)",
-      Accept: "text/html, application/rss+xml, application/atom+xml, application/xml, text/xml",
+      Accept:
+        "text/html, application/rss+xml, application/atom+xml, application/xml, text/xml",
     },
   });
   if (!response.ok) {
@@ -79,15 +84,23 @@ export async function resolveFeedUrl(input: string): Promise<{
   }
 
   // Common fallbacks
-  for (const path of ["/feed", "/rss", "/atom.xml", "/feed.xml", "/index.xml"]) {
+  for (const path of [
+    "/feed",
+    "/rss",
+    "/atom.xml",
+    "/feed.xml",
+    "/index.xml",
+  ]) {
     try {
       const candidate = new URL(path, finalUrl).toString();
       const probe = await fetch(candidate, {
         method: "GET",
         redirect: "follow",
+        signal: AbortSignal.timeout(10_000),
         headers: {
           "User-Agent": "PworFeedBot/1.0 (+https://pwor.app)",
-          Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
+          Accept:
+            "application/rss+xml, application/atom+xml, application/xml, text/xml",
         },
       });
       if (!probe.ok) continue;

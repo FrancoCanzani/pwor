@@ -1,4 +1,7 @@
 import { ExternalLinkIcon } from "@radix-ui/react-icons";
+import { format, isValid } from "date-fns";
+import DOMPurify from "dompurify";
+import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 import type { FeedItem } from "@features/feeds/api";
@@ -6,12 +9,8 @@ import type { FeedItem } from "@features/feeds/api";
 function formatDate(value: string | null): string {
   if (!value) return "";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  if (!isValid(date)) return "";
+  return format(date, "MMM d, yyyy");
 }
 
 export function ArticleReader({
@@ -24,13 +23,20 @@ export function ArticleReader({
   const title = item.title?.trim() || "Untitled";
   const source = item.feedTitle?.trim() || item.author?.trim() || null;
   const isYoutube = item.feedKind === "youtube" || Boolean(item.videoId);
+  const safeContentHtml = useMemo(
+    () =>
+      item.contentHtml
+        ? DOMPurify.sanitize(item.contentHtml, {
+            USE_PROFILES: { html: true },
+            FORBID_TAGS: ["form", "input", "button"],
+          })
+        : null,
+    [item.contentHtml],
+  );
 
   return (
     <article
-      className={cn(
-        "mx-auto w-full max-w-2xl px-4 pt-8 pb-20",
-        className,
-      )}
+      className={cn("mx-auto w-full max-w-2xl px-4 pt-8 pb-20", className)}
     >
       <header className="mb-8 flex flex-col gap-2">
         <h1 className="text-xl font-normal tracking-tight text-balance">
@@ -77,7 +83,7 @@ export function ArticleReader({
         />
       ) : null}
 
-      {item.contentHtml ? (
+      {safeContentHtml ? (
         <div
           className={cn(
             "text-sm leading-relaxed text-foreground",
@@ -96,8 +102,7 @@ export function ArticleReader({
             "[&_figure]:mb-4",
             "[&_hr]:my-6 [&_hr]:border-border",
           )}
-          // Feed HTML is sanitized on ingest.
-          dangerouslySetInnerHTML={{ __html: item.contentHtml }}
+          dangerouslySetInnerHTML={{ __html: safeContentHtml }}
         />
       ) : item.summary ? (
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">

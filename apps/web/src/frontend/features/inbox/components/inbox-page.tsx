@@ -1,8 +1,18 @@
-import { Cross2Icon } from "@radix-ui/react-icons";
+import {
+  Cross2Icon,
+  EyeOpenIcon,
+  OpenInNewWindowIcon,
+  TrashIcon,
+} from "@radix-ui/react-icons";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useRef, useState, type DragEvent } from "react";
+import { useMemo, useRef, useState, type DragEvent } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -25,27 +35,50 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipIconButton,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PageEmpty } from "@components/page-empty";
 import { CaptureButton } from "@features/command/components/capture-button";
 import { SpacePic } from "@features/spaces/components/space-pic";
+import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import {
-  deleteVaultItem,
-  inboxItemsQueryOptions,
-  updateVaultItemProject,
-  type VaultItem,
-} from "@features/vault/api";
-import { VaultViewer } from "@features/vault/components/vault-viewer";
+  deleteItem,
+  inboxItemsInfiniteQueryOptions,
+  updateItemProject,
+  type Item,
+} from "@features/items/api";
+import { ItemHoverCard, ItemMention } from "@features/items/components/item-mention";
+import { LibrarySortMenu } from "@features/items/components/library-sort";
+import { LibraryViewToggle } from "@features/items/components/library-view-toggle";
 import {
-  endPworItemDrag,
-  setPworItemDrag,
-} from "@features/vault/lib/drag";
-import { formatVaultDate, kindLabel } from "@features/vault/lib/list";
+  ITEM_CARD_GRID_CLASS,
+  ItemCard,
+} from "@features/items/components/item-card";
+import { ItemViewer } from "@features/items/components/item-viewer";
+import { endPworItemDrag, setPworItemDrag } from "@features/items/lib/drag";
+import {
+  formatItemDate,
+  kindLabel,
+  sortItems,
+  type ItemSort,
+} from "@features/items/lib/list";
+import { useLibraryView } from "@features/items/lib/view";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 
 export const inboxSearchSchema = z.object({
   item: z.string().optional(),
 });
+
+function itemOpenHref(item: Item): string | null {
+  if (item.kind === "link") return item.url;
+  return `/api/items/${item.id}/file`;
+}
 
 function InboxRow({
   item,
@@ -55,64 +88,124 @@ function InboxRow({
   onToggle,
   onDragStart,
   onDragEnd,
+  onDelete,
 }: {
-  item: VaultItem;
+  item: Item;
   selected: boolean;
   dragging: boolean;
   onOpen: () => void;
   onToggle: (checked: boolean) => void;
   onDragStart: (event: DragEvent<HTMLLIElement>) => void;
   onDragEnd: () => void;
+  onDelete: () => void;
 }) {
   const title = item.title?.trim() || "Untitled";
-  const meta = kindLabel(item);
   const didDrag = useRef(false);
+  const externalHref = itemOpenHref(item);
 
   return (
-    <li
-      draggable
-      onDragStart={(event) => {
-        if ((event.target as HTMLElement).closest("[data-no-drag]")) {
-          event.preventDefault();
-          return;
-        }
-        didDrag.current = true;
-        onDragStart(event);
-      }}
-      onDragEnd={onDragEnd}
-      className={cn(
-        "flex cursor-grab items-center gap-2 py-2 active:cursor-grabbing",
-        dragging && "opacity-40",
-      )}
-    >
-      <span data-no-drag className="flex shrink-0 items-center">
-        <Checkbox
-          checked={selected}
-          aria-label={`Select ${title}`}
-          onCheckedChange={(checked) => onToggle(checked === true)}
-        />
-      </span>
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-auto min-w-0 flex-1 justify-start gap-2 px-0 py-0 text-left hover:bg-transparent"
-        onClick={() => {
+    <AlertDialog>
+      <li
+        draggable
+        onDragStart={(event) => {
+          if ((event.target as HTMLElement).closest("[data-no-drag]")) {
+            event.preventDefault();
+            return;
+          }
+          didDrag.current = true;
+          onDragStart(event);
+        }}
+        onDragEnd={onDragEnd}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("[data-no-drag]")) return;
           if (didDrag.current) {
             didDrag.current = false;
             return;
           }
           onOpen();
         }}
+        className={cn(
+          "group flex w-full cursor-grab items-center gap-2 px-4 py-2 select-none hover:bg-muted/40 active:cursor-grabbing",
+          dragging && "opacity-40",
+        )}
       >
-        <span className="truncate text-sm font-normal">{title}</span>
-        <span className="shrink-0 text-xs font-normal text-muted-foreground">
-          {meta}
+        <span
+          data-no-drag
+          className="flex size-4 shrink-0 items-center justify-center"
+        >
+          <Checkbox
+            checked={selected}
+            aria-label={`Select ${title}`}
+            className="after:hidden"
+            onCheckedChange={(checked) => onToggle(checked === true)}
+          />
         </span>
-      </Button>
-      <span className="shrink-0 text-xs font-nums text-muted-foreground">
-        {formatVaultDate(item.createdAt)}
-      </span>
-    </li>
+        <ItemHoverCard item={item}>
+          <ItemMention item={item} className="min-w-0 flex-1" />
+        </ItemHoverCard>
+        <span
+          data-no-drag
+          className="flex shrink-0 items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+        >
+          <TooltipIconButton
+            label="Preview"
+            className="text-muted-foreground"
+            onClick={onOpen}
+          >
+            <EyeOpenIcon />
+          </TooltipIconButton>
+          <TooltipIconButton
+            label="Open in new window"
+            className="text-muted-foreground"
+            disabled={!externalHref}
+            onClick={() => {
+              if (externalHref) {
+                window.open(externalHref, "_blank", "noopener,noreferrer");
+              }
+            }}
+          >
+            <OpenInNewWindowIcon />
+          </TooltipIconButton>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <AlertDialogTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label="Delete"
+                      className="text-muted-foreground hover:text-destructive active:text-destructive"
+                    />
+                  }
+                />
+              }
+            >
+              <TrashIcon />
+            </TooltipTrigger>
+            <TooltipContent>Delete</TooltipContent>
+          </Tooltip>
+        </span>
+        <span className="shrink-0 text-xs font-nums text-muted-foreground">
+          {formatItemDate(item.createdAt)}
+        </span>
+      </li>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {title}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently removes it from Inbox. This can’t be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onDelete}>
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -132,7 +225,7 @@ function InboxSelectionBar({
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[1] flex justify-center px-4">
       <div className="pointer-events-auto flex items-center gap-0.5 rounded-md border border-border bg-background px-1 py-0.5">
         <span className="px-1.5 font-nums text-xs text-muted-foreground">
           {count}
@@ -151,7 +244,11 @@ function InboxSelectionBar({
           >
             Move
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" side="top" className="min-w-40 shadow-none">
+          <DropdownMenuContent
+            align="center"
+            side="top"
+            className="min-w-40 shadow-none"
+          >
             {spaces.map((space) => (
               <DropdownMenuItem
                 key={space.id}
@@ -159,7 +256,9 @@ function InboxSelectionBar({
                 onClick={() => onMove(space.id)}
               >
                 <SpacePic shaderId={space.shader} className="size-3.5" />
-                <span className="truncate">{space.name.trim() || "Untitled"}</span>
+                <span className="truncate">
+                  {space.name.trim() || "Untitled"}
+                </span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
@@ -171,7 +270,7 @@ function InboxSelectionBar({
                 type="button"
                 variant="ghost"
                 size="xs"
-                className="font-normal text-muted-foreground hover:text-destructive"
+                className="font-normal text-muted-foreground hover:text-destructive active:text-destructive"
                 disabled={busy}
               />
             }
@@ -184,8 +283,8 @@ function InboxSelectionBar({
                 Delete {count === 1 ? "capture" : `${count} captures`}?
               </AlertDialogTitle>
               <AlertDialogDescription>
-                This permanently removes{" "}
-                {count === 1 ? "it" : "them"} from Inbox. This can’t be undone.
+                This permanently removes {count === 1 ? "it" : "them"} from
+                Inbox. This can’t be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -222,10 +321,20 @@ export function InboxPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/inbox/" });
   const search = useSearch({ from: "/_app/inbox/" });
-  const { data } = useQuery(inboxItemsQueryOptions());
-  const items = data?.items ?? [];
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery(inboxItemsInfiniteQueryOptions());
+  const items = useMemo(
+    () => data?.pages.flatMap((page) => page.items) ?? [],
+    [data],
+  );
+  const sentinelRef = useInfiniteScrollSentinel(() => {
+    if (!isFetchingNextPage) void fetchNextPage();
+  }, hasNextPage);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [draggingIds, setDraggingIds] = useState<Set<string>>(() => new Set());
+  const [view, setView] = useLibraryView();
+  const [sort, setSort] = useState<ItemSort>("newest");
+  const sorted = useMemo(() => sortItems(items, sort), [items, sort]);
 
   const selectedIds = items
     .map((item) => item.id)
@@ -243,11 +352,11 @@ export function InboxPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      for (const id of ids) await deleteVaultItem(id);
+      for (const id of ids) await deleteItem(id);
     },
     onSuccess: async (_result, ids) => {
       setSelected(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
       if (search.item && ids.includes(search.item)) {
         void navigate({ search: { item: undefined }, replace: true });
       }
@@ -258,14 +367,14 @@ export function InboxPage() {
   const moveMutation = useMutation({
     mutationFn: async (workspaceId: string) => {
       for (const id of selectedIds) {
-        await updateVaultItemProject(id, workspaceId);
+        await updateItemProject(id, workspaceId);
       }
     },
     onSuccess: async () => {
       const count = selectedIds.length;
       setSelected(new Set());
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["vault", "items"] }),
+        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
         queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
       ]);
       toast.success(count > 1 ? `Moved ${count}` : "Moved");
@@ -284,75 +393,103 @@ export function InboxPage() {
     });
   }
 
-  function dragIdsFor(item: VaultItem): string[] {
+  function dragIdsFor(item: Item): string[] {
     if (selected.has(item.id) && selectedCount > 1) return selectedIds;
     return [item.id];
+  }
+
+  function itemProps(item: Item) {
+    return {
+      selected: selected.has(item.id),
+      dragging: draggingIds.has(item.id),
+      onOpen: () => void navigate({ search: { item: item.id }, replace: true }),
+      onToggle: (checked: boolean) => toggleSelected(item.id, checked),
+      onDelete: () => deleteMutation.mutate([item.id]),
+      onDragStart: (event: DragEvent<HTMLLIElement>) => {
+        const ids = dragIdsFor(item);
+        setPworItemDrag(event, {
+          kind: "item" as const,
+          ids,
+          title: item.title?.trim() || "Untitled",
+          meta: kindLabel(item),
+          fromWorkspaceId: null,
+        });
+        setDraggingIds(new Set(ids));
+      },
+      onDragEnd: () => {
+        endPworItemDrag();
+        setDraggingIds(new Set());
+      },
+    };
   }
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       <div className="shrink-0">
-        <div className="mx-auto flex h-12 w-full max-w-3xl items-center gap-2 px-4">
+        <div className="flex h-12 w-full items-center gap-2 px-4">
           <h1 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
             Inbox
           </h1>
+          <SidebarTrigger className="md:hidden" />
           <CaptureButton />
         </div>
+        {items.length > 0 ? (
+          <div className="flex items-center justify-end gap-2 px-4 pb-2">
+            <LibrarySortMenu value={sort} onChange={setSort} />
+            <LibraryViewToggle value={view} onChange={setView} />
+          </div>
+        ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-3xl px-4 pt-6 pb-24">
-          {items.length === 0 ? (
-            <PageEmpty
-              title="Nothing yet"
-              description="Paste a link anywhere, capture from the extension, or forward email here."
-            />
-          ) : (
-            <ul className="flex flex-col divide-y divide-dashed divide-border">
-              {items.map((item) => (
-                <InboxRow
-                  key={item.id}
-                  item={item}
-                  selected={selected.has(item.id)}
-                  dragging={draggingIds.has(item.id)}
-                  onOpen={() =>
-                    void navigate({ search: { item: item.id }, replace: true })
-                  }
-                  onToggle={(checked) => toggleSelected(item.id, checked)}
-                  onDragStart={(event) => {
-                    const ids = dragIdsFor(item);
-                    setPworItemDrag(event, {
-                      kind: "vault",
-                      ids,
-                      title: item.title?.trim() || "Untitled",
-                      meta: kindLabel(item),
-                      fromWorkspaceId: null,
-                    });
-                    setDraggingIds(new Set(ids));
-                  }}
-                  onDragEnd={() => {
-                    endPworItemDrag();
-                    setDraggingIds(new Set());
-                  }}
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="h-full min-h-0 overflow-y-auto">
+          <div className="pt-2 pb-24">
+            {items.length === 0 ? (
+              <div className="px-4 pt-4">
+                <PageEmpty
+                  title="Nothing yet"
+                  description="Paste a link anywhere, capture from the extension, or forward email here."
                 />
-              ))}
-            </ul>
-          )}
+              </div>
+            ) : (
+              <ul
+                className={
+                  view === "cards"
+                    ? cn(ITEM_CARD_GRID_CLASS, "px-4")
+                    : "flex flex-col divide-y divide-dashed divide-border"
+                }
+              >
+                {sorted.map((item) =>
+                  view === "cards" ? (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      deleteDescription="This permanently removes it from Inbox. This can’t be undone."
+                      {...itemProps(item)}
+                    />
+                  ) : (
+                    <InboxRow key={item.id} item={item} {...itemProps(item)} />
+                  ),
+                )}
+              </ul>
+            )}
+            {hasNextPage ? <div ref={sentinelRef} className="h-8" /> : null}
+          </div>
         </div>
-      </div>
 
-      {selectedCount > 0 ? (
-        <InboxSelectionBar
-          count={selectedCount}
-          busy={busy}
-          onClear={() => setSelected(new Set())}
-          onMove={(workspaceId) => moveMutation.mutate(workspaceId)}
-          onDelete={() => deleteMutation.mutate(selectedIds)}
-        />
-      ) : null}
+        {selectedCount > 0 ? (
+          <InboxSelectionBar
+            count={selectedCount}
+            busy={busy}
+            onClear={() => setSelected(new Set())}
+            onMove={(workspaceId) => moveMutation.mutate(workspaceId)}
+            onDelete={() => deleteMutation.mutate(selectedIds)}
+          />
+        ) : null}
+      </div>
 
       {openItem ? (
-        <VaultViewer
+        <ItemViewer
           item={openItem}
           open
           onOpenChange={(open) => {

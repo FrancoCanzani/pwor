@@ -10,7 +10,7 @@ const searchQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 });
 
-export type SearchKind = "note" | "vault_item";
+export type SearchKind = "note" | "item";
 
 export type SearchHit = {
   kind: SearchKind;
@@ -38,17 +38,17 @@ const SOURCES: Source[] = [
     table: "note",
     title: "title",
     fallback: "Untitled",
-    workspace: "project_id",
+    workspace: "workspace_id",
     timestamp: "updated_at",
     body: "body",
   },
   {
     // Prefer summary / extracted text when present.
-    kind: "vault_item",
-    table: "vault_item",
+    kind: "item",
+    table: "item",
     title: "title",
     fallback: "Untitled",
-    workspace: "project_id",
+    workspace: "workspace_id",
     timestamp: "updated_at",
     body: "coalesce(summary, content, extracted_markdown, tags)",
   },

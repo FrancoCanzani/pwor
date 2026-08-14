@@ -26,12 +26,6 @@ export function Providers({ children }: { children: ReactNode }) {
   const [floatingOpen, setFloatingOpen] = useState(false);
   const [floatingNoteId, setFloatingNoteId] = useState<string | null>(null);
 
-  function openNewNote() {
-    if (!workspaceId) return;
-    setFloatingNoteId(null);
-    setFloatingOpen(true);
-  }
-
   function openNote(noteId: string) {
     if (!workspaceId) return;
     void queryClient.prefetchQuery(noteQueryOptions(noteId));
@@ -39,7 +33,6 @@ export function Providers({ children }: { children: ReactNode }) {
     setFloatingOpen(true);
   }
 
-  useHotkey("Mod+N", () => openNewNote(), { enabled: Boolean(workspaceId) });
   useHotkey("Mod+U", () => setCreateOpen(true));
 
   return (
@@ -47,21 +40,22 @@ export function Providers({ children }: { children: ReactNode }) {
       <CreateDialogProvider value={{ open: () => setCreateOpen(true) }}>
         <FloatingNoteProvider
           value={{
-            openNew: openNewNote,
             openNote,
             activeNoteId: floatingOpen ? floatingNoteId : null,
           }}
         >
           <SidebarProvider
-            className={cn(isFlush && "h-svh min-h-0 overflow-hidden")}
+            className={cn(
+              "pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]",
+              isFlush && "h-dvh min-h-0 overflow-hidden",
+            )}
           >
             <CommandPalette />
             <PasteCapture />
             <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
-            {floatingOpen ? (
+            {floatingOpen && floatingNoteId ? (
               <FloatingNoteHost
                 noteId={floatingNoteId}
-                onOpened={setFloatingNoteId}
                 onClose={() => {
                   setFloatingOpen(false);
                   setFloatingNoteId(null);

@@ -2,7 +2,7 @@ import {
   APP_URL,
   STORAGE_KEYS,
   type ExtensionUser,
-  type VaultItem,
+  type Item,
   type Workspace,
 } from "./config";
 
@@ -84,8 +84,8 @@ export type CaptureInput = {
   preferredWorkspaceId?: string | null;
 };
 
-export async function capture(input: CaptureInput): Promise<VaultItem> {
-  return api<VaultItem>("/api/vault/capture", {
+export async function capture(input: CaptureInput): Promise<Item> {
+  return api<Item>("/api/items/capture", {
     method: "POST",
     body: JSON.stringify(input),
   });

@@ -21,6 +21,7 @@
 
 - Never hand-edit `apps/web/src/frontend/route-tree.gen.ts`. The TanStack Router Vite plugin regenerates it from `apps/web/src/frontend/routes/` during `bun run dev` / build. Add or change route files only — do not patch the generated tree, and do not add a separate generate script.
 - Loading UI belongs only on routes via `pendingComponent` (e.g. the shared `Loading` on `/_app`). Do not add component-level spinners, skeleton loaders, or `isLoading ? null` / `isLoading ? <Spinner />` branches in feature pages. While data is pending, render the empty/default UI or `null` for missing entities — never a local loader.
+- Never add a route component that only unpacks `useParams` / `useSearch` and forwards them as props. Pages read their own route state. Route files should be `component: ThePage` (plus `validateSearch` if needed) — not `function FooRoute() { const { id } = Route.useParams(); return <FooPage id={id} /> }`.
 
 ## Database
 

@@ -22,7 +22,7 @@ export type Workspace = {
   shader?: string | null;
 };
 
-export type VaultItem = {
+export type Item = {
   id: string;
   kind: string;
   title: string | null;

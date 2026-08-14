@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 import type { NoteListItem } from "@features/notes/api";
-import type { VaultItem } from "@features/vault/api";
+import type { Item } from "@features/items/api";
 
 export type Workspace = {
   id: string;
@@ -15,7 +15,7 @@ export type Workspace = {
 
 export type WorkspaceDetail = Workspace & {
   notes: NoteListItem[];
-  vaultItems: VaultItem[];
+  items: Item[];
 };
 
 async function fetchWorkspaces(): Promise<Workspace[]> {

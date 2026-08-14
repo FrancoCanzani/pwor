@@ -6,12 +6,10 @@ import { prettyJSON } from "hono/pretty-json";
 import { secureHeaders } from "hono/secure-headers";
 
 import { handleInboundEmail } from "./email";
-import { createAuth } from "./lib/auth";
+import { createAuth, isAllowedExtensionOrigin } from "./lib/auth";
+import { purgeStalePairings } from "./lib/extension-pairing";
 import { syncAllFeeds } from "./lib/feed-sync";
-import {
-  authMiddleware,
-  requireAuthUnlessPublic,
-} from "./middleware/auth";
+import { authMiddleware, requireAuthUnlessPublic } from "./middleware/auth";
 import extensionRoutes from "./routes/extension";
 import protectedRoutes from "./routes/protected";
 import { cleanupOrphanNoteImages } from "./routes/protected/notes/cleanup";
@@ -28,8 +26,7 @@ app.use("/api/*", async (c, next) => {
   const corsMiddleware = cors({
     origin: (value) => {
       if (!value) return undefined;
-      if (value.startsWith("chrome-extension://")) return value;
-      if (value.startsWith("moz-extension://")) return value;
+      if (isAllowedExtensionOrigin(c.env, value)) return value;
       const appUrl = c.env.BETTER_AUTH_URL.replace(/\/$/, "");
       if (value === appUrl) return value;
       if (value === "http://localhost:5173") return value;
@@ -66,8 +63,12 @@ app.route("/api", protectedRoutes);
 export default {
   fetch: app.fetch,
 
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
-    await cleanupOrphanNoteImages(env);
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    if (controller.cron === "0 6 * * *") {
+      await cleanupOrphanNoteImages(env);
+      await purgeStalePairings(env);
+      return;
+    }
     await syncAllFeeds(env);
   },
 

@@ -1,10 +1,19 @@
 import { DotsHorizontalIcon, PlusIcon } from "@radix-ui/react-icons";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import {
   SidebarGroup,
   SidebarGroupAction,
@@ -38,13 +48,10 @@ import { FeedFavicon } from "@features/feeds/components/feed-favicon";
 import { updateNoteProject } from "@features/notes/api";
 import { SpacePic } from "@features/spaces/components/space-pic";
 import {
-  inboxItemsQueryOptions,
-  updateVaultItemProject,
-} from "@features/vault/api";
-import {
-  usePworItemDrop,
-  type PworItemDrag,
-} from "@features/vault/lib/drag";
+  inboxItemsInfiniteQueryOptions,
+  updateItemProject,
+} from "@features/items/api";
+import { usePworItemDrop, type PworItemDrag } from "@features/items/lib/drag";
 import {
   deleteWorkspace,
   workspacesQueryOptions,
@@ -54,15 +61,14 @@ import { CreateWorkspaceDialog } from "@features/workspaces/components/create-wo
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 
 const sectionLabelClass = "pl-2 pr-6 text-sm font-normal";
-const childItemClass = "h-7 text-xs font-normal";
 const addActionClass =
-  "top-4 right-2 size-4 after:hidden text-muted-foreground hover:text-foreground [&>svg]:size-3";
+  "top-3.5 right-2 size-5 after:hidden text-muted-foreground hover:text-foreground [&>svg]:size-3.5";
 
 async function movePworItems(item: PworItemDrag, workspaceId: string | null) {
   for (const id of item.ids) {
     switch (item.kind) {
-      case "vault":
-        await updateVaultItemProject(id, workspaceId);
+      case "item":
+        await updateItemProject(id, workspaceId);
         break;
       case "note":
         await updateNoteProject(id, workspaceId);
@@ -87,8 +93,10 @@ export function SidebarNav() {
   const queryClient = useQueryClient();
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
   const { data: feeds = [] } = useQuery(feedsQueryOptions());
-  const { data: inboxList } = useQuery(inboxItemsQueryOptions());
-  const inboxCount = inboxList?.items.length ?? 0;
+  const { data: inboxList } = useInfiniteQuery(
+    inboxItemsInfiniteQueryOptions(),
+  );
+  const inboxCount = inboxList?.pages[0]?.total ?? 0;
   const feedsUnread = feeds.reduce(
     (sum, feed) => sum + (feed.unreadCount ?? 0),
     0,
@@ -145,13 +153,20 @@ export function SidebarNav() {
         <SidebarGroupLabel className={sectionLabelClass}>
           Spaces
         </SidebarGroupLabel>
-        <SidebarGroupAction
-          aria-label="New space"
-          className={addActionClass}
-          onClick={() => setCreateSpaceOpen(true)}
-        >
-          <PlusIcon />
-        </SidebarGroupAction>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <SidebarGroupAction
+                aria-label="New space"
+                className={addActionClass}
+                onClick={() => setCreateSpaceOpen(true)}
+              />
+            }
+          >
+            <PlusIcon />
+          </TooltipTrigger>
+          <TooltipContent>New space</TooltipContent>
+        </Tooltip>
 
         <SidebarGroupContent className="max-h-72 overflow-y-auto scrollbar-thin">
           <SidebarMenu className="gap-0.5">
@@ -179,13 +194,20 @@ export function SidebarNav() {
             </span>
           ) : null}
         </SidebarGroupLabel>
-        <SidebarGroupAction
-          aria-label="Add feed"
-          className={addActionClass}
-          onClick={() => setAddFeedOpen(true)}
-        >
-          <PlusIcon />
-        </SidebarGroupAction>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <SidebarGroupAction
+                aria-label="Add feed"
+                className={addActionClass}
+                onClick={() => setAddFeedOpen(true)}
+              />
+            }
+          >
+            <PlusIcon />
+          </TooltipTrigger>
+          <TooltipContent>Add feed</TooltipContent>
+        </Tooltip>
 
         <SidebarGroupContent className="max-h-72 overflow-y-auto scrollbar-thin">
           <SidebarMenu className="gap-0.5">
@@ -193,7 +215,6 @@ export function SidebarNav() {
               <SidebarMenuItem key={feed.id}>
                 <SidebarMenuButton
                   isActive={activeFeedId === feed.id}
-                  size="sm"
                   render={
                     <Link
                       to="/feeds/$feedId"
@@ -201,9 +222,9 @@ export function SidebarNav() {
                       search={{ item: undefined }}
                     />
                   }
-                  className={childItemClass}
+                  className="font-normal"
                 >
-                  <FeedFavicon siteUrl={feed.siteUrl} />
+                  <FeedFavicon siteUrl={feed.siteUrl} className="size-4" />
                   <span className="truncate">
                     {feed.title?.trim() || feed.siteName || "Feed"}
                   </span>
@@ -253,7 +274,7 @@ function InboxRow({
     mutationFn: (item: PworItemDrag) => movePworItems(item, null),
     onSuccess: async (_result, item) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["vault", "items"] }),
+        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
         queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
       ]);
@@ -263,7 +284,7 @@ function InboxRow({
   });
 
   const { isOver, dropProps } = usePworItemDrop({
-    canDrop: (item) => item.kind === "vault" && item.fromWorkspaceId !== null,
+    canDrop: (item) => item.kind === "item" && item.fromWorkspaceId !== null,
     onDrop: (item) => moveMutation.mutate(item),
   });
 
@@ -318,7 +339,7 @@ function SpaceRow({
     mutationFn: (item: PworItemDrag) => movePworItems(item, space.id),
     onSuccess: async (_result, item) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["vault", "items"] }),
+        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
         queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
       ]);
@@ -336,16 +357,15 @@ function SpaceRow({
     <AlertDialog>
       <SidebarMenuItem
         {...dropProps}
-        className={cn("rounded-md", isOver && "bg-sidebar-accent")}
+        className={cn(isOver && "bg-sidebar-accent")}
       >
         <SidebarMenuButton
           isActive={isActive}
-          size="sm"
-          className={childItemClass}
+          className="font-normal"
           tooltip={label}
           onClick={onSelect}
         >
-          <SpacePic shaderId={space.shader} className="size-3.5" />
+          <SpacePic shaderId={space.shader} className="size-4" />
           <span className="truncate">{label}</span>
         </SidebarMenuButton>
 
@@ -355,17 +375,18 @@ function SpaceRow({
               <SidebarMenuAction
                 showOnHover
                 aria-label={`${label} actions`}
-                className={cn(
-                  "top-1/2 right-1 size-4 -translate-y-1/2 after:hidden text-muted-foreground peer-data-[size=sm]/menu-button:top-1/2 [&>svg]:size-3",
-                  isOver && "opacity-0",
-                )}
+                className={cn(isOver && "opacity-0")}
               />
             }
           >
             <DotsHorizontalIcon />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent
+            align="end"
+            className="w-auto min-w-32 shadow-none"
+          >
             <AlertDialogTrigger
+              nativeButton={false}
               render={
                 <DropdownMenuItem
                   variant="destructive"
@@ -383,8 +404,8 @@ function SpaceRow({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {label}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently deletes the space and everything in it. This
-            can’t be undone.
+            This permanently deletes the space and everything in it. This can’t
+            be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

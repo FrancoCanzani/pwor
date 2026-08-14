@@ -16,7 +16,7 @@ export function AppSidebar() {
       <SidebarHeader className="h-12 flex-row items-center gap-0 px-4 py-0">
         <Link
           to="/"
-          className="font-pixel text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
+          className="text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
         >
           Pwor
         </Link>

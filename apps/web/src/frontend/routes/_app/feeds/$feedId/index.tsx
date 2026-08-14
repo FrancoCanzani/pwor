@@ -7,11 +7,5 @@ import {
 
 export const Route = createFileRoute("/_app/feeds/$feedId/")({
   validateSearch: feedsSearchSchema,
-  component: FeedDetailRoute,
+  component: FeedsPage,
 });
-
-function FeedDetailRoute() {
-  const { feedId } = Route.useParams();
-  const { item } = Route.useSearch();
-  return <FeedsPage feedId={feedId} itemId={item} />;
-}

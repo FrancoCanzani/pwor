@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, isValid } from "date-fns";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,12 @@ async function revokeDevice(id: string) {
     method: "DELETE",
   });
   if (!response.ok) throw new Error("Failed to revoke device");
+}
+
+function formatLinkedDate(value: string): string {
+  const date = new Date(value);
+  if (!isValid(date)) return "";
+  return format(date, "MMM d, yyyy");
 }
 
 export const Route = createFileRoute("/_app/settings/")({
@@ -67,7 +74,7 @@ function SettingsPage() {
   const simulate = useMutation({
     mutationFn: simulateInboundEmail,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
       toast.success("Simulated email saved to Inbox");
     },
     onError: () => toast.error("Simulate failed"),
@@ -165,7 +172,7 @@ function SettingsPage() {
                 <div className="truncate">{device.name}</div>
                 <div className="font-nums text-muted-foreground">
                   {device.start ? `${device.start}… · ` : null}
-                  Linked {new Date(device.createdAt).toLocaleDateString()}
+                  Linked {formatLinkedDate(device.createdAt)}
                 </div>
               </div>
               <Button

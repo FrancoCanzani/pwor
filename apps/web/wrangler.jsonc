@@ -10,8 +10,12 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
+  // Deployed values; local dev overrides via .dev.vars.
   "vars": {
-    "BETTER_AUTH_URL": "http://localhost:5173",
+    "BETTER_AUTH_URL": "https://pwor.app",
+    // Comma-separated, e.g. "chrome-extension://<store-id>". Empty allows any
+    // extension origin — set before shipping the extension.
+    "EXTENSION_ORIGINS": "",
   },
   "d1_databases": [
     {
@@ -23,8 +27,8 @@
   ],
   "r2_buckets": [
     {
-      "binding": "VAULT_BUCKET",
-      "bucket_name": "customer-vault",
+      "binding": "ITEMS_BUCKET",
+      "bucket_name": "customer-items",
     },
   ],
   "ai": {
@@ -32,9 +36,10 @@
   },
   "browser": {
     "binding": "BROWSER",
+    "remote": true,
   },
   "triggers": {
-    "crons": ["0 6 * * *"],
+    "crons": ["*/30 * * * *", "0 6 * * *"],
   },
   "secrets": {
     "required": ["BETTER_AUTH_SECRET"],

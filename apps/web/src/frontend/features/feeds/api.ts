@@ -51,10 +51,12 @@ export function feedsQueryOptions() {
 async function fetchFeedItems(options?: {
   feedId?: string;
   unread?: boolean;
+  q?: string;
 }): Promise<FeedItem[]> {
   const params = new URLSearchParams();
   if (options?.feedId) params.set("feedId", options.feedId);
   if (options?.unread) params.set("unread", "1");
+  if (options?.q) params.set("q", options.q);
   const query = params.toString();
   const data = await parseJson<{ items: FeedItem[] }>(
     await fetch(`/api/feeds/items${query ? `?${query}` : ""}`),
@@ -65,6 +67,7 @@ async function fetchFeedItems(options?: {
 export function feedItemsQueryOptions(options?: {
   feedId?: string;
   unread?: boolean;
+  q?: string;
 }) {
   return queryOptions({
     queryKey: [
@@ -72,8 +75,10 @@ export function feedItemsQueryOptions(options?: {
       "items",
       options?.feedId ?? "all",
       options?.unread ? "unread" : "all",
+      options?.q ?? "",
     ] as const,
     queryFn: () => fetchFeedItems(options),
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -94,9 +99,7 @@ export async function deleteFeed(id: string): Promise<void> {
 }
 
 export async function syncFeed(id: string): Promise<void> {
-  await parseJson(
-    await fetch(`/api/feeds/${id}/sync`, { method: "POST" }),
-  );
+  await parseJson(await fetch(`/api/feeds/${id}/sync`, { method: "POST" }));
 }
 
 export async function syncAllFeeds(): Promise<void> {

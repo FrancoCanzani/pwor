@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -8,10 +8,7 @@ import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import { feed, feedItem } from "../../../db/schema";
 import { resolveFeedUrl } from "../../../lib/feed-discover";
-import {
-  syncAllFeedsForUser,
-  syncFeed,
-} from "../../../lib/feed-sync";
+import { syncAllFeedsForUser, syncFeed } from "../../../lib/feed-sync";
 import type { AppEnv } from "../../../types";
 
 const createSchema = z.object({
@@ -21,17 +18,20 @@ const createSchema = z.object({
 const listItemsSchema = z.object({
   feedId: z.string().optional(),
   unread: z
-    .union([z.literal("1"), z.literal("true"), z.literal("0"), z.literal("false")])
+    .union([
+      z.literal("1"),
+      z.literal("true"),
+      z.literal("0"),
+      z.literal("false"),
+    ])
     .optional()
     .transform((value) => value === "1" || value === "true"),
+  q: z.string().trim().max(200).optional(),
 });
 
-function serializeFeed<T>(row: T) {
-  return row;
-}
-
-function serializeItem<T>(row: T) {
-  return row;
+/** `%` and `_` are LIKE wildcards; escape them so search terms match literally. */
+function likePattern(term: string): string {
+  return `%${term.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`;
 }
 
 const app = new Hono<AppEnv>()
@@ -61,7 +61,7 @@ const app = new Hono<AppEnv>()
       .where(eq(feed.userId, user.id))
       .orderBy(desc(feed.updatedAt));
 
-    return c.json({ items: rows.map(serializeFeed) });
+    return c.json({ items: rows });
   })
 
   .post("/", zValidator("json", createSchema), async (c) => {
@@ -74,7 +74,8 @@ const app = new Hono<AppEnv>()
       resolved = await resolveFeedUrl(url);
     } catch (error) {
       throw new HTTPException(400, {
-        message: error instanceof Error ? error.message : "Could not resolve feed",
+        message:
+          error instanceof Error ? error.message : "Could not resolve feed",
       });
     }
 
@@ -110,7 +111,7 @@ const app = new Hono<AppEnv>()
       .where(ownedBy(feed.id, id, feed.userId, user.id))
       .limit(1);
 
-    return c.json(serializeFeed(created!), 201);
+    return c.json(created!, 201);
   })
 
   .post("/sync", async (c) => {
@@ -151,12 +152,23 @@ const app = new Hono<AppEnv>()
 
   .get("/items", zValidator("query", listItemsSchema), async (c) => {
     const user = c.get("user")!;
-    const { feedId, unread } = c.req.valid("query");
+    const { feedId, unread, q } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(feedItem.userId, user.id)];
     if (feedId) conditions.push(eq(feedItem.feedId, feedId));
     if (unread) conditions.push(isNull(feedItem.readAt));
+    if (q) {
+      const pattern = likePattern(q);
+      conditions.push(
+        or(
+          sql`lower(coalesce(${feedItem.title}, '')) like ${pattern} escape '\\'`,
+          sql`lower(coalesce(${feedItem.summary}, '')) like ${pattern} escape '\\'`,
+          sql`lower(coalesce(${feedItem.author}, '')) like ${pattern} escape '\\'`,
+          sql`lower(coalesce(${feed.title}, '')) like ${pattern} escape '\\'`,
+        )!,
+      );
+    }
 
     const items = await db
       .select({
@@ -182,7 +194,7 @@ const app = new Hono<AppEnv>()
       .orderBy(desc(feedItem.publishedAt), desc(feedItem.createdAt))
       .limit(200);
 
-    return c.json({ items: items.map(serializeItem) });
+    return c.json({ items });
   })
 
   .get("/items/:id", async (c) => {
@@ -214,7 +226,7 @@ const app = new Hono<AppEnv>()
       .limit(1);
 
     if (!item) throw new HTTPException(404, { message: "Not found" });
-    return c.json(serializeItem(item));
+    return c.json(item);
   })
 
   .post("/items/:id/read", async (c) => {
@@ -243,7 +255,7 @@ const app = new Hono<AppEnv>()
       .where(eq(feedItem.id, id))
       .limit(1);
 
-    return c.json(serializeItem(item!));
+    return c.json(item!);
   });
 
 export default app;

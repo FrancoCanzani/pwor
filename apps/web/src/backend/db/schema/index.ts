@@ -3,7 +3,7 @@ export * from "./extension";
 export * from "./feeds";
 export * from "./inbox";
 export * from "./notes";
-export * from "./vault";
+export * from "./items";
 export * from "./workspaces";
 
 

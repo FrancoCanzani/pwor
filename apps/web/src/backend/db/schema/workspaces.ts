@@ -3,8 +3,7 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
 
-// Table name is still `project` in applied migrations; rename when you generate.
-export const workspace = sqliteTable("project", {
+export const workspace = sqliteTable("workspace", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()

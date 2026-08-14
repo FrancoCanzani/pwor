@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "440d810f-181b-4717-b913-e63ed9e9c752",
+  "id": "2a11cf60-7481-46b4-bb31-18c0c2a2afff",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "account": {
@@ -499,7 +499,22 @@
           "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "apikey_key": {
+          "name": "apikey_key",
+          "columns": [
+            "key"
+          ],
+          "isUnique": false
+        },
+        "apikey_reference": {
+          "name": "apikey_reference",
+          "columns": [
+            "reference_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "apikey_reference_id_user_id_fk": {
           "name": "apikey_reference_id_user_id_fk",
@@ -594,6 +609,360 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "feed": {
+      "name": "feed",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'rss'"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "site_url": {
+          "name": "site_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "site_name": {
+          "name": "site_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "etag": {
+          "name": "etag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_modified": {
+          "name": "last_modified",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_synced_at": {
+          "name": "last_synced_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sync_error": {
+          "name": "sync_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        }
+      },
+      "indexes": {
+        "feed_user": {
+          "name": "feed_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "feed_user_id_user_id_fk": {
+          "name": "feed_user_id_user_id_fk",
+          "tableFrom": "feed",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "feed_item": {
+      "name": "feed_item",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "feed_id": {
+          "name": "feed_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "guid": {
+          "name": "guid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "author": {
+          "name": "author",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "content_html": {
+          "name": "content_html",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "video_id": {
+          "name": "video_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        }
+      },
+      "indexes": {
+        "feed_item_feed_guid": {
+          "name": "feed_item_feed_guid",
+          "columns": [
+            "feed_id",
+            "guid"
+          ],
+          "isUnique": true
+        },
+        "feed_item_user_read": {
+          "name": "feed_item_user_read",
+          "columns": [
+            "user_id",
+            "read_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "feed_item_feed_id_feed_id_fk": {
+          "name": "feed_item_feed_id_feed_id_fk",
+          "tableFrom": "feed_item",
+          "tableTo": "feed",
+          "columnsFrom": [
+            "feed_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "feed_item_user_id_user_id_fk": {
+          "name": "feed_item_user_id_user_id_fk",
+          "tableFrom": "feed_item",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "user_inbox": {
+      "name": "user_inbox",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        }
+      },
+      "indexes": {
+        "user_inbox_user_id_unique": {
+          "name": "user_inbox_user_id_unique",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": true
+        },
+        "user_inbox_token_unique": {
+          "name": "user_inbox_token_unique",
+          "columns": [
+            "token"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "user_inbox_user_id_user_id_fk": {
+          "name": "user_inbox_user_id_user_id_fk",
+          "tableFrom": "user_inbox",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "note": {
       "name": "note",
       "columns": {
@@ -611,8 +980,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "project_id": {
-          "name": "project_id",
+        "workspace_id": {
+          "name": "workspace_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -650,7 +1019,23 @@
           "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "note_user_updated": {
+          "name": "note_user_updated",
+          "columns": [
+            "user_id",
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "note_workspace": {
+          "name": "note_workspace",
+          "columns": [
+            "workspace_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "note_user_id_user_id_fk": {
           "name": "note_user_id_user_id_fk",
@@ -665,12 +1050,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "note_project_id_project_id_fk": {
-          "name": "note_project_id_project_id_fk",
+        "note_workspace_id_workspace_id_fk": {
+          "name": "note_workspace_id_workspace_id_fk",
           "tableFrom": "note",
-          "tableTo": "project",
+          "tableTo": "workspace",
           "columnsFrom": [
-            "project_id"
+            "workspace_id"
           ],
           "columnsTo": [
             "id"
@@ -730,7 +1115,15 @@
           "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "note_image_note": {
+          "name": "note_image_note",
+          "columns": [
+            "note_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "note_image_note_id_note_id_fk": {
           "name": "note_image_note_id_note_id_fk",
@@ -763,8 +1156,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "vault_category": {
-      "name": "vault_category",
+    "category": {
+      "name": "category",
       "columns": {
         "id": {
           "name": "id",
@@ -780,8 +1173,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "project_id": {
-          "name": "project_id",
+        "workspace_id": {
+          "name": "workspace_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -819,11 +1212,19 @@
           "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "category_user": {
+          "name": "category_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "vault_category_user_id_user_id_fk": {
-          "name": "vault_category_user_id_user_id_fk",
-          "tableFrom": "vault_category",
+        "category_user_id_user_id_fk": {
+          "name": "category_user_id_user_id_fk",
+          "tableFrom": "category",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
@@ -834,12 +1235,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "vault_category_project_id_project_id_fk": {
-          "name": "vault_category_project_id_project_id_fk",
-          "tableFrom": "vault_category",
-          "tableTo": "project",
+        "category_workspace_id_workspace_id_fk": {
+          "name": "category_workspace_id_workspace_id_fk",
+          "tableFrom": "category",
+          "tableTo": "workspace",
           "columnsFrom": [
-            "project_id"
+            "workspace_id"
           ],
           "columnsTo": [
             "id"
@@ -852,8 +1253,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "vault_item": {
-      "name": "vault_item",
+    "item": {
+      "name": "item",
       "columns": {
         "id": {
           "name": "id",
@@ -869,8 +1270,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "project_id": {
-          "name": "project_id",
+        "workspace_id": {
+          "name": "workspace_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -926,6 +1327,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "mime_type": {
           "name": "mime_type",
           "type": "text",
@@ -956,6 +1364,13 @@
         },
         "extracted_markdown": {
           "name": "extracted_markdown",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "preview_r2_key": {
+          "name": "preview_r2_key",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -999,11 +1414,27 @@
           "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "item_user_created": {
+          "name": "item_user_created",
+          "columns": [
+            "user_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "item_workspace": {
+          "name": "item_workspace",
+          "columns": [
+            "workspace_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "vault_item_user_id_user_id_fk": {
-          "name": "vault_item_user_id_user_id_fk",
-          "tableFrom": "vault_item",
+        "item_user_id_user_id_fk": {
+          "name": "item_user_id_user_id_fk",
+          "tableFrom": "item",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
@@ -1014,12 +1445,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "vault_item_project_id_project_id_fk": {
-          "name": "vault_item_project_id_project_id_fk",
-          "tableFrom": "vault_item",
-          "tableTo": "project",
+        "item_workspace_id_workspace_id_fk": {
+          "name": "item_workspace_id_workspace_id_fk",
+          "tableFrom": "item",
+          "tableTo": "workspace",
           "columnsFrom": [
-            "project_id"
+            "workspace_id"
           ],
           "columnsTo": [
             "id"
@@ -1027,10 +1458,10 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "vault_item_category_id_vault_category_id_fk": {
-          "name": "vault_item_category_id_vault_category_id_fk",
-          "tableFrom": "vault_item",
-          "tableTo": "vault_category",
+        "item_category_id_category_id_fk": {
+          "name": "item_category_id_category_id_fk",
+          "tableFrom": "item",
+          "tableTo": "category",
           "columnsFrom": [
             "category_id"
           ],
@@ -1045,8 +1476,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "project": {
-      "name": "project",
+    "workspace": {
+      "name": "workspace",
       "columns": {
         "id": {
           "name": "id",
@@ -1111,9 +1542,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "project_user_id_user_id_fk": {
-          "name": "project_user_id_user_id_fk",
-          "tableFrom": "project",
+        "workspace_user_id_user_id_fk": {
+          "name": "workspace_user_id_user_id_fk",
+          "tableFrom": "workspace",
           "tableTo": "user",
           "columnsFrom": [
             "user_id"

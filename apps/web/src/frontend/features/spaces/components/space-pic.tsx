@@ -9,7 +9,29 @@ import {
 
 const cache = new Map<string, string>();
 const CAPTURE_SIZE = 64;
-const MAX_CAPTURE_FRAMES = 90;
+const MAX_CAPTURE_FRAMES = 180;
+
+const waiters: Array<() => void> = [];
+let capturing = false;
+
+function acquireCapture(): Promise<void> {
+  if (!capturing) {
+    capturing = true;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    waiters.push(() => {
+      capturing = true;
+      resolve();
+    });
+  });
+}
+
+function releaseCapture() {
+  const next = waiters.shift();
+  if (next) next();
+  else capturing = false;
+}
 
 function cacheKey(shaderId: string) {
   return `${shaderId}:${CAPTURE_SIZE}`;
@@ -24,7 +46,7 @@ function fallbackGradient(preset: SpaceShaderPreset): string {
   }
   const front =
     (typeof preset.props.colorFront === "string" && preset.props.colorFront) ||
-    (typeof preset.props.colorBack === "string" && preset.props.colorBack) ||
+    (typeof preset.props.colorInner === "string" && preset.props.colorInner) ||
     "#1a1a1a";
   const back =
     (typeof preset.props.colorBack === "string" && preset.props.colorBack) ||
@@ -46,23 +68,63 @@ export function SpacePic({
     size === "lg" ? "size-16" : size === "md" ? "size-5" : "size-4";
   const key = cacheKey(preset.id);
   const [src, setSrc] = useState<string | null>(() => cache.get(key) ?? null);
+  const [live, setLive] = useState(false);
   const [failed, setFailed] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const { Component, props } = preset;
+  const fallback = fallbackGradient(preset);
 
   useEffect(() => {
     setSrc(cache.get(key) ?? null);
+    setLive(false);
     setFailed(false);
   }, [key]);
 
   useEffect(() => {
+    const cached = cache.get(key);
+    if (cached) {
+      setSrc(cached);
+      return;
+    }
     if (src || failed) return;
+
+    let cancelled = false;
+    let held = false;
+
+    void acquireCapture().then(() => {
+      if (cancelled) {
+        releaseCapture();
+        return;
+      }
+      held = true;
+      setLive(true);
+    });
+
+    return () => {
+      cancelled = true;
+      if (held) releaseCapture();
+    };
+  }, [key, src, failed]);
+
+  useEffect(() => {
+    if (!live || src || failed) return;
     const host = hostRef.current;
     if (!host) return;
 
     let attempts = 0;
     let raf = 0;
     let cancelled = false;
+
+    const finish = (next: string | null) => {
+      if (cancelled) return;
+      if (next) {
+        cache.set(key, next);
+        setSrc(next);
+      } else {
+        setFailed(true);
+      }
+      setLive(false);
+    };
 
     const capture = () => {
       if (cancelled) return;
@@ -71,7 +133,7 @@ export function SpacePic({
         if (attempts++ < MAX_CAPTURE_FRAMES) {
           raf = requestAnimationFrame(capture);
         } else {
-          setFailed(true);
+          finish(null);
         }
         return;
       }
@@ -80,13 +142,12 @@ export function SpacePic({
         if (url === "data:," || url.length < 32) {
           throw new Error("empty capture");
         }
-        cache.set(key, url);
-        setSrc(url);
+        finish(url);
       } catch {
         if (attempts++ < MAX_CAPTURE_FRAMES) {
           raf = requestAnimationFrame(capture);
         } else {
-          setFailed(true);
+          finish(null);
         }
       }
     };
@@ -99,7 +160,7 @@ export function SpacePic({
       cancelled = true;
       cancelAnimationFrame(raf);
     };
-  }, [key, src, failed]);
+  }, [key, live, src, failed]);
 
   return (
     <span
@@ -108,9 +169,10 @@ export function SpacePic({
         "relative inline-block shrink-0 overflow-hidden rounded-sm",
         className,
       )}
+      style={src ? undefined : { backgroundImage: fallback }}
       aria-hidden
     >
-      {!src && !failed ? (
+      {live ? (
         <div
           ref={hostRef}
           className="pointer-events-none fixed top-0 left-0 -z-10 opacity-0"
@@ -129,14 +191,7 @@ export function SpacePic({
           draggable={false}
           className="size-full object-cover object-left"
         />
-      ) : (
-        <span
-          className="block size-full bg-muted"
-          style={
-            failed ? { backgroundImage: fallbackGradient(preset) } : undefined
-          }
-        />
-      )}
+      ) : null}
     </span>
   );
 }

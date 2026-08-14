@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Loading } from "@components/loading";
 import { NotFound } from "@components/not-found";
 import { RouteError } from "@components/route-error";
-import { VaultDropZone } from "@features/vault/components/vault-drop-zone";
+import { ItemDropZone } from "@features/items/components/item-drop-zone";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { sessionQueryOptions } from "@lib/session";
 
@@ -60,7 +60,7 @@ function AppLayout() {
 
   return (
     <AppShell>
-      <VaultDropZone />
+      <ItemDropZone />
       <Toaster />
       <Outlet />
     </AppShell>

@@ -17,15 +17,15 @@ import { cn } from "@/lib/utils";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
 import {
-  captureVaultInput,
-  createVaultSnippet,
-  uploadVaultItem,
-} from "@features/vault/api";
+  captureItemInput,
+  createItemSnippet,
+  uploadItem,
+} from "@features/items/api";
 import {
   isCodeSnippetFile,
   isMarkdownFile,
   languageFromFilename,
-} from "@features/vault/lib/snippet-language";
+} from "@features/items/lib/snippet-language";
 import { inferLanguageFromContent, looksLikeCode } from "@shared/infer-language";
 import {
   inferTitleFromRaw,
@@ -84,18 +84,18 @@ export function CreateDialog({
       if (looksLikeCode(trimmed)) {
         const content = dedentCode(trimmed);
         const language = inferLanguageFromContent(content);
-        return createVaultSnippet(content, {
+        return createItemSnippet(content, {
           title: title.trim() || titleFromSnippet(content, language),
           language,
           workspaceId: spaceId,
         });
       }
-      return captureVaultInput(trimmed, spaceId, null, {
+      return captureItemInput(trimmed, spaceId, {
         title: captureTitle.trim() || null,
       });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
       markCaptureHintSeen();
       toast.success(
         codeMode ? "Snippet added" : `Saved to ${spaceId ? "space" : "Inbox"}`,
@@ -128,7 +128,7 @@ export function CreateDialog({
               markCaptureHintSeen();
               toast.success(`${file.name} added as note`, { id: toastId });
             } else {
-              await captureVaultInput(raw, null, null, {
+              await captureItemInput(raw, null, {
                 title: file.name.replace(/\.md$/i, "") || null,
               });
               markCaptureHintSeen();
@@ -136,7 +136,7 @@ export function CreateDialog({
             }
           } else if (isCodeSnippetFile(file)) {
             const content = dedentCode(await file.text());
-            await createVaultSnippet(content, {
+            await createItemSnippet(content, {
               title: file.name,
               language:
                 languageFromFilename(file.name) ||
@@ -146,7 +146,7 @@ export function CreateDialog({
             markCaptureHintSeen();
             toast.success(`${file.name} added as snippet`, { id: toastId });
           } else {
-            await uploadVaultItem(file, spaceId);
+            await uploadItem(file, spaceId);
             markCaptureHintSeen();
             toast.success(
               `${file.name} saved to ${spaceId ? "space" : "Inbox"}`,
@@ -158,7 +158,7 @@ export function CreateDialog({
         }
       }
       await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
-      await queryClient.invalidateQueries({ queryKey: ["vault", "items"] });
+      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
       onOpenChange(false);
     } finally {
       setUploading(false);
@@ -221,7 +221,7 @@ export function CreateDialog({
             disabled={busy}
             onClick={() => fileRef.current?.click()}
             className={cn(
-              "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-xs text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+              "flex min-h-20 w-full items-center justify-center rounded-md border border-dashed border-border px-4 text-xs text-muted-foreground select-none hover:border-foreground/30 hover:text-foreground active:border-foreground/30 active:text-foreground",
               busy && "pointer-events-none opacity-50",
             )}
           >

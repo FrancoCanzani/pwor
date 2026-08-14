@@ -19,7 +19,7 @@ import { Route as AppFeedsIndexRouteImport } from './routes/_app/feeds/index'
 import { Route as AppInboxIndexRouteImport } from './routes/_app/inbox/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
-import { Route as AppWorkspaceIdVaultIndexRouteImport } from './routes/_app/$workspaceId/vault/index'
+import { Route as AppWorkspaceIdItemsIndexRouteImport } from './routes/_app/$workspaceId/items/index'
 import { Route as AppFeedsFeedIdIndexRouteImport } from './routes/_app/feeds/$feedId/index'
 
 const AppRoute = AppRouteImport.update({
@@ -71,10 +71,10 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWorkspaceIdVaultIndexRoute =
-  AppWorkspaceIdVaultIndexRouteImport.update({
-    id: '/vault/',
-    path: '/vault/',
+const AppWorkspaceIdItemsIndexRoute =
+  AppWorkspaceIdItemsIndexRouteImport.update({
+    id: '/items/',
+    path: '/items/',
     getParentRoute: () => AppWorkspaceIdRoute,
   } as any)
 const AppFeedsFeedIdIndexRoute = AppFeedsFeedIdIndexRouteImport.update({
@@ -93,7 +93,7 @@ export interface FileRoutesByFullPath {
   '/inbox/': typeof AppInboxIndexRoute
   '/onboarding/': typeof AppOnboardingIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
-  '/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
+  '/$workspaceId/items/': typeof AppWorkspaceIdItemsIndexRoute
   '/feeds/$feedId/': typeof AppFeedsFeedIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -105,7 +105,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxIndexRoute
   '/onboarding': typeof AppOnboardingIndexRoute
   '/settings': typeof AppSettingsIndexRoute
-  '/$workspaceId/vault': typeof AppWorkspaceIdVaultIndexRoute
+  '/$workspaceId/items': typeof AppWorkspaceIdItemsIndexRoute
   '/feeds/$feedId': typeof AppFeedsFeedIdIndexRoute
 }
 export interface FileRoutesById {
@@ -120,7 +120,7 @@ export interface FileRoutesById {
   '/_app/inbox/': typeof AppInboxIndexRoute
   '/_app/onboarding/': typeof AppOnboardingIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
-  '/_app/$workspaceId/vault/': typeof AppWorkspaceIdVaultIndexRoute
+  '/_app/$workspaceId/items/': typeof AppWorkspaceIdItemsIndexRoute
   '/_app/feeds/$feedId/': typeof AppFeedsFeedIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -135,7 +135,7 @@ export interface FileRouteTypes {
     | '/inbox/'
     | '/onboarding/'
     | '/settings/'
-    | '/$workspaceId/vault/'
+    | '/$workspaceId/items/'
     | '/feeds/$feedId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -147,7 +147,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/onboarding'
     | '/settings'
-    | '/$workspaceId/vault'
+    | '/$workspaceId/items'
     | '/feeds/$feedId'
   id:
     | '__root__'
@@ -161,7 +161,7 @@ export interface FileRouteTypes {
     | '/_app/inbox/'
     | '/_app/onboarding/'
     | '/_app/settings/'
-    | '/_app/$workspaceId/vault/'
+    | '/_app/$workspaceId/items/'
     | '/_app/feeds/$feedId/'
   fileRoutesById: FileRoutesById
 }
@@ -243,11 +243,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/$workspaceId/vault/': {
-      id: '/_app/$workspaceId/vault/'
-      path: '/vault'
-      fullPath: '/$workspaceId/vault/'
-      preLoaderRoute: typeof AppWorkspaceIdVaultIndexRouteImport
+    '/_app/$workspaceId/items/': {
+      id: '/_app/$workspaceId/items/'
+      path: '/items'
+      fullPath: '/$workspaceId/items/'
+      preLoaderRoute: typeof AppWorkspaceIdItemsIndexRouteImport
       parentRoute: typeof AppWorkspaceIdRoute
     }
     '/_app/feeds/$feedId/': {
@@ -262,12 +262,12 @@ declare module '@tanstack/react-router' {
 
 interface AppWorkspaceIdRouteChildren {
   AppWorkspaceIdIndexRoute: typeof AppWorkspaceIdIndexRoute
-  AppWorkspaceIdVaultIndexRoute: typeof AppWorkspaceIdVaultIndexRoute
+  AppWorkspaceIdItemsIndexRoute: typeof AppWorkspaceIdItemsIndexRoute
 }
 
 const AppWorkspaceIdRouteChildren: AppWorkspaceIdRouteChildren = {
   AppWorkspaceIdIndexRoute: AppWorkspaceIdIndexRoute,
-  AppWorkspaceIdVaultIndexRoute: AppWorkspaceIdVaultIndexRoute,
+  AppWorkspaceIdItemsIndexRoute: AppWorkspaceIdItemsIndexRoute,
 }
 
 const AppWorkspaceIdRouteWithChildren = AppWorkspaceIdRoute._addFileChildren(

@@ -8,10 +8,9 @@ import * as schema from "../db/schema";
 
 export const EXTENSION_API_KEY_PREFIX = "pwor_";
 
-/** Default extension key lifetime: 1 year (revocable anytime). */
 export const EXTENSION_API_KEY_TTL_SECONDS = 60 * 60 * 24 * 365;
 
-/** EXTENSION_ORIGINS allowlist; empty trusts any extension origin (dev — WXT IDs aren't stable). */
+// Empty allowlist trusts any extension origin — WXT IDs aren't stable in local dev.
 export function extensionOrigins(env: Env): string[] {
   return (env.EXTENSION_ORIGINS ?? "")
     .split(",")

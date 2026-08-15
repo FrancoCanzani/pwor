@@ -85,7 +85,7 @@ export type CaptureInput = {
 };
 
 export async function capture(input: CaptureInput): Promise<Item> {
-  return api<Item>("/api/items/capture", {
+  return api<Item>("/api/items", {
     method: "POST",
     body: JSON.stringify(input),
   });

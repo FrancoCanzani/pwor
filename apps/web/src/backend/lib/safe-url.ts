@@ -16,11 +16,6 @@ function isPrivateIpv4(host: string): boolean {
   );
 }
 
-/**
- * Rejects URLs a server-side fetch should never follow on a user's behalf:
- * non-http(s) schemes, localhost/internal names, and private/link-local IPs.
- * Returns the parsed URL for convenience.
- */
 export function assertPublicHttpUrl(input: string): URL {
   let url: URL;
   try {

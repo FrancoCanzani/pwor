@@ -4,7 +4,6 @@ const DEFAULT_VOLUME = 0.5;
 
 let started = false;
 
-/** Call once from the app root. Idempotent. */
 export function startSound() {
   if (started || typeof document === "undefined") return;
   started = true;

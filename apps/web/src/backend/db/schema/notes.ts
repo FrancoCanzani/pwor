@@ -24,13 +24,11 @@ export const note = sqliteTable(
     feedItemId: text("feed_item_id").references(() => feedItem.id, {
       onDelete: "cascade",
     }),
-    color: text("color"),
     anchorFrom: integer("anchor_from"),
     anchorTo: integer("anchor_to"),
     anchorQuote: text("anchor_quote"),
     anchorPrefix: text("anchor_prefix"),
     anchorSuffix: text("anchor_suffix"),
-    anchorPatch: text("anchor_patch"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),

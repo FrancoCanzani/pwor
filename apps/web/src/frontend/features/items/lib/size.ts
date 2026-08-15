@@ -1,4 +1,3 @@
-/** Format item storage as GB in 0.1 steps. Non-empty items never show 0.0. */
 export function formatGb(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0.0 GB";
 

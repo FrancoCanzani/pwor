@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import type { HighlightAnchor } from "@lib/reading/highlight-anchor";
 import { parseJson } from "@lib/api";
+import type { HighlightAnchor } from "@lib/reading/highlight-anchor";
 import { toEpochMs } from "@shared/time";
 
 export type HighlightTarget = { itemId: string } | { feedItemId: string };
@@ -12,24 +12,18 @@ export type NoteListItem = {
   workspaceId: string | null;
   updatedAt: string | Date;
   createdAt: string | Date;
+  itemId: string | null;
+  feedItemId: string | null;
+  anchorFrom: number | null;
+  anchorTo: number | null;
+  anchorQuote: string | null;
+  anchorPrefix: string | null;
+  anchorSuffix: string | null;
 };
 
 export type Note = NoteListItem & {
   body: string;
   userId: string;
-  workspaceId: string | null;
-};
-
-export type Highlight = NoteListItem & {
-  itemId: string | null;
-  feedItemId: string | null;
-  color: string | null;
-  anchorFrom: number;
-  anchorTo: number;
-  anchorQuote: string;
-  anchorPrefix: string;
-  anchorSuffix: string;
-  anchorPatch: string;
 };
 
 export class NoteConflictError extends Error {
@@ -44,9 +38,43 @@ export class NoteConflictError extends Error {
 
 export { toEpochMs };
 
-async function fetchNotes(workspaceId?: string): Promise<NoteListItem[]> {
+function noteAnchor(note: NoteListItem): HighlightAnchor | null {
+  if (
+    note.anchorFrom == null ||
+    note.anchorTo == null ||
+    !note.anchorQuote
+  ) {
+    return null;
+  }
+  return {
+    from: note.anchorFrom,
+    to: note.anchorTo,
+    quote: note.anchorQuote,
+    prefix: note.anchorPrefix ?? "",
+    suffix: note.anchorSuffix ?? "",
+  };
+}
+
+export function noteHasAnchor(
+  note: NoteListItem,
+): note is NoteListItem & {
+  anchorFrom: number;
+  anchorTo: number;
+  anchorQuote: string;
+} {
+  return noteAnchor(note) != null;
+}
+
+async function fetchNotes(filter?: {
+  workspaceId?: string;
+  target?: HighlightTarget;
+}): Promise<NoteListItem[]> {
   const params = new URLSearchParams();
-  if (workspaceId) params.set("workspaceId", workspaceId);
+  if (filter?.workspaceId) params.set("workspaceId", filter.workspaceId);
+  if (filter?.target) {
+    if ("itemId" in filter.target) params.set("itemId", filter.target.itemId);
+    else params.set("feedItemId", filter.target.feedItemId);
+  }
   const query = params.toString();
   const data = await parseJson<{ items: NoteListItem[] }>(
     await fetch(`/api/notes${query ? `?${query}` : ""}`),
@@ -60,8 +88,19 @@ async function fetchNote(id: string): Promise<Note> {
 
 export function notesQueryOptions(workspaceId?: string) {
   return queryOptions({
-    queryKey: ["notes", "list", workspaceId] as const,
-    queryFn: () => fetchNotes(workspaceId),
+    queryKey: ["notes", "list", workspaceId ?? null] as const,
+    queryFn: () => fetchNotes({ workspaceId }),
+  });
+}
+
+export function targetNotesQueryOptions(target: HighlightTarget) {
+  const key =
+    "itemId" in target
+      ? (["itemId", target.itemId] as const)
+      : (["feedItemId", target.feedItemId] as const);
+  return queryOptions({
+    queryKey: ["notes", "list", key[0], key[1]] as const,
+    queryFn: () => fetchNotes({ target }),
   });
 }
 
@@ -72,58 +111,24 @@ export function noteQueryOptions(id: string) {
   });
 }
 
-function targetQueryParam(target: HighlightTarget): [string, string] {
-  return "itemId" in target
-    ? ["itemId", target.itemId]
-    : ["feedItemId", target.feedItemId];
-}
-
-async function fetchHighlights(target: HighlightTarget): Promise<Highlight[]> {
-  const [key, value] = targetQueryParam(target);
-  const data = await parseJson<{ items: Highlight[] }>(
-    await fetch(`/api/notes?${key}=${encodeURIComponent(value)}`),
-  );
-  return data.items;
-}
-
-export function highlightsQueryOptions(target: HighlightTarget) {
-  const [key, value] = targetQueryParam(target);
-  return queryOptions({
-    queryKey: ["notes", "highlights", key, value] as const,
-    queryFn: () => fetchHighlights(target),
-  });
-}
-
-export async function createHighlight(params: {
-  target: HighlightTarget;
-  anchor: HighlightAnchor;
-  color: string;
+export async function createNote(params: {
   body?: string;
-}): Promise<Highlight> {
-  return parseJson<Highlight>(
-    await fetch("/api/notes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...params.target,
-        anchor: params.anchor,
-        color: params.color,
-        body: params.body ?? "",
-      }),
-    }),
-  );
-}
-
-export async function createNote(
-  body = "",
-  title?: string | null,
-  workspaceId?: string | null,
-): Promise<Note> {
+  title?: string | null;
+  workspaceId?: string | null;
+  target?: HighlightTarget;
+  anchor?: HighlightAnchor;
+}): Promise<Note> {
   return parseJson<Note>(
     await fetch("/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body, title, workspaceId }),
+      body: JSON.stringify({
+        body: params.body ?? "",
+        title: params.title,
+        workspaceId: params.workspaceId,
+        ...(params.target ?? {}),
+        ...(params.anchor ? { anchor: params.anchor } : {}),
+      }),
     }),
   );
 }

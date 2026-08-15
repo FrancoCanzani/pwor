@@ -1,5 +1,13 @@
 # Agent notes
 
+## Comments (enforced)
+
+Never add JSDoc. Never add comments that narrate what the next lines do. Names, types, and signatures are the docs.
+
+Illegal: `/** Rejects URLs a server-side fetch should never follow… Returns the parsed URL for convenience. */`, `/** Format item storage as GB… */`, `/** Extension starts a pairing session. */`, or any other restatement of the function/field/route sitting under it.
+
+The only legal comment is a short `//` that explains a non-obvious **why**: a platform limit, a security constraint, a workaround, an invisible character, a surprising default. If a competent reader would not ask "why is this here?", delete the comment. Prefer renaming over documenting.
+
 ## Git
 
 - Never run `git commit` unless the user explicitly asks for it in that turn. Staging/inspecting changes is fine; committing is not.

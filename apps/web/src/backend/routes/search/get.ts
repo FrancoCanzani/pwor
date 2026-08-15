@@ -1,0 +1,32 @@
+import { zValidator } from "@hono/zod-validator";
+import type { Hono } from "hono";
+import { z } from "zod";
+
+import type { AppEnv } from "../../types";
+import { buildSearchQuery, type SearchHit } from "./lib/query";
+
+const searchQuerySchema = z.object({
+  q: z.string().trim().min(2),
+  workspaceId: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+});
+
+export function registerGetSearch(app: Hono<AppEnv>) {
+  return app.get("/", zValidator("query", searchQuerySchema), async (c) => {
+    const user = c.get("user")!;
+    const { q, workspaceId, limit } = c.req.valid("query");
+
+    const { sql, params } = buildSearchQuery({
+      userId: user.id,
+      q,
+      workspaceId,
+      limit,
+    });
+
+    const { results } = await c.env.DB.prepare(sql)
+      .bind(...params)
+      .all<SearchHit>();
+
+    return c.json({ items: results ?? [] });
+  });
+}

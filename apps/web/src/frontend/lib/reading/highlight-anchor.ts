@@ -1,9 +1,6 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import DiffMatchPatch from "diff-match-patch";
 
 const CONTEXT_CHARS = 120;
-const MARKER_START = "";
-const MARKER_END = "";
 const BLOCK_SEPARATOR = "\n";
 
 export type HighlightAnchor = {
@@ -12,7 +9,6 @@ export type HighlightAnchor = {
   quote: string;
   prefix: string;
   suffix: string;
-  patch: string;
 };
 
 function fullText(doc: ProseMirrorNode): string {
@@ -24,7 +20,6 @@ export function createAnchor(
   from: number,
   to: number,
 ): HighlightAnchor {
-  const text = fullText(doc);
   const quote = doc.textBetween(from, to, BLOCK_SEPARATOR, BLOCK_SEPARATOR);
   const prefix = doc.textBetween(
     Math.max(0, from - CONTEXT_CHARS),
@@ -39,21 +34,7 @@ export function createAnchor(
     BLOCK_SEPARATOR,
   );
 
-  const snippetIndex = text.indexOf(prefix + quote + suffix);
-  let patch = "";
-  if (snippetIndex !== -1) {
-    const markedFrom = snippetIndex + prefix.length;
-    const marked =
-      text.slice(0, markedFrom) +
-      MARKER_START +
-      quote +
-      MARKER_END +
-      text.slice(markedFrom + quote.length);
-    const dmp = new DiffMatchPatch();
-    patch = dmp.patch_toText(dmp.patch_make(text, marked));
-  }
-
-  return { from, to, quote, prefix, suffix, patch };
+  return { from, to, quote, prefix, suffix };
 }
 
 function charOffsetToPos(doc: ProseMirrorNode, charOffset: number): number {
@@ -61,7 +42,8 @@ function charOffsetToPos(doc: ProseMirrorNode, charOffset: number): number {
   let hi = doc.content.size;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
-    const len = doc.textBetween(0, mid, BLOCK_SEPARATOR, BLOCK_SEPARATOR).length;
+    const len = doc.textBetween(0, mid, BLOCK_SEPARATOR, BLOCK_SEPARATOR)
+      .length;
     if (len < charOffset) lo = mid + 1;
     else hi = mid;
   }
@@ -83,19 +65,13 @@ export function resolveAnchor(
     if (current === anchor.quote) return { from: anchor.from, to: anchor.to };
   }
 
-  if (!anchor.patch) return null;
+  const text = fullText(doc);
+  const needle = `${anchor.prefix}${anchor.quote}${anchor.suffix}`;
+  const snippetIndex = text.indexOf(needle);
+  if (snippetIndex === -1) return null;
 
-  const dmp = new DiffMatchPatch();
-  const patches = dmp.patch_fromText(anchor.patch);
-  const [patched, results] = dmp.patch_apply(patches, fullText(doc));
-  if (!results.every(Boolean)) return null;
-
-  const startIdx = patched.indexOf(MARKER_START);
-  const endIdx = patched.indexOf(MARKER_END);
-  if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) return null;
-
-  const charFrom = startIdx;
-  const charTo = endIdx - MARKER_START.length;
+  const charFrom = snippetIndex + anchor.prefix.length;
+  const charTo = charFrom + anchor.quote.length;
   const from = charOffsetToPos(doc, charFrom);
   const to = charOffsetToPos(doc, charTo);
   if (from > to) return null;

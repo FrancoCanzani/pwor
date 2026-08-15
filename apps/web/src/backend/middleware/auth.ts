@@ -4,7 +4,6 @@ import { HTTPException } from "hono/http-exception";
 import { createAuth } from "../lib/auth";
 import type { AppEnv } from "../types";
 
-/** Resolves via Better Auth: cookie sessions, bearer tokens, or `x-api-key` (enableSessionForAPIKeys). */
 export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   const session = await createAuth(c.env).api.getSession({
     headers: c.req.raw.headers,

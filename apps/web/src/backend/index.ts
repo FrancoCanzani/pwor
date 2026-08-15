@@ -7,13 +7,11 @@ import { secureHeaders } from "hono/secure-headers";
 
 import { handleInboundEmail } from "./email";
 import { createAuth, isAllowedExtensionOrigin } from "./lib/auth";
-import { purgeStalePairings } from "./lib/extension-pairing";
-import { syncAllFeeds } from "./lib/feed-sync";
 import { authMiddleware, requireAuthUnlessPublic } from "./middleware/auth";
-import extensionRoutes from "./routes/extension";
-import protectedRoutes from "./routes/protected";
-import { cleanupOrphanNoteImages } from "./routes/protected/notes/cleanup";
-import publicRoutes from "./routes/public";
+import { api, extension, registerGetHealth } from "./routes";
+import { purgeStalePairings } from "./routes/extension/lib/pairing";
+import { syncAllFeeds } from "./routes/feeds/lib/sync";
+import { cleanupOrphanNoteImages } from "./routes/notes/lib/cleanup";
 import type { AppEnv } from "./types";
 
 const app = new Hono<AppEnv>();
@@ -54,11 +52,11 @@ app.on(["GET", "POST"], "/api/auth/*", (c) =>
   createAuth(c.env).handler(c.req.raw),
 );
 
-app.route("/", publicRoutes);
+registerGetHealth(app);
 
 app.use("/api/*", requireAuthUnlessPublic);
-app.route("/api/extension", extensionRoutes);
-app.route("/api", protectedRoutes);
+app.route("/api/extension", extension);
+app.route("/api", api);
 
 export default {
   fetch: app.fetch,

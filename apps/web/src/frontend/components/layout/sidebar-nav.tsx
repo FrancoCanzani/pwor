@@ -121,11 +121,6 @@ export function SidebarNav() {
       : null;
   const activeFeedId = isFeeds ? segments[1] : null;
 
-  function selectSpace(id: string) {
-    setStoredWorkspaceId(id);
-    void navigate({ to: "/$workspaceId", params: { workspaceId: id } });
-  }
-
   async function handleCreated(space: { id: string }) {
     setStoredWorkspaceId(space.id);
     setCreateSpaceOpen(false);
@@ -136,6 +131,7 @@ export function SidebarNav() {
     await navigate({
       to: "/$workspaceId",
       params: { workspaceId: space.id },
+      search: { item: undefined },
     });
   }
 
@@ -175,7 +171,6 @@ export function SidebarNav() {
                 key={space.id}
                 space={space}
                 isActive={space.id === routeSpaceId}
-                onSelect={() => selectSpace(space.id)}
               />
             ))}
           </SidebarMenu>
@@ -312,11 +307,9 @@ function InboxRow({
 function SpaceRow({
   space,
   isActive,
-  onSelect,
 }: {
   space: Workspace;
   isActive: boolean;
-  onSelect: () => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -363,7 +356,13 @@ function SpaceRow({
           isActive={isActive}
           className="font-normal"
           tooltip={label}
-          onClick={onSelect}
+          render={
+            <Link
+              to="/$workspaceId"
+              params={{ workspaceId: space.id }}
+              search={{ item: undefined }}
+            />
+          }
         >
           <SpacePic shaderId={space.shader} className="size-4" />
           <span className="truncate">{label}</span>

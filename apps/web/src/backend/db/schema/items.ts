@@ -14,17 +14,13 @@ export const item = sqliteTable(
     workspaceId: text("workspace_id").references(() => workspace.id, {
       onDelete: "set null",
     }),
-    kind: text("kind", { enum: ["file", "link", "text", "snippet"] })
+    kind: text("kind", { enum: ["file", "link", "text"] })
       .notNull()
       .default("file"),
     title: text("title"),
     summary: text("summary"),
-    /** Freeform AI tags — topics, entities, places, themes. Not a fixed enum. */
     tags: text("tags", { mode: "json" }).$type<string[]>(),
-    /** Language id for snippets (e.g. typescript, python). */
-    language: text("language"),
     r2Key: text("r2_key"),
-    /** Stored byte size for R2-backed files; content-backed kinds compute from `content`. */
     sizeBytes: integer("size_bytes"),
     mimeType: text("mime_type"),
     url: text("url"),
@@ -32,7 +28,7 @@ export const item = sqliteTable(
     siteName: text("site_name"),
     content: text("content"),
     extractedMarkdown: text("extracted_markdown"),
-    /** Site screenshot or video poster in R2. */
+    contentHtml: text("content_html"),
     previewR2Key: text("preview_r2_key"),
     parseStatus: text("parse_status", {
       enum: ["pending", "ready", "failed", "skipped"],

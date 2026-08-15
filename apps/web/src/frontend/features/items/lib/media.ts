@@ -2,6 +2,15 @@ export function itemFileUrl(id: string) {
   return `/api/items/${id}/file`;
 }
 
+export function itemOpenHref(item: {
+  id: string;
+  kind: "file" | "link" | "text";
+  url: string | null;
+}): string | null {
+  if (item.kind === "link") return item.url;
+  return itemFileUrl(item.id);
+}
+
 export function itemPreviewUrl(id: string) {
   return `/api/items/${id}/preview`;
 }
@@ -16,15 +25,19 @@ export function itemHost(url: string | null | undefined): string | null {
 }
 
 export function isVideoFile(item: {
-  kind: string;
+  kind: "file" | "link" | "text";
   mimeType: string | null;
 }): boolean {
   return item.kind === "file" && Boolean(item.mimeType?.startsWith("video/"));
 }
 
+export function isPdfFile(item: { mimeType: string | null }): boolean {
+  return item.mimeType === "application/pdf";
+}
+
 export function itemStillUrl(item: {
   id: string;
-  kind: string;
+  kind: "file" | "link" | "text";
   mimeType: string | null;
   hasPreview?: boolean;
 }): string | null {
@@ -59,7 +72,6 @@ const POSTER_MAX_EDGE = 1280;
 const POSTER_QUALITY = 0.82;
 const POSTER_TIMEOUT_MS = 4000;
 
-/** First frame of a local video file, matching playback at t=0. */
 export async function captureVideoPoster(file: File): Promise<File | null> {
   if (!file.type.startsWith("video/")) return null;
 

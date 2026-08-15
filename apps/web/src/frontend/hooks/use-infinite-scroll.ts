@@ -1,9 +1,5 @@
 import { useEffect, useRef } from "react";
 
-/**
- * Ref for a bottom-of-list sentinel element; calls onReach when it nears the
- * viewport. Pair with useInfiniteQuery's fetchNextPage.
- */
 export function useInfiniteScrollSentinel(
   onReach: () => void,
   enabled: boolean,

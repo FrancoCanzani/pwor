@@ -3,7 +3,7 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
 
-/** Better Auth API Key plugin table (`apikey`) — see better-auth.com/docs/plugins/api-key. */
+// Better Auth's `apikey` table — plugin owns this shape.
 export const apikey = sqliteTable(
   "apikey",
   {
@@ -46,12 +46,11 @@ export const apikey = sqliteTable(
   ],
 );
 
-/** Short-lived handoff for delivering a freshly created API key to the extension — not an auth credential store. */
+// One-shot delivery of a minted key to the extension, not a credential store.
 export const extensionPairing = sqliteTable("extension_pairing", {
   id: text("id").primaryKey(),
   secretHash: text("secret_hash").notNull(),
   userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
-  /** Plain API key, cleared once the extension polls it. */
   apiKey: text("api_key"),
   status: text("status", {
     enum: ["pending", "approved", "consumed", "expired"],

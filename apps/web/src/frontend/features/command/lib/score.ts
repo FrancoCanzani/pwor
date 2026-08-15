@@ -1,6 +1,5 @@
 const WORD_BOUNDARY = /[\s\-_/]/;
 
-/** Subsequence match with bonus scoring for contiguous runs and word-boundary hits; null when it doesn't match. */
 export function fuzzyScore(text: string, query: string): number | null {
   if (!query) return 0;
 

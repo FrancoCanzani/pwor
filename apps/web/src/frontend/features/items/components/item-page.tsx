@@ -105,7 +105,7 @@ function ItemRow({
                 </span>
               ) : null}
               {tags.map((tag) => (
-                <span key={tag} className="shrink-0">
+                <span key={tag} className="shrink-0 capitalize">
                   {tag}
                 </span>
               ))}

@@ -2,9 +2,9 @@ import { format, isValid } from "date-fns";
 import DOMPurify from "dompurify";
 import { useMemo } from "react";
 
-import { ContentReader } from "@/components/content-reader";
 import { cn } from "@/lib/utils";
 import type { FeedItem } from "@features/feeds/api";
+import { ContentReader } from "@features/reading/content-reader";
 
 function formatDate(value: string | null): string {
   if (!value) return "";
@@ -23,14 +23,14 @@ export function ArticleReader({
   const title = item.title?.trim() || "Untitled";
   const source = item.feedTitle?.trim() || item.author?.trim() || null;
   const isYoutube = item.feedKind === "youtube" || Boolean(item.videoId);
-  const safeContentHtml = useMemo(
+  const content = useMemo(
     () =>
       item.contentHtml
         ? DOMPurify.sanitize(item.contentHtml, {
             USE_PROFILES: { html: true },
             FORBID_TAGS: ["form", "input", "button"],
           })
-        : null,
+        : "",
     [item.contentHtml],
   );
 
@@ -70,10 +70,10 @@ export function ArticleReader({
         />
       ) : null}
 
-      {safeContentHtml ? (
+      {content ? (
         <ContentReader
           target={{ feedItemId: item.id }}
-          html={safeContentHtml}
+          content={content}
           contained={false}
         />
       ) : item.summary ? (

@@ -1,14 +1,9 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "types": [
-      "@cloudflare/workers-types",
-      "./worker-configuration.d.ts",
-      "vite/client"
-    ],
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/frontend/*"],
-      "@backend/*": ["./src/backend/*"],
       "@frontend/*": ["./src/frontend/*"],
       "@features/*": ["./src/frontend/features/*"],
       "@lib/*": ["./src/frontend/lib/*"],
@@ -17,5 +12,5 @@
       "@shared/*": ["./src/shared/*"]
     }
   },
-  "include": ["src", "worker-configuration.d.ts"]
+  "include": ["src/frontend", "src/shared"]
 }

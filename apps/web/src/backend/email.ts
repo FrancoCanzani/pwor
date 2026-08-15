@@ -3,10 +3,10 @@ import PostalMime, { type Attachment } from "postal-mime";
 
 import { createDb } from "./db";
 import { userInbox, item } from "./db/schema";
-import { randomToken } from "./lib/extension-token";
-import { scheduleItemEnrichment } from "./lib/item-enrichment";
-import { putItemObject } from "./lib/item-storage";
-import { titleFromText } from "./lib/item-capture";
+import { randomToken } from "./lib/token";
+import { titleFromText } from "./routes/items/lib/capture";
+import { scheduleItemEnrichment } from "./routes/items/lib/enrichment";
+import { putItemObject } from "./routes/items/lib/storage";
 
 function attachmentBytes(
   attachment: Attachment,
@@ -71,9 +71,15 @@ export async function regenerateUserInbox(
   return { id, token };
 }
 
-/** Inbound mail for `{token}@…` lands in that user's Inbox (uncategorized item). */
+export type InboundEmail = {
+  to: string;
+  from: string;
+  raw: ReadableStream;
+  setReject(reason: string): void;
+};
+
 export async function handleInboundEmail(
-  message: ForwardableEmailMessage,
+  message: InboundEmail,
   env: Env,
   ctx: { waitUntil(promise: Promise<unknown>): void },
 ): Promise<void> {
@@ -113,6 +119,7 @@ export async function handleInboundEmail(
     kind: "text",
     title: subject || titleFromText(body) || "Email",
     content,
+    sizeBytes: new TextEncoder().encode(content).byteLength,
     tags: ["email"],
     parseStatus: "pending",
   });

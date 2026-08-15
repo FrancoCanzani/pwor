@@ -66,7 +66,7 @@ export function useNoteDocumentSave({
         const next = current.map((item) =>
           item.id === updated.id
             ? {
-                id: updated.id,
+                ...item,
                 title: updated.title,
                 workspaceId: updated.workspaceId,
                 updatedAt: updated.updatedAt,

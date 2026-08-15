@@ -1,15 +1,8 @@
 import type { Item } from "@features/items/api";
 
-/** System type filters in the aside — not user collections. */
-export type ItemTypeFacet =
-  | "links"
-  | "docs"
-  | "images"
-  | "text"
-  | "snippets";
+export type ItemTypeFacet = "links" | "docs" | "images" | "text";
 
 export const TYPE_FACET_ORDER: ItemTypeFacet[] = [
-  "snippets",
   "links",
   "docs",
   "images",
@@ -21,7 +14,6 @@ export const TYPE_FACET_LABEL: Record<ItemTypeFacet, string> = {
   docs: "Docs",
   images: "Images",
   text: "Text",
-  snippets: "Snippets",
 };
 
 export function typeFacetOf(item: Item): ItemTypeFacet {
@@ -30,8 +22,6 @@ export function typeFacetOf(item: Item): ItemTypeFacet {
       return "links";
     case "text":
       return "text";
-    case "snippet":
-      return "snippets";
     case "file":
       if (item.mimeType?.startsWith("image/")) return "images";
       return "docs";

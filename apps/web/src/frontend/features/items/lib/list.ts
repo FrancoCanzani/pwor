@@ -3,7 +3,6 @@ import { format, isValid } from "date-fns";
 import type { Item } from "@features/items/api";
 import { typeFacetOf, type ItemTypeFacet } from "@features/items/lib/facet";
 import { isSheetPreviewable } from "@features/items/lib/sheet";
-import { displayLanguageLabel } from "@shared/snippet-format";
 
 export type ItemSort = "newest" | "oldest" | "name";
 
@@ -67,18 +66,25 @@ export function filterAndSortItems(
   return sortItems(filtered, sort);
 }
 
-export function sortItems(items: Item[], sort: ItemSort): Item[] {
-  const sorted = [...items];
+export function sortBy<T>(
+  rows: T[],
+  sort: ItemSort,
+  accessors: {
+    date: (row: T) => string;
+    name: (row: T) => string;
+  },
+): T[] {
+  const sorted = [...rows];
   switch (sort) {
     case "newest":
-      sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      sorted.sort((a, b) => accessors.date(b).localeCompare(accessors.date(a)));
       break;
     case "oldest":
-      sorted.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      sorted.sort((a, b) => accessors.date(a).localeCompare(accessors.date(b)));
       break;
     case "name":
       sorted.sort((a, b) =>
-        (a.title ?? "").localeCompare(b.title ?? "", undefined, {
+        accessors.name(a).localeCompare(accessors.name(b), undefined, {
           sensitivity: "base",
         }),
       );
@@ -91,14 +97,17 @@ export function sortItems(items: Item[], sort: ItemSort): Item[] {
   return sorted;
 }
 
+export function sortItems(items: Item[], sort: ItemSort): Item[] {
+  return sortBy(items, sort, {
+    date: (item) => item.createdAt,
+    name: (item) => item.title ?? "",
+  });
+}
+
 export function kindLabel(item: Item): string {
   switch (item.kind) {
     case "text":
       return "text";
-    case "snippet":
-      return item.language
-        ? displayLanguageLabel(item.language).toLowerCase()
-        : "snippet";
     case "link":
       return "link";
     case "file":

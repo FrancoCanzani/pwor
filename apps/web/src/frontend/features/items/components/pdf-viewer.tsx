@@ -1,10 +1,9 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { Document, Page } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+import "@features/items/lib/pdf-worker";
 
 const FRAME_PADDING = 12;
 

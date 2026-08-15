@@ -68,7 +68,6 @@ export function normalizeNoteTitle(title: string | null | undefined): string | n
   return trimmed;
 }
 
-/** Sidebar / chrome label — Untitled only when there is no real name. */
 export function noteDisplayTitle(title: string | null | undefined): string {
   return normalizeNoteTitle(title) ?? "Untitled";
 }

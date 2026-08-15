@@ -8,13 +8,16 @@ import {
 import { cn } from "@/lib/utils";
 import type { Item } from "@features/items/api";
 import { ItemVideo } from "@features/items/components/item-video";
+import { PdfThumb } from "@features/items/components/pdf-thumb";
 import {
+  isPdfFile,
   isVideoFile,
+  itemFileUrl,
   itemHost,
   itemStillUrl,
 } from "@features/items/lib/media";
 
-function SiteFavicon({
+export function SiteFavicon({
   url,
   className,
 }: {
@@ -61,7 +64,7 @@ export function Mention({
       ) : null}
       <span
         className={cn(
-          "min-w-0 truncate font-bold underline decoration-foreground/40 underline-offset-2",
+          "min-w-0 truncate underline decoration-foreground/40 underline-offset-2",
           titleClassName,
         )}
       >
@@ -102,10 +105,11 @@ export function HoverPreview({
   content: ReactNode;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   if (!content) return children;
 
   return (
-    <HoverCard>
+    <HoverCard onOpenChange={setOpen}>
       <HoverCardTrigger
         render={
           <span className="inline-flex min-w-0 flex-1 items-center" />
@@ -113,7 +117,7 @@ export function HoverPreview({
       >
         {children}
       </HoverCardTrigger>
-      <HoverCardContent>{content}</HoverCardContent>
+      <HoverCardContent>{open ? content : null}</HoverCardContent>
     </HoverCard>
   );
 }
@@ -124,11 +128,16 @@ function itemHoverContent(item: Item): ReactNode {
   const still = itemStillUrl(item);
   const host = item.kind === "link" ? itemHost(item.url) : null;
   const video = isVideoFile(item);
+  const pdf = isPdfFile(item);
 
   return (
     <div className="flex flex-col">
       {video ? (
         <ItemVideo item={item} play="mount" />
+      ) : pdf ? (
+        <div className="aspect-[4/3] w-full overflow-hidden">
+          <PdfThumb fileUrl={itemFileUrl(item.id)} />
+        </div>
       ) : still ? (
         <img
           src={still}

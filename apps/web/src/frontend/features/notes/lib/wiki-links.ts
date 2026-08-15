@@ -29,7 +29,6 @@ export function findWikiLinks(text: string): WikiLinkMatch[] {
   return matches;
 }
 
-/** Lowercase trim key for wiki-link target matching — not display title. */
 export function wikiTitleKey(title: string | null | undefined): string {
   return (title ?? "").trim().toLowerCase();
 }

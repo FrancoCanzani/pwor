@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "types": ["@cloudflare/workers-types", "./worker-configuration.d.ts"],
+    "paths": {
+      "@shared/*": ["./src/shared/*"]
+    }
+  },
+  "include": ["src/backend", "src/shared", "worker-configuration.d.ts"]
+}

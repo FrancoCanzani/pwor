@@ -20,12 +20,11 @@ export function ItemViewer({
   const isLinkLike = item.kind === "link";
   const isSheet =
     item.kind === "file" && isSheetPreviewable(item.mimeType, item.title);
-  const isSnippet = item.kind === "snippet";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        showCloseButton={!isSnippet}
+        showCloseButton
         className={cn(
           "max-w-[calc(100%-2rem)] overflow-hidden",
           isSheet || isLinkLike ? "gap-2 p-2 sm:max-w-5xl" : "sm:max-w-3xl",

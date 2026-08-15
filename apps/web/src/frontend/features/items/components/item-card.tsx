@@ -37,20 +37,18 @@ import { cn } from "@/lib/utils";
 import type { Item } from "@features/items/api";
 import { ItemMention } from "@features/items/components/item-mention";
 import { ItemVideo } from "@features/items/components/item-video";
+import { PdfThumb } from "@features/items/components/pdf-thumb";
 import {
+  isPdfFile,
   isVideoFile,
   itemFileUrl,
   itemHost,
+  itemOpenHref,
   itemPreviewUrl,
 } from "@features/items/lib/media";
 
 export const ITEM_CARD_GRID_CLASS =
   "grid grid-cols-[repeat(auto-fill,minmax(15.5rem,1fr))] gap-3";
-
-function itemOpenHref(item: Item): string | null {
-  if (item.kind === "link") return item.url;
-  return itemFileUrl(item.id);
-}
 
 function formatCardDate(value: string): string {
   const date = new Date(value);
@@ -77,6 +75,10 @@ function CardMedia({ item }: { item: Item }) {
 
   if (isVideoFile(item)) {
     return <ItemVideo item={item} play="hover" />;
+  }
+
+  if (isPdfFile(item)) {
+    return <PdfThumb fileUrl={itemFileUrl(item.id)} />;
   }
 
   if (src && !failed) {
@@ -108,12 +110,7 @@ function CardMedia({ item }: { item: Item }) {
         <p className="truncate text-xs text-muted-foreground">{host}</p>
       ) : null}
       {excerpt ? (
-        <p
-          className={cn(
-            "line-clamp-4 text-xs leading-relaxed text-muted-foreground",
-            item.kind === "snippet" && "font-nums",
-          )}
-        >
+        <p className="line-clamp-4 text-xs leading-relaxed text-muted-foreground">
           {excerpt}
         </p>
       ) : null}

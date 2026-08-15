@@ -7,7 +7,6 @@ import {
 
 import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
-import { Loading } from "@components/loading";
 import { NotFound } from "@components/not-found";
 import { RouteError } from "@components/route-error";
 import { ItemDropZone } from "@features/items/components/item-drop-zone";
@@ -43,7 +42,7 @@ export const Route = createFileRoute("/_app")({
       },
     };
   },
-  pendingComponent: Loading,
+  shouldReload: false,
   errorComponent: RouteError,
   notFoundComponent: NotFound,
   component: AppLayout,

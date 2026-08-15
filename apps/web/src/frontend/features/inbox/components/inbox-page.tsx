@@ -68,17 +68,13 @@ import {
   sortItems,
   type ItemSort,
 } from "@features/items/lib/list";
+import { itemOpenHref } from "@features/items/lib/media";
 import { useLibraryView } from "@features/items/lib/view";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 
 export const inboxSearchSchema = z.object({
   item: z.string().optional(),
 });
-
-function itemOpenHref(item: Item): string | null {
-  if (item.kind === "link") return item.url;
-  return `/api/items/${item.id}/file`;
-}
 
 function InboxRow({
   item,
@@ -225,7 +221,7 @@ function InboxSelectionBar({
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[1] flex justify-center px-4">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex justify-center px-4 pb-3">
       <div className="pointer-events-auto flex items-center gap-0.5 rounded-md border border-border bg-background px-1 py-0.5">
         <span className="px-1.5 font-nums text-xs text-muted-foreground">
           {count}

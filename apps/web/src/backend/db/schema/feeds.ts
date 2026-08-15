@@ -16,7 +16,6 @@ export const feed = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    /** Canonical feed URL (RSS/Atom/YouTube Atom). */
     url: text("url").notNull(),
     kind: text("kind", { enum: ["rss", "atom", "youtube"] })
       .notNull()
@@ -55,10 +54,8 @@ export const feedItem = sqliteTable(
     url: text("url"),
     author: text("author"),
     summary: text("summary"),
-    /** Cleaned HTML body for the reader. */
     contentHtml: text("content_html"),
     imageUrl: text("image_url"),
-    /** YouTube video id when kind is youtube. */
     videoId: text("video_id"),
     publishedAt: integer("published_at", { mode: "timestamp_ms" }),
     readAt: integer("read_at", { mode: "timestamp_ms" }),

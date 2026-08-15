@@ -6,21 +6,11 @@ import { toast } from "sonner";
 import { SweepEffect } from "@components/sweep-effect";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
-import {
-  createItemSnippet,
-  uploadItem,
-} from "@features/items/api";
-import {
-  isCodeSnippetFile,
-  isMarkdownFile,
-  languageFromFilename,
-} from "@features/items/lib/snippet-language";
-import { inferLanguageFromContent } from "@shared/infer-language";
+import { uploadItem } from "@features/items/api";
 import {
   inferTitleFromRaw,
   prependFrontmatter,
 } from "@shared/note-frontmatter";
-import { dedentCode } from "@shared/snippet-format";
 
 const SWEEP_DURATION_MS = 800;
 
@@ -31,6 +21,10 @@ function hasFiles(event: DragEvent): boolean {
 function isNoteEditorTarget(event: Event): boolean {
   const target = event.target;
   return target instanceof Element && Boolean(target.closest("[data-note-editor]"));
+}
+
+function isMarkdownFile(file: File) {
+  return file.name.toLowerCase().endsWith(".md") || file.type === "text/markdown";
 }
 
 export function ItemDropZone() {
@@ -64,40 +58,9 @@ export function ItemDropZone() {
               const body = inferred
                 ? raw
                 : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-              await createNote(body, title, spaceId);
+              await createNote({ body, title, workspaceId: spaceId });
               notesChanged = true;
               toast.success(`${file.name} added as note`, { id: toastId });
-              return;
-            }
-
-            if (isCodeSnippetFile(file)) {
-              const content = dedentCode(await file.text());
-              await createItemSnippet(content, {
-                title: file.name,
-                language:
-                  languageFromFilename(file.name) ||
-                  inferLanguageFromContent(content),
-                workspaceId: spaceId,
-              });
-              itemChanged = true;
-              toast.success(
-                spaceId
-                  ? `${file.name} added as snippet`
-                  : `${file.name} saved to Inbox`,
-                { id: toastId },
-              );
-              return;
-            }
-
-            if (isMarkdownFile(file)) {
-              const raw = await file.text();
-              await createItemSnippet(dedentCode(raw), {
-                title: file.name.replace(/\.md$/i, "") || file.name,
-                language: "markdown",
-                workspaceId: null,
-              });
-              itemChanged = true;
-              toast.success(`${file.name} saved to Inbox`, { id: toastId });
               return;
             }
 

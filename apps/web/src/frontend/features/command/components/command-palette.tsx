@@ -13,6 +13,7 @@ import {
   type SearchKind,
 } from "@features/command/api";
 import { useCreateDialog } from "@features/command/create-dialog-context";
+import { MarkedText } from "@features/command/components/marked-text";
 import { fuzzyScore } from "@features/command/lib/score";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
@@ -24,7 +25,6 @@ const GLOBAL_NAV_ITEMS = [
   { to: "/feeds", label: "Feeds" },
 ] as const;
 
-/** Every space destination shares a single `{ workspaceId }` param. */
 const SPACE_NAV_ITEMS = [
   { to: "/$workspaceId", label: "Library" },
   { to: "/$workspaceId/items", label: "Items" },
@@ -325,10 +325,12 @@ function Row({
         active && "bg-muted",
       )}
     >
-      <span className="min-w-0 truncate">{item.label}</span>
+      <span className="min-w-0 truncate">
+        <MarkedText text={item.label} />
+      </span>
       {item.detail ? (
         <span className="hidden min-w-0 flex-1 truncate text-[11px] text-muted-foreground sm:block">
-          {item.detail}
+          <MarkedText text={item.detail} />
         </span>
       ) : null}
       {item.meta ? (
@@ -361,7 +363,6 @@ function rank<T extends { label: string }>(items: T[], term: string): T[] {
     .map((entry) => entry.item);
 }
 
-/** Results are cross-workspace, so off-workspace hits say where they live. */
 function workspaceLabel(
   hit: SearchHit,
   currentWorkspaceId: string | undefined,

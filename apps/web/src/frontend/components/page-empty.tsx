@@ -15,7 +15,7 @@ export function PageEmpty({
   action,
   className,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   action?: ReactNode;
   className?: string;
@@ -28,9 +28,11 @@ export function PageEmpty({
       )}
     >
       <EmptyHeader className="items-center gap-1.5">
-        <EmptyTitle className="text-sm font-normal tracking-normal">
-          {title}
-        </EmptyTitle>
+        {title ? (
+          <EmptyTitle className="text-sm font-normal tracking-normal">
+            {title}
+          </EmptyTitle>
+        ) : null}
         {description ? (
           <EmptyDescription className="text-xs text-muted-foreground">
             {description}

@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import {
-  useEffect,
   useRef,
   useState,
   type DragEvent,
@@ -21,20 +20,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
+import { captureItemInput, uploadItem } from "@features/items/api";
+import { createNote } from "@features/notes/api";
 import {
-  captureItemInput,
-  createItemSnippet,
-  uploadItem,
-} from "@features/items/api";
-import {
-  isCodeSnippetFile,
-  languageFromFilename,
-} from "@features/items/lib/snippet-language";
-import { inferLanguageFromContent, looksLikeCode } from "@shared/infer-language";
-import {
-  dedentCode,
-  titleFromSnippet,
-} from "@shared/snippet-format";
+  inferTitleFromRaw,
+  prependFrontmatter,
+} from "@shared/note-frontmatter";
+
+function isMarkdownFile(file: File) {
+  return file.name.toLowerCase().endsWith(".md") || file.type === "text/markdown";
+}
 
 export function ItemNewButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
@@ -66,7 +61,6 @@ export function ItemNewDialog({
 }) {
   const [title, setTitle] = useState("");
   const [input, setInput] = useState("");
-  const [titleTouched, setTitleTouched] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -74,43 +68,16 @@ export function ItemNewDialog({
   const queryClient = useQueryClient();
   const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
 
-  const codeMode = looksLikeCode(input);
-  const inferredLanguage = codeMode
-    ? inferLanguageFromContent(dedentCode(input))
-    : null;
-
-  useEffect(() => {
-    if (!open) return;
-    if (!codeMode) {
-      if (!titleTouched) setTitle("");
-      return;
-    }
-    if (titleTouched) return;
-    setTitle(titleFromSnippet(dedentCode(input), inferredLanguage));
-  }, [open, codeMode, input, inferredLanguage, titleTouched]);
-
   const capture = useMutation({
-    mutationFn: async () => {
-      const trimmed = input.trim();
-      if (looksLikeCode(trimmed)) {
-        const content = dedentCode(trimmed);
-        const language = inferLanguageFromContent(content);
-        return createItemSnippet(content, {
-          title: title.trim() || titleFromSnippet(content, language),
-          language,
-          workspaceId,
-        });
-      }
-      return captureItemInput(trimmed, workspaceId, {
+    mutationFn: () =>
+      captureItemInput(input.trim(), workspaceId, {
         title: title.trim() || null,
-      });
-    },
+      }),
     onSuccess: () => {
       markCaptureHintSeen();
-      toast.success(codeMode ? "Snippet added" : "Added to Item — parsing…");
+      toast.success("Added");
       setInput("");
       setTitle("");
-      setTitleTouched(false);
       onOpenChange(false);
       void queryClient.invalidateQueries({ queryKey: ["item", "items"] });
     },
@@ -128,22 +95,24 @@ export function ItemNewDialog({
         list.map(async (file) => {
           const toastId = toast.loading(`Uploading ${file.name}…`);
           try {
-            if (isCodeSnippetFile(file)) {
-              const content = dedentCode(await file.text());
-              const language =
-                languageFromFilename(file.name) ||
-                inferLanguageFromContent(content);
-              await createItemSnippet(content, {
-                title: file.name,
-                language,
+            if (isMarkdownFile(file)) {
+              const raw = await file.text();
+              const inferred = inferTitleFromRaw(raw).title;
+              const fallbackTitle = file.name.replace(/\.md$/i, "");
+              const body = inferred
+                ? raw
+                : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
+              await createNote({
+                body,
+                title: inferred || fallbackTitle,
                 workspaceId,
               });
-              toast.success(`${file.name} added as snippet`, { id: toastId });
+              toast.success(`${file.name} added as note`, { id: toastId });
             } else {
               await uploadItem(file, workspaceId, {
                 title: list.length === 1 ? title.trim() || null : null,
               });
-              toast.success(`${file.name} added to Item`, { id: toastId });
+              toast.success(`${file.name} added`, { id: toastId });
             }
             markCaptureHintSeen();
           } catch {
@@ -152,6 +121,7 @@ export function ItemNewDialog({
         }),
       );
       onOpenChange(false);
+      await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
       await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
     } finally {
       setUploading(false);
@@ -199,7 +169,6 @@ export function ItemNewDialog({
         if (!next) {
           setTitle("");
           setInput("");
-          setTitleTouched(false);
           setDragging(false);
           dragDepth.current = 0;
         }
@@ -211,30 +180,13 @@ export function ItemNewDialog({
           <DialogTitle>New item</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {codeMode ? (
-            <Input
-              value={title}
-              onChange={(e) => {
-                setTitleTouched(true);
-                setTitle(e.target.value);
-              }}
-              placeholder="Snippet title"
-              className="text-xs"
-              disabled={busy}
-              aria-label="Snippet title"
-            />
-          ) : (
-            <Input
-              value={title}
-              onChange={(e) => {
-                setTitleTouched(true);
-                setTitle(e.target.value);
-              }}
-              placeholder="Title (optional)"
-              className="h-8 text-xs placeholder:text-[11px]"
-              disabled={busy}
-            />
-          )}
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title (optional)"
+            className="h-8 text-xs placeholder:text-[11px]"
+            disabled={busy}
+          />
           <Textarea
             autoFocus
             value={input}
@@ -287,11 +239,7 @@ export function ItemNewDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={!input.trim() || busy}>
-                {capture.isPending
-                  ? codeMode
-                    ? "Saving…"
-                    : "Parsing…"
-                  : "Add"}
+                {capture.isPending ? "Adding…" : "Add"}
               </Button>
             </div>
           </DialogFooter>

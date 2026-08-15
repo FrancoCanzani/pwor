@@ -20,7 +20,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <SidebarInset className={cn(isFlush && "h-full min-h-0 overflow-hidden")}>
         {isFlush ? (
-          <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            {children}
+          </div>
         ) : (
           <div className="mx-auto w-full max-w-3xl px-8 pt-10 pb-20">
             {children}

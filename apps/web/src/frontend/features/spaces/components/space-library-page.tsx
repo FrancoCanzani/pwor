@@ -46,23 +46,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import {
   Tooltip,
   TooltipContent,
   TooltipIconButton,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import { cn } from "@/lib/utils";
 import { PageEmpty } from "@components/page-empty";
+import { SplitPreviewLayout } from "@components/split-preview-layout";
 import { CaptureButton } from "@features/command/components/capture-button";
 import { SpacePic } from "@features/spaces/components/space-pic";
-import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import {
   deleteItem,
   updateItemProject,
@@ -78,12 +73,13 @@ import {
 } from "@features/items/components/item-card";
 import { ItemPreview } from "@features/items/components/item-preview";
 import { endPworItemDrag, setPworItemDrag } from "@features/items/lib/drag";
-import { formatItemDate, kindLabel, type ItemSort } from "@features/items/lib/list";
+import { formatItemDate, kindLabel, sortBy, type ItemSort } from "@features/items/lib/list";
+import { itemFileUrl, itemOpenHref } from "@features/items/lib/media";
 import { useLibraryView } from "@features/items/lib/view";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { toEpochMs } from "@shared/time";
 
-type LibraryFacet = "snippets" | "links" | "files" | "text";
+type LibraryFacet = "links" | "files" | "text";
 
 type LibraryRow = {
   key: string;
@@ -99,7 +95,6 @@ type LibraryRow = {
 };
 
 const FACETS: { id: LibraryFacet; label: string }[] = [
-  { id: "snippets", label: "Snippets" },
   { id: "links", label: "Links" },
   { id: "files", label: "Files" },
   { id: "text", label: "Text" },
@@ -108,15 +103,6 @@ const FACETS: { id: LibraryFacet; label: string }[] = [
 function formatListDate(ms: number): string {
   if (!Number.isFinite(ms)) return "";
   return formatItemDate(new Date(ms).toISOString());
-}
-
-function itemFileHref(item: Item): string {
-  return `/api/items/${item.id}/file`;
-}
-
-function itemOpenHref(item: Item): string | null {
-  if (item.kind === "link") return item.url;
-  return itemFileHref(item);
 }
 
 function rowId(row: LibraryRow): string | undefined {
@@ -149,7 +135,7 @@ function LibraryListItem({
   const didDrag = useRef(false);
   const downloadHref =
     row.kind === "item" && row.item && row.item.kind !== "link"
-      ? itemFileHref(row.item)
+      ? itemFileUrl(row.item.id)
       : null;
 
   function handleOpen() {
@@ -340,7 +326,7 @@ function LibrarySelectionBar({
   );
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[1] flex justify-center px-4">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex justify-center px-4 pb-3">
       <div className="pointer-events-auto flex items-center gap-0.5 rounded-md border border-border bg-background px-1 py-0.5">
         <span className="px-1.5 font-nums text-xs text-muted-foreground">
           {count}
@@ -437,7 +423,6 @@ export function SpaceLibraryPage() {
   const search = useSearch({ from: "/_app/$workspaceId/" });
   const navigate = useNavigate({ from: "/$workspaceId/" });
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Set<LibraryFacet>>(() => new Set());
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -479,17 +464,14 @@ export function SpaceLibraryPage() {
     for (const item of items) {
       const title = item.title?.trim() || "Untitled";
       const facet: LibraryFacet =
-        item.kind === "snippet"
-          ? "snippets"
-          : item.kind === "link"
-            ? "links"
-            : item.kind === "text"
-              ? "text"
-              : "files";
+        item.kind === "link"
+          ? "links"
+          : item.kind === "text"
+            ? "text"
+            : "files";
       const searchText = [
         title,
         item.summary,
-        item.language,
         ...(item.tags ?? []),
       ]
         .filter(Boolean)
@@ -515,28 +497,15 @@ export function SpaceLibraryPage() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return data
-      .filter((row) => {
-        if (filters.size > 0 && !filters.has(row.facet)) return false;
-        if (!q) return true;
-        return row.searchText.includes(q);
-      })
-      .sort((a, b) => {
-        switch (sort) {
-          case "newest":
-            return b.uploadedAt - a.uploadedAt;
-          case "oldest":
-            return a.uploadedAt - b.uploadedAt;
-          case "name":
-            return a.title.localeCompare(b.title, undefined, {
-              sensitivity: "base",
-            });
-          default: {
-            const _exhaustive: never = sort;
-            return _exhaustive;
-          }
-        }
-      });
+    const filtered = data.filter((row) => {
+      if (filters.size > 0 && !filters.has(row.facet)) return false;
+      if (!q) return true;
+      return row.searchText.includes(q);
+    });
+    return sortBy(filtered, sort, {
+      date: (row) => new Date(row.uploadedAt).toISOString(),
+      name: (row) => row.title,
+    });
   }, [data, filters, query, sort]);
 
   const selectedRows = rows.filter((row) => selected.has(row.key));
@@ -654,12 +623,7 @@ export function SpaceLibraryPage() {
   const previewOpen = openItem != null;
 
   const listPane = (
-    <div
-      className={cn(
-        "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
-        previewOpen && isMobile && "hidden",
-      )}
-    >
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0">
         <div className="flex h-12 w-full items-center gap-2 px-4">
           <span className="flex size-4 shrink-0 items-center justify-center">
@@ -802,21 +766,6 @@ export function SpaceLibraryPage() {
         )}
         {hasNextPage ? <div ref={sentinelRef} className="h-8" /> : null}
       </div>
-      {selectedCount > 0 ? (
-        <LibrarySelectionBar
-          count={selectedCount}
-          busy={busy}
-          currentWorkspaceId={workspaceId}
-          onClear={() => setSelected(new Set())}
-          onMove={(nextWorkspaceId) =>
-            moveMutation.mutate({
-              items: selectedRows,
-              workspaceId: nextWorkspaceId,
-            })
-          }
-          onDelete={() => deleteMutation.mutate(selectedRows)}
-        />
-      ) : null}
     </div>
   );
 
@@ -829,49 +778,31 @@ export function SpaceLibraryPage() {
     />
   ) : null;
 
-  if (isMobile) {
-    return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        {listPane}
-        {previewOpen ? (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {previewPane}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  if (!previewOpen) {
-    return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        {listPane}
-      </div>
-    );
-  }
+  const selectionBar =
+    selectedCount > 0 ? (
+      <LibrarySelectionBar
+        count={selectedCount}
+        busy={busy}
+        currentWorkspaceId={workspaceId}
+        onClear={() => setSelected(new Set())}
+        onMove={(nextWorkspaceId) =>
+          moveMutation.mutate({
+            items: selectedRows,
+            workspaceId: nextWorkspaceId,
+          })
+        }
+        onDelete={() => deleteMutation.mutate(selectedRows)}
+      />
+    ) : null;
 
   return (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      className="h-full min-h-0 overflow-hidden"
-    >
-      <ResizablePanel
-        id="library-list"
-        defaultSize="58%"
-        minSize="32%"
-        className="min-h-0 min-w-0 overflow-hidden"
-      >
-        {listPane}
-      </ResizablePanel>
-      <ResizableHandle className="w-px bg-border/40 after:w-px" />
-      <ResizablePanel
-        id="library-preview"
-        defaultSize="42%"
-        minSize="28%"
-        className="min-h-0 min-w-0 overflow-hidden bg-background"
-      >
-        {previewPane}
-      </ResizablePanel>
-    </ResizablePanelGroup>
+    <SplitPreviewLayout
+      list={listPane}
+      preview={previewPane}
+      previewOpen={previewOpen}
+      overlay={selectionBar}
+      listId="library-list"
+      previewId="library-preview"
+    />
   );
 }

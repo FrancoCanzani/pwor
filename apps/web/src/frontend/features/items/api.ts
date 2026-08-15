@@ -7,7 +7,7 @@ import {
 import { parseJson } from "@lib/api";
 import { captureVideoPoster } from "@features/items/lib/media";
 
-export type ItemKind = "file" | "link" | "text" | "snippet";
+export type ItemKind = "file" | "link" | "text";
 
 export type ItemParseStatus = "pending" | "ready" | "failed" | "skipped";
 
@@ -17,13 +17,11 @@ export type Item = {
   title: string | null;
   summary: string | null;
   tags: string[] | null;
-  language: string | null;
   mimeType: string | null;
   url: string | null;
   siteName: string | null;
   workspaceId: string | null;
   parseStatus: ItemParseStatus | null;
-  /** True when a full-page site screenshot is available. */
   hasPreview?: boolean;
   sizeBytes?: number | null;
   createdAt: string;
@@ -31,7 +29,6 @@ export type Item = {
 
 export type ItemListPage = {
   items: Item[];
-  /** Total item count for the current filter, across all pages. */
   total: number;
   nextCursor: string | null;
 };
@@ -51,17 +48,12 @@ async function fetchItemsPage(options: {
   return parseJson<ItemListPage>(await fetch(`/api/items?${params}`));
 }
 
-/** While enrichment runs in the background, poll so "Capturing page…" resolves without a manual refresh. */
 const PENDING_POLL_MS = 2500;
 
 function hasPendingItems(data: InfiniteData<ItemListPage> | undefined) {
   return (
     data?.pages.some((page) =>
-      page.items.some(
-        (item) =>
-          item.parseStatus === "pending" ||
-          (item.kind === "link" && !item.hasPreview),
-      ),
+      page.items.some((item) => item.parseStatus === "pending"),
     ) ?? false
   );
 }
@@ -92,7 +84,6 @@ export function inboxItemsInfiniteQueryOptions() {
 
 export function itemUsageQueryOptions(workspaceId?: string) {
   return queryOptions({
-    // Nested under ["item", "items"] so existing mutation invalidations refresh it too.
     queryKey: ["item", "items", "usage", workspaceId] as const,
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -108,50 +99,38 @@ export function itemUsageQueryOptions(workspaceId?: string) {
 
 export type ItemDetail = Item & {
   content: string | null;
-  extractedMarkdown: string | null;
-  language: string | null;
+  contentHtml: string | null;
 };
-
-async function fetchItem(id: string): Promise<ItemDetail> {
-  return parseJson<ItemDetail>(await fetch(`/api/items/${id}`));
-}
 
 export function itemQueryOptions(id: string) {
   return queryOptions({
     queryKey: ["item", "items", id] as const,
-    queryFn: () => fetchItem(id),
+    queryFn: async () =>
+      parseJson<ItemDetail>(await fetch(`/api/items/${id}`)),
   });
-}
-
-async function fetchItemFileText(id: string): Promise<string> {
-  const res = await fetch(`/api/items/${id}/file`);
-  if (!res.ok) {
-    throw new Error("Failed to load file");
-  }
-  return res.text();
 }
 
 export function itemFileTextQueryOptions(id: string) {
   return queryOptions({
     queryKey: ["item", "file-text", id] as const,
-    queryFn: () => fetchItemFileText(id),
+    queryFn: async () => {
+      const res = await fetch(`/api/items/${id}/file`);
+      if (!res.ok) throw new Error("Failed to load file");
+      return res.text();
+    },
   });
-}
-
-async function fetchItemSheet(id: string) {
-  const res = await fetch(`/api/items/${id}/file`);
-  if (!res.ok) {
-    throw new Error("Failed to load file");
-  }
-  const buffer = await res.arrayBuffer();
-  const { parseSheetWorkbook } = await import("@features/items/lib/sheet");
-  return parseSheetWorkbook(buffer);
 }
 
 export function itemSheetQueryOptions(id: string) {
   return queryOptions({
     queryKey: ["item", "sheet", id] as const,
-    queryFn: () => fetchItemSheet(id),
+    queryFn: async () => {
+      const res = await fetch(`/api/items/${id}/file`);
+      if (!res.ok) throw new Error("Failed to load file");
+      const buffer = await res.arrayBuffer();
+      const { parseSheetWorkbook } = await import("@features/items/lib/sheet");
+      return parseSheetWorkbook(buffer);
+    },
   });
 }
 
@@ -172,34 +151,13 @@ export async function uploadItem(
   );
 }
 
-export async function createItemSnippet(
-  content: string,
-  {
-    title,
-    language,
-    workspaceId,
-  }: {
-    title?: string | null;
-    language?: string | null;
-    workspaceId?: string | null;
-  } = {},
-): Promise<Item> {
-  return parseJson<Item>(
-    await fetch("/api/items/snippet", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, title, language, workspaceId }),
-    }),
-  );
-}
-
 export async function captureItemInput(
   input: string,
   workspaceId?: string | null,
   options?: { title?: string | null },
 ): Promise<Item> {
   return parseJson<Item>(
-    await fetch("/api/items/capture", {
+    await fetch("/api/items", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -230,33 +188,12 @@ export async function updateItemProject(
   );
 }
 
-export async function renameItem(
-  id: string,
-  title: string,
-): Promise<Item> {
+export async function renameItem(id: string, title: string): Promise<Item> {
   return parseJson<Item>(
     await fetch(`/api/items/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
-    }),
-  );
-}
-
-export async function updateItem(
-  id: string,
-  patch: {
-    title?: string | null;
-    content?: string;
-    language?: string | null;
-    workspaceId?: string | null;
-  },
-): Promise<ItemDetail> {
-  return parseJson<ItemDetail>(
-    await fetch(`/api/items/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
     }),
   );
 }

@@ -3,7 +3,6 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
 
-/** One personal inbound address per user: `{token}@inbound.pwor.app` → Inbox. */
 export const userInbox = sqliteTable("user_inbox", {
   id: text("id").primaryKey(),
   userId: text("user_id")

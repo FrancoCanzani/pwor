@@ -1,19 +1,7 @@
 import { type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import TurndownService from "turndown";
 
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-  emDelimiter: "*",
-  strongDelimiter: "**",
-});
-
-turndown.addRule("strike", {
-  filter: ["del", "s", "strike"] as unknown as TurndownService.Filter,
-  replacement: (content) => (content ? `~~${content}~~` : ""),
-});
+import { htmlToMarkdown } from "@lib/html-to-markdown";
 
 function clipboardHasImageFile(data: DataTransfer | null): boolean {
   if (!data) return false;
@@ -23,14 +11,6 @@ function clipboardHasImageFile(data: DataTransfer | null): boolean {
   return Array.from(data.items).some(
     (item) => item.kind === "file" && item.type.startsWith("image/"),
   );
-}
-
-function htmlToMarkdown(html: string): string {
-  return turndown
-    .turndown(html)
-    .replace(/\u00a0/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 export function createHtmlPasteHandler(): Extension {

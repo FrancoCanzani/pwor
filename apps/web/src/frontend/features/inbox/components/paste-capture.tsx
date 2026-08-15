@@ -4,17 +4,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
-import {
-  captureItemInput,
-  createItemSnippet,
-  uploadItem,
-} from "@features/items/api";
-import {
-  isCodeSnippetFile,
-  languageFromFilename,
-} from "@features/items/lib/snippet-language";
-import { inferLanguageFromContent } from "@shared/infer-language";
-import { dedentCode } from "@shared/snippet-format";
+import { captureItemInput, uploadItem } from "@features/items/api";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -58,18 +48,7 @@ export function PasteCapture() {
         for (const file of files) {
           const toastId = toast.loading(`Adding ${file.name}…`);
           try {
-            if (isCodeSnippetFile(file)) {
-              const content = dedentCode(await file.text());
-              await createItemSnippet(content, {
-                title: file.name,
-                language:
-                  languageFromFilename(file.name) ||
-                  inferLanguageFromContent(content),
-                workspaceId: spaceId,
-              });
-            } else {
-              await uploadItem(file, spaceId);
-            }
+            await uploadItem(file, spaceId);
             markCaptureHintSeen();
             toast.success(`${file.name} saved to ${destination}`, {
               id: toastId,

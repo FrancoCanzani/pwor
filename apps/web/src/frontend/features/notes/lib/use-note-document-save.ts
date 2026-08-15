@@ -14,7 +14,6 @@ import {
 } from "@features/notes/api";
 import {
   inferTitleFromRaw,
-  materializeNoteBody,
   normalizeNoteTitle,
   parseNoteDocument,
 } from "@shared/note-frontmatter";
@@ -159,7 +158,7 @@ export function useNoteDocumentSave({
   useEffect(() => {
     if (!note) return;
     if (savedBodyRef.current === null) {
-      const body = materializeNoteBody(note.body, note.title);
+      const body = note.body;
       savedBodyRef.current = body;
       latestBodyRef.current = body;
       savedTitleRef.current = normalizeNoteTitle(
@@ -210,7 +209,7 @@ export function useNoteDocumentSave({
     if (!note) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     conflictRef.current = false;
-    const body = materializeNoteBody(note.body, note.title);
+    const body = note.body;
     savedBodyRef.current = body;
     latestBodyRef.current = body;
     savedTitleRef.current = normalizeNoteTitle(inferTitleFromRaw(body).title);
@@ -221,10 +220,7 @@ export function useNoteDocumentSave({
   }
 
   function initialDoc() {
-    return (
-      latestBodyRef.current ??
-      (note ? materializeNoteBody(note.body, note.title) : "")
-    );
+    return latestBodyRef.current ?? (note ? note.body : "");
   }
 
   return {

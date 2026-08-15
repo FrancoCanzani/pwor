@@ -10,12 +10,7 @@ export type ParsedNoteDocument = {
   tags: string[];
 };
 
-export const EMPTY_NOTE_BODY = `---
-title: 
-tags: []
----
-
-`;
+export const EMPTY_NOTE_BODY = "";
 
 export function parseFrontmatter(raw: string): {
   frontmatter: string | null;
@@ -76,23 +71,6 @@ export function normalizeNoteTitle(title: string | null | undefined): string | n
 /** Sidebar / chrome label — Untitled only when there is no real name. */
 export function noteDisplayTitle(title: string | null | undefined): string {
   return normalizeNoteTitle(title) ?? "Untitled";
-}
-
-/** Ensure the editor document carries a title (and empty tags) when we only had a DB title. */
-export function materializeNoteBody(
-  body: string,
-  storedTitle: string | null | undefined,
-): string {
-  const doc = parseNoteDocument(body);
-  if (doc.titleSource !== "none") return body;
-
-  const title = normalizeNoteTitle(storedTitle);
-  if (title) {
-    return prependFrontmatter(body, { title, tags: doc.tags });
-  }
-
-  if (body.trim() === "") return EMPTY_NOTE_BODY;
-  return body;
 }
 
 export function prependFrontmatter(

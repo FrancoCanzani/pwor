@@ -1,18 +1,6 @@
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-  indentWithTab,
-} from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { type Extension, EditorState } from "@codemirror/state";
-import {
-  EditorView,
-  keymap,
-  placeholder as placeholderExt,
-} from "@codemirror/view";
-import { tags } from "@lezer/highlight";
+import { EditorView, placeholder as placeholderExt } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import {
   prosemarkBaseThemeSetup,
@@ -25,26 +13,6 @@ import {
   createWikiLinkExtensions,
   type WikiLinkEditorOptions,
 } from "@features/notes/lib/cm-wiki-links";
-
-export type NoteEditorMode = "preview" | "source";
-
-const sourceHighlight = HighlightStyle.define([
-  { tag: tags.heading, fontWeight: "700", color: "var(--foreground)" },
-  { tag: tags.heading1, fontSize: "1.35em", lineHeight: "1.3" },
-  { tag: tags.heading2, fontSize: "1.15em", lineHeight: "1.35" },
-  { tag: tags.heading3, fontSize: "1.05em" },
-  { tag: tags.strong, fontWeight: "700" },
-  { tag: tags.emphasis, fontStyle: "italic" },
-  { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: tags.link, color: "var(--muted-foreground)" },
-  { tag: tags.url, color: "var(--muted-foreground)" },
-  { tag: tags.monospace, color: "var(--muted-foreground)" },
-  { tag: tags.processingInstruction, color: "var(--muted-foreground)" },
-  { tag: tags.meta, color: "var(--muted-foreground)" },
-  { tag: tags.comment, color: "var(--muted-foreground)" },
-  { tag: tags.quote, color: "var(--muted-foreground)", fontStyle: "italic" },
-  { tag: tags.list, color: "var(--foreground)" },
-]);
 
 const baseChromeTheme = EditorView.theme({
   "&": {
@@ -66,20 +34,6 @@ const baseChromeTheme = EditorView.theme({
   ".cm-placeholder": {
     color: "var(--muted-foreground)",
     fontStyle: "normal",
-  },
-});
-
-const sourceTheme = EditorView.theme({
-  "&": { fontSize: "12px" },
-  ".cm-scroller": {
-    fontFamily: "var(--font-mono)",
-    lineHeight: "1.65",
-    fontWeight: "400",
-  },
-  ".cm-content": {
-    padding: "0",
-    caretColor: "var(--foreground)",
-    fontFamily: "var(--font-mono)",
   },
 });
 
@@ -197,23 +151,20 @@ function createImageUploadHandler(
   });
 }
 
-function modeExtensions(mode: NoteEditorMode): Extension[] {
-  if (mode === "source") {
-    return [
-      history(),
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-      markdown({
-        base: markdownLanguage,
-        extensions: [GFM],
-      }),
-      syntaxHighlighting(sourceHighlight),
-      baseChromeTheme,
-      sourceTheme,
-      EditorView.lineWrapping,
-    ];
-  }
-
-  return [
+export function createNoteEditorState({
+  doc,
+  placeholder,
+  onChange,
+  uploadImage,
+  wikiLinks,
+}: {
+  doc: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  uploadImage?: (file: File) => Promise<{ url: string }>;
+  wikiLinks?: WikiLinkEditorOptions;
+}) {
+  const extensions: Extension[] = [
     markdown({
       base: markdownLanguage,
       extensions: [GFM, ...prosemarkMarkdownSyntaxExtensions],
@@ -222,26 +173,6 @@ function modeExtensions(mode: NoteEditorMode): Extension[] {
     prosemarkBaseThemeSetup(),
     baseChromeTheme,
     previewTheme,
-  ];
-}
-
-export function createNoteEditorState({
-  doc,
-  mode = "preview",
-  placeholder,
-  onChange,
-  uploadImage,
-  wikiLinks,
-}: {
-  doc: string;
-  mode?: NoteEditorMode;
-  placeholder?: string;
-  onChange: (value: string) => void;
-  uploadImage?: (file: File) => Promise<{ url: string }>;
-  wikiLinks?: WikiLinkEditorOptions;
-}) {
-  const extensions: Extension[] = [
-    ...modeExtensions(mode),
     placeholder ? placeholderExt(placeholder) : [],
     createHtmlPasteHandler(),
     uploadImage ? createImageUploadHandler(uploadImage) : [],

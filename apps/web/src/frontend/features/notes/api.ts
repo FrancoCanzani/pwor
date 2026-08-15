@@ -1,7 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import type { HighlightAnchor } from "@lib/reading/highlight-anchor";
 import { parseJson } from "@lib/api";
 import { toEpochMs } from "@shared/time";
+
+export type HighlightTarget = { itemId: string } | { feedItemId: string };
 
 export type NoteListItem = {
   id: string;
@@ -15,6 +18,18 @@ export type Note = NoteListItem & {
   body: string;
   userId: string;
   workspaceId: string | null;
+};
+
+export type Highlight = NoteListItem & {
+  itemId: string | null;
+  feedItemId: string | null;
+  color: string | null;
+  anchorFrom: number;
+  anchorTo: number;
+  anchorQuote: string;
+  anchorPrefix: string;
+  anchorSuffix: string;
+  anchorPatch: string;
 };
 
 export class NoteConflictError extends Error {
@@ -55,6 +70,48 @@ export function noteQueryOptions(id: string) {
     queryKey: ["notes", "detail", id] as const,
     queryFn: () => fetchNote(id),
   });
+}
+
+function targetQueryParam(target: HighlightTarget): [string, string] {
+  return "itemId" in target
+    ? ["itemId", target.itemId]
+    : ["feedItemId", target.feedItemId];
+}
+
+async function fetchHighlights(target: HighlightTarget): Promise<Highlight[]> {
+  const [key, value] = targetQueryParam(target);
+  const data = await parseJson<{ items: Highlight[] }>(
+    await fetch(`/api/notes?${key}=${encodeURIComponent(value)}`),
+  );
+  return data.items;
+}
+
+export function highlightsQueryOptions(target: HighlightTarget) {
+  const [key, value] = targetQueryParam(target);
+  return queryOptions({
+    queryKey: ["notes", "highlights", key, value] as const,
+    queryFn: () => fetchHighlights(target),
+  });
+}
+
+export async function createHighlight(params: {
+  target: HighlightTarget;
+  anchor: HighlightAnchor;
+  color: string;
+  body?: string;
+}): Promise<Highlight> {
+  return parseJson<Highlight>(
+    await fetch("/api/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...params.target,
+        anchor: params.anchor,
+        color: params.color,
+        body: params.body ?? "",
+      }),
+    }),
+  );
 }
 
 export async function createNote(

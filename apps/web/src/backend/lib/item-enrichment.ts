@@ -73,6 +73,21 @@ export async function enrichItem(
       [page.description, page.text].filter(Boolean).join("\n\n") ||
       row.content;
 
+    let extractedMarkdown = row.extractedMarkdown;
+    if (page.html) {
+      try {
+        const result = await env.AI.toMarkdown({
+          name: "page.html",
+          blob: new Blob([page.html], { type: "text/html" }),
+        });
+        if (result.format !== "error" && result.data) {
+          extractedMarkdown = result.data;
+        }
+      } catch (error) {
+        console.error("link markdown extraction failed", itemId, error);
+      }
+    }
+
     let previewR2Key = row.previewR2Key;
     if (!previewR2Key) {
       try {
@@ -95,6 +110,7 @@ export async function enrichItem(
         siteName,
         summary,
         content,
+        extractedMarkdown,
         ...(previewR2Key ? { previewR2Key } : {}),
       })
       .where(eq(item.id, itemId));
@@ -106,6 +122,7 @@ export async function enrichItem(
       siteName,
       summary,
       content,
+      extractedMarkdown,
       previewR2Key: previewR2Key ?? row.previewR2Key,
     };
   }

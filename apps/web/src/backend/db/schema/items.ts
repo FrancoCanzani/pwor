@@ -28,6 +28,7 @@ export const item = sqliteTable(
     sizeBytes: integer("size_bytes"),
     mimeType: text("mime_type"),
     url: text("url"),
+    normalizedUrl: text("normalized_url"),
     siteName: text("site_name"),
     content: text("content"),
     extractedMarkdown: text("extracted_markdown"),
@@ -49,5 +50,6 @@ export const item = sqliteTable(
   (table) => [
     index("item_user_created").on(table.userId, table.createdAt),
     index("item_workspace").on(table.workspaceId),
+    index("item_user_normalized_url").on(table.userId, table.normalizedUrl),
   ],
 );

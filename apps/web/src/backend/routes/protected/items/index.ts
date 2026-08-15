@@ -11,6 +11,7 @@ import { assertOwnedWorkspace } from "../../../lib/ownership";
 import {
   dedentCode,
   normalizeItemKind,
+  normalizeUrl,
   parseCaptureInput,
   titleFromSnippet,
   titleFromText,
@@ -305,12 +306,49 @@ const app = new Hono<AppEnv>()
     const seedTags = normalizeSeedTags(tags);
 
     if (parsed.type === "url") {
+      const normalized = normalizeUrl(parsed.url);
+      const [existing] = normalized
+        ? await db
+            .select()
+            .from(item)
+            .where(
+              and(eq(item.userId, user.id), eq(item.normalizedUrl, normalized)),
+            )
+            .limit(1)
+        : [];
+
+      if (existing) {
+        const mergedTags = seedTags
+          ? Array.from(new Set([...(existing.tags ?? []), ...seedTags]))
+          : existing.tags;
+        const nextWorkspace =
+          existing.workspaceId == null && workspace != null
+            ? workspace
+            : existing.workspaceId;
+
+        if (mergedTags !== existing.tags || nextWorkspace !== existing.workspaceId) {
+          await db
+            .update(item)
+            .set({ tags: mergedTags, workspaceId: nextWorkspace })
+            .where(eq(item.id, existing.id));
+        }
+
+        const [merged] = await db
+          .select()
+          .from(item)
+          .where(eq(item.id, existing.id))
+          .limit(1);
+
+        return c.json({ ...serializeItem(merged!), duplicate: true }, 200);
+      }
+
       await db.insert(item).values({
         id,
         userId: user.id,
         kind: "link",
         title: title || parsed.url,
         url: parsed.url,
+        normalizedUrl: normalized,
         tags: seedTags,
         workspaceId: workspace,
         parseStatus: "pending",

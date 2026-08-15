@@ -1,8 +1,8 @@
-import { ExternalLinkIcon } from "@radix-ui/react-icons";
 import { format, isValid } from "date-fns";
 import DOMPurify from "dompurify";
 import { useMemo } from "react";
 
+import { ContentReader } from "@/components/content-reader";
 import { cn } from "@/lib/utils";
 import type { FeedItem } from "@features/feeds/api";
 
@@ -38,27 +38,14 @@ export function ArticleReader({
     <article
       className={cn("mx-auto w-full max-w-2xl px-4 pt-8 pb-20", className)}
     >
-      <header className="mb-8 flex flex-col gap-2">
+      <header className="mb-10 flex flex-col gap-3">
         <h1 className="text-xl font-normal tracking-tight text-balance">
           {title}
         </h1>
-        <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            {source ? <span>{source}</span> : null}
-            {item.publishedAt ? (
-              <span className="font-nums">{formatDate(item.publishedAt)}</span>
-            ) : null}
-          </div>
-          {item.url ? (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Open original"
-              className="shrink-0 text-muted-foreground hover:text-foreground"
-            >
-              <ExternalLinkIcon className="size-3.5" />
-            </a>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          {source ? <span>{source}</span> : null}
+          {item.publishedAt ? (
+            <span className="font-nums">{formatDate(item.publishedAt)}</span>
           ) : null}
         </div>
       </header>
@@ -84,25 +71,10 @@ export function ArticleReader({
       ) : null}
 
       {safeContentHtml ? (
-        <div
-          className={cn(
-            "text-sm leading-relaxed text-foreground",
-            "[&_a]:underline [&_a]:underline-offset-2",
-            "[&_p]:mb-4",
-            "[&_h1]:mb-3 [&_h1]:text-base [&_h1]:font-bold",
-            "[&_h2]:mb-3 [&_h2]:text-sm [&_h2]:font-bold",
-            "[&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-bold",
-            "[&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-5",
-            "[&_ol]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5",
-            "[&_li]:mb-1",
-            "[&_blockquote]:mb-4 [&_blockquote]:border-l [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
-            "[&_pre]:mb-4 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:font-mono [&_pre]:text-xs",
-            "[&_code]:font-mono [&_code]:text-xs",
-            "[&_img]:my-4 [&_img]:max-w-full [&_img]:rounded-md",
-            "[&_figure]:mb-4",
-            "[&_hr]:my-6 [&_hr]:border-border",
-          )}
-          dangerouslySetInnerHTML={{ __html: safeContentHtml }}
+        <ContentReader
+          target={{ feedItemId: item.id }}
+          html={safeContentHtml}
+          contained={false}
         />
       ) : item.summary ? (
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">

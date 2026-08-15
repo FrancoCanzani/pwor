@@ -15,6 +15,27 @@
       "when": 1786743976173,
       "tag": "0001_needy_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786784615338,
+      "tag": "0002_quick_silvermane",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786786383884,
+      "tag": "0003_mature_firedrake",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1786787843337,
+      "tag": "0004_bitter_star_brand",
+      "breakpoints": true
     }
   ]
 }

@@ -21,26 +21,13 @@ import {
 } from "@features/notes/api";
 import { NoteEditor } from "@features/notes/components/note-editor";
 import { useFloatingNote } from "@features/notes/floating-note-context";
-import type { NoteEditorMode } from "@features/notes/lib/cm-theme";
 import { useNoteDocumentSave } from "@features/notes/lib/use-note-document-save";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-import { noteDisplayTitle } from "@shared/note-frontmatter";
 
-const EDITOR_MODE_KEY = "pwor-note-editor-mode";
 const DEFAULT_WIDTH = 420;
 const DEFAULT_HEIGHT = 520;
 const MIN_WIDTH = 280;
 const MIN_HEIGHT = 240;
-
-function readEditorMode(): NoteEditorMode {
-  try {
-    const raw = localStorage.getItem(EDITOR_MODE_KEY);
-    if (raw === "source" || raw === "preview") return raw;
-  } catch {
-    // privacy / unavailable storage
-  }
-  return "preview";
-}
 
 function defaultPosition() {
   if (typeof window === "undefined") {
@@ -49,10 +36,6 @@ function defaultPosition() {
   const x = Math.max(24, Math.round(window.innerWidth / 2 - DEFAULT_WIDTH / 2));
   const y = Math.max(24, Math.round(window.innerHeight / 2 - DEFAULT_HEIGHT / 2));
   return { x, y };
-}
-
-function displayTitle(title: string | null | undefined): string {
-  return noteDisplayTitle(title);
 }
 
 export function FloatingNoteHost({
@@ -177,21 +160,15 @@ function FloatingNoteShell({
 }
 
 function NoteChrome({
-  title,
   saveLabel,
-  mode,
   conflict,
   onClose,
-  onToggleMode,
   onReload,
   children,
 }: {
-  title: string;
   saveLabel: string | null;
-  mode: NoteEditorMode;
   conflict: boolean;
   onClose: () => void;
-  onToggleMode: () => void;
   onReload?: () => void;
   children: ReactNode;
 }) {
@@ -218,9 +195,7 @@ function NoteChrome({
             Back
           </Button>
         ) : null}
-        <span className="min-w-0 flex-1 truncate text-[11px] font-normal">
-          {title}
-        </span>
+        <span className="min-w-0 flex-1" />
         {saveLabel ? (
           <span className="shrink-0 text-[10px] text-muted-foreground">
             {saveLabel}
@@ -235,17 +210,7 @@ function NoteChrome({
           >
             Reload
           </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-auto shrink-0 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
-            onClick={onToggleMode}
-            title="Toggle source / preview (⌘⌥M)"
-          >
-            {mode === "preview" ? "Source" : "Preview"}
-          </Button>
-        )}
+        ) : null}
         {!isMobile ? (
           <Button
             type="button"
@@ -264,25 +229,6 @@ function NoteChrome({
       </div>
     </>
   );
-}
-
-function useEditorMode() {
-  const [mode, setMode] = useState<NoteEditorMode>(readEditorMode);
-
-  function setEditorMode(next: NoteEditorMode) {
-    setMode(next);
-    try {
-      localStorage.setItem(EDITOR_MODE_KEY, next);
-    } catch {
-      // privacy / unavailable storage
-    }
-  }
-
-  function toggleEditorMode() {
-    setEditorMode(mode === "preview" ? "source" : "preview");
-  }
-
-  return { mode, toggleEditorMode };
 }
 
 function FloatingNoteContent({
@@ -309,7 +255,6 @@ function FloatingNoteContent({
     ...notesQueryOptions(workspaceId ?? undefined),
     enabled: Boolean(workspaceId),
   });
-  const { mode, toggleEditorMode } = useEditorMode();
 
   const {
     saveState,
@@ -323,12 +268,6 @@ function FloatingNoteContent({
     note,
   });
 
-  useHotkey("Mod+Alt+M", () => toggleEditorMode(), {
-    enabled: note != null && saveState !== "conflict",
-  });
-
-  const listTitle = notes.find((item) => item.id === noteId)?.title;
-  const title = displayTitle(note?.title ?? listTitle);
   const saveLabel =
     saveState === "saving"
       ? "Saving…"
@@ -342,18 +281,14 @@ function FloatingNoteContent({
 
   return (
     <NoteChrome
-      title={title}
       saveLabel={saveLabel}
-      mode={mode}
       conflict={saveState === "conflict"}
       onClose={onClose}
-      onToggleMode={toggleEditorMode}
       onReload={reloadFromServer}
     >
       {note ? (
         <NoteEditor
-          key={`${note.id}:${mode}:${editorNonce}`}
-          mode={mode}
+          key={`${note.id}:${editorNonce}`}
           initialDoc={initialDoc()}
           onChange={handleBodyChange}
           uploadImage={(file) => uploadNoteImage(noteId, file)}

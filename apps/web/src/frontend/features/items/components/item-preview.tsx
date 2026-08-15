@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  renameItem,
   updateItem,
   itemFileTextQueryOptions,
   itemQueryOptions,
@@ -16,6 +15,7 @@ import {
   type Item,
   type ItemDetail,
 } from "@features/items/api";
+import { ItemReader } from "@features/items/components/item-reader";
 import { KindBadge } from "@features/items/components/kind-badge";
 import { PdfViewer } from "@features/items/components/pdf-viewer";
 import { SheetViewer } from "@features/items/components/sheet-viewer";
@@ -91,19 +91,13 @@ export function ItemPreview({
 }) {
   const fill = variant === "panel";
   const queryClient = useQueryClient();
-  const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const [linkView, setLinkView] = useState<"article" | "screenshot">(
+    "article",
+  );
 
   useHotkey("Escape", () => onClose?.(), {
     enabled: Boolean(onClose) && active && variant === "panel",
-  });
-
-  const rename = useMutation({
-    mutationFn: (value: string) => renameItem(item.id, value),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["item", "items"] });
-    },
-    onError: () => toast.error("Couldn’t rename"),
   });
 
   const isTextItem = item.kind === "text";
@@ -126,7 +120,7 @@ export function ItemPreview({
     refetchInterval: (query) => {
       if (!isLinkLike) return false;
       const data = query.state.data;
-      if (!data?.hasPreview) return 2500;
+      if (!data?.hasPreview || data.parseStatus === "pending") return 2500;
       return false;
     },
   });
@@ -151,8 +145,8 @@ export function ItemPreview({
       : isSnippet
         ? (detail?.content ?? null)
         : isLinkLike
-          ? (detail?.content?.trim() ||
-            detail?.extractedMarkdown?.trim() ||
+          ? (detail?.extractedMarkdown?.trim() ||
+            detail?.content?.trim() ||
             null)
           : (fileText ?? null);
 
@@ -319,13 +313,6 @@ export function ItemPreview({
     };
   }, []);
 
-  function commitTitle() {
-    const trimmed = titleDraft.trim();
-    setEditingTitle(false);
-    if (!trimmed || trimmed === displayItem.title) return;
-    rename.mutate(trimmed);
-  }
-
   const showLoading =
     ((isTextItem || isSnippet) && detailPending) ||
     (isTextFile && textPending) ||
@@ -358,10 +345,43 @@ export function ItemPreview({
       </p>
     )
   ) : isLinkLike ? (
-    <SitePreviewSheet
-      item={displayItem}
-      className={fill ? "h-full min-h-0" : undefined}
-    />
+    <div
+      className={cn(
+        "flex min-h-0 flex-col gap-3",
+        fill ? "h-full min-h-0" : undefined,
+      )}
+    >
+      <div className="flex shrink-0 items-center gap-1">
+        <Button
+          type="button"
+          variant={linkView === "article" ? "secondary" : "ghost"}
+          size="xs"
+          onClick={() => setLinkView("article")}
+        >
+          Article
+        </Button>
+        <Button
+          type="button"
+          variant={linkView === "screenshot" ? "secondary" : "ghost"}
+          size="xs"
+          onClick={() => setLinkView("screenshot")}
+        >
+          Screenshot
+        </Button>
+      </div>
+      {linkView === "article" ? (
+        <ItemReader
+          item={displayItem}
+          content={textContent}
+          className="min-h-0 flex-1"
+        />
+      ) : (
+        <SitePreviewSheet
+          item={displayItem}
+          className="min-h-0 flex-1"
+        />
+      )}
+    </div>
   ) : isTextItem || isTextFile ? (
     <TextPreview
       content={textContent}
@@ -502,34 +522,9 @@ export function ItemPreview({
                 aria-label="Snippet title"
               />
             </>
-          ) : editingTitle ? (
-            <Input
-              autoFocus
-              value={titleDraft}
-              onChange={(event) => setTitleDraft(event.target.value)}
-              onBlur={commitTitle}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitTitle();
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setEditingTitle(false);
-                }
-              }}
-              className="h-7 pr-8 text-sm font-normal"
-              disabled={rename.isPending}
-            />
           ) : (
             <h2 className="flex min-w-0 items-center gap-2 pr-8 text-base leading-none font-normal tracking-tight">
-              <span
-                className="min-w-0 cursor-text truncate"
-                onClick={() => {
-                  setTitleDraft(displayItem.title ?? "");
-                  setEditingTitle(true);
-                }}
-              >
+              <span className="min-w-0 truncate">
                 {displayItem.title ?? "Untitled"}
               </span>
               <KindBadge item={displayItem} />
@@ -574,39 +569,13 @@ export function ItemPreview({
               className="h-7 border-0 bg-transparent px-0 text-sm font-normal shadow-none focus-visible:ring-0"
               aria-label="Snippet title"
             />
-          ) : editingTitle ? (
-            <Input
-              autoFocus
-              value={titleDraft}
-              onChange={(event) => setTitleDraft(event.target.value)}
-              onBlur={commitTitle}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitTitle();
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setEditingTitle(false);
-                }
-              }}
-              className="h-7 border-0 bg-transparent px-0 text-sm font-normal shadow-none focus-visible:ring-0"
-              disabled={rename.isPending}
-            />
           ) : (
-            <button
-              type="button"
-              className="flex min-w-0 max-w-full items-center gap-2 text-left"
-              onClick={() => {
-                setTitleDraft(displayItem.title ?? "");
-                setEditingTitle(true);
-              }}
-            >
+            <div className="flex min-w-0 max-w-full items-center gap-2">
               <span className="min-w-0 truncate text-sm leading-none font-normal">
                 {displayItem.title ?? "Untitled"}
               </span>
               <KindBadge item={displayItem} />
-            </button>
+            </div>
           )}
         </div>
         {isSnippet ? (

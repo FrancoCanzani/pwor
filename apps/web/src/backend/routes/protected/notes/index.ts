@@ -7,7 +7,11 @@ import { z } from "zod";
 import { createDb } from "../../../db";
 import { ownedBy } from "../../../db/helpers";
 import { note, noteImage } from "../../../db/schema";
-import { assertOwnedWorkspace } from "../../../lib/ownership";
+import {
+  assertOwnedFeedItem,
+  assertOwnedItem,
+  assertOwnedWorkspace,
+} from "../../../lib/ownership";
 import type { AppEnv } from "../../../types";
 import {
   EMPTY_NOTE_BODY,
@@ -24,12 +28,27 @@ import {
 
 const listQuerySchema = z.object({
   workspaceId: z.string().optional(),
+  itemId: z.string().optional(),
+  feedItemId: z.string().optional(),
+});
+
+const anchorSchema = z.object({
+  from: z.number().int(),
+  to: z.number().int(),
+  quote: z.string().min(1).max(6000),
+  prefix: z.string().max(200),
+  suffix: z.string().max(200),
+  patch: z.string(),
 });
 
 const createNoteSchema = z.object({
   body: z.string().optional().default(""),
   title: z.string().nullable().optional(),
   workspaceId: z.string().nullable().optional(),
+  itemId: z.string().nullable().optional(),
+  feedItemId: z.string().nullable().optional(),
+  color: z.string().trim().min(1).max(20).nullable().optional(),
+  anchor: anchorSchema.optional(),
 });
 
 const updateNoteSchema = z
@@ -37,22 +56,29 @@ const updateNoteSchema = z
     body: z.string().optional(),
     title: z.string().nullable().optional(),
     workspaceId: z.string().nullable().optional(),
+    color: z.string().trim().min(1).max(20).nullable().optional(),
     expectedUpdatedAt: z.union([z.string(), z.number()]).optional(),
   })
   .refine(
     (value) =>
       value.body !== undefined ||
       value.title !== undefined ||
-      value.workspaceId !== undefined,
-    { message: "body, title, or workspaceId is required" },
+      value.workspaceId !== undefined ||
+      value.color !== undefined,
+    { message: "body, title, workspaceId, or color is required" },
   )
   .refine(
     (value) => {
       const touchesContent =
-        value.body !== undefined || value.title !== undefined;
+        value.body !== undefined ||
+        value.title !== undefined ||
+        value.color !== undefined;
       return !touchesContent || value.expectedUpdatedAt !== undefined;
     },
-    { message: "expectedUpdatedAt is required when updating body or title" },
+    {
+      message:
+        "expectedUpdatedAt is required when updating body, title, or color",
+    },
   );
 
 function normalizeTitle(title: string | null | undefined) {
@@ -67,12 +93,15 @@ function titleFromBody(body: string): string | null {
 const app = new Hono<AppEnv>()
   .get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { workspaceId } = c.req.valid("query");
+    const { workspaceId, itemId, feedItemId } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(note.userId, user.id)];
     if (workspaceId) conditions.push(eq(note.workspaceId, workspaceId));
+    if (itemId) conditions.push(eq(note.itemId, itemId));
+    if (feedItemId) conditions.push(eq(note.feedItemId, feedItemId));
 
+    const anchored = Boolean(itemId || feedItemId);
     const items = await db
       .select({
         id: note.id,
@@ -80,6 +109,19 @@ const app = new Hono<AppEnv>()
         workspaceId: note.workspaceId,
         updatedAt: note.updatedAt,
         createdAt: note.createdAt,
+        ...(anchored
+          ? {
+              itemId: note.itemId,
+              feedItemId: note.feedItemId,
+              color: note.color,
+              anchorFrom: note.anchorFrom,
+              anchorTo: note.anchorTo,
+              anchorQuote: note.anchorQuote,
+              anchorPrefix: note.anchorPrefix,
+              anchorSuffix: note.anchorSuffix,
+              anchorPatch: note.anchorPatch,
+            }
+          : {}),
       })
       .from(note)
       .where(and(...conditions))
@@ -94,6 +136,8 @@ const app = new Hono<AppEnv>()
     const db = createDb(c.env.DB);
 
     await assertOwnedWorkspace(db, payload.workspaceId, user.id);
+    await assertOwnedItem(db, payload.itemId, user.id);
+    await assertOwnedFeedItem(db, payload.feedItemId, user.id);
 
     const id = crypto.randomUUID();
     const body =
@@ -108,6 +152,19 @@ const app = new Hono<AppEnv>()
         body,
         title,
         workspaceId: payload.workspaceId ?? null,
+        itemId: payload.itemId ?? null,
+        feedItemId: payload.feedItemId ?? null,
+        color: payload.color ?? null,
+        ...(payload.anchor
+          ? {
+              anchorFrom: payload.anchor.from,
+              anchorTo: payload.anchor.to,
+              anchorQuote: payload.anchor.quote,
+              anchorPrefix: payload.anchor.prefix,
+              anchorSuffix: payload.anchor.suffix,
+              anchorPatch: payload.anchor.patch,
+            }
+          : {}),
       })
       .returning();
 
@@ -213,7 +270,8 @@ const app = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", updateNoteSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { body, title, workspaceId, expectedUpdatedAt } = c.req.valid("json");
+    const { body, title, workspaceId, color, expectedUpdatedAt } =
+      c.req.valid("json");
     const db = createDb(c.env.DB);
 
     await assertOwnedWorkspace(db, workspaceId, user.id);
@@ -226,10 +284,12 @@ const app = new Hono<AppEnv>()
       ...(body !== undefined ? { body } : {}),
       ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
       ...(workspaceId !== undefined ? { workspaceId } : {}),
+      ...(color !== undefined ? { color } : {}),
       updatedAt: new Date(),
     };
 
-    const touchesContent = body !== undefined || title !== undefined;
+    const touchesContent =
+      body !== undefined || title !== undefined || color !== undefined;
     if (touchesContent) {
       // Single-statement compare-and-swap on updatedAt; no read-write race.
       const expectedMs = toEpochMs(expectedUpdatedAt!);

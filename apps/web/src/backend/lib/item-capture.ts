@@ -8,7 +8,27 @@ import {
   titleFromText,
 } from "@shared/snippet-format";
 
+import normalizeUrlLib from "normalize-url";
+
 import { assertPublicHttpUrl } from "./safe-url";
+
+const TRACKING_PARAMS = [
+  /^utm_/,
+  "fbclid",
+  "gclid",
+  "gclsrc",
+  "dclid",
+  "msclkid",
+  /^mc_[ce]id$/,
+  "igshid",
+  "si",
+  "ref",
+  "ref_src",
+  "ref_url",
+  "_hsenc",
+  "_hsmi",
+  "spm",
+];
 
 const TWEET_RE =
   /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
@@ -35,6 +55,20 @@ export function parseCaptureInput(input: string): ParsedCapture {
 }
 
 export { dedentCode, titleFromSnippet, titleFromText };
+
+export function normalizeUrl(rawUrl: string): string | null {
+  try {
+    return normalizeUrlLib(rawUrl, {
+      stripWWW: true,
+      stripHash: true,
+      removeTrailingSlash: true,
+      sortQueryParameters: true,
+      removeQueryParameters: TRACKING_PARAMS,
+    });
+  } catch {
+    return null;
+  }
+}
 
 export function extractUrl(input: string): string | null {
   const trimmed = input.trim();
@@ -79,6 +113,7 @@ export type FetchedPage = {
   siteName: string | null;
   description: string | null;
   text: string | null;
+  html: string | null;
 };
 
 export async function fetchPageMetadata(url: string): Promise<FetchedPage> {
@@ -93,7 +128,13 @@ export async function fetchPageMetadata(url: string): Promise<FetchedPage> {
       },
     });
     if (!response.ok) {
-      return { title: null, siteName: null, description: null, text: null };
+      return {
+        title: null,
+        siteName: null,
+        description: null,
+        text: null,
+        html: null,
+      };
     }
 
     const contentType = response.headers.get("content-type") ?? "";
@@ -103,6 +144,7 @@ export async function fetchPageMetadata(url: string): Promise<FetchedPage> {
         siteName: new URL(url).hostname,
         description: null,
         text: null,
+        html: null,
       };
     }
 
@@ -131,9 +173,16 @@ export async function fetchPageMetadata(url: string): Promise<FetchedPage> {
       siteName,
       description: description?.slice(0, 500) || null,
       text: stripped || null,
+      html,
     };
   } catch {
-    return { title: null, siteName: null, description: null, text: null };
+    return {
+      title: null,
+      siteName: null,
+      description: null,
+      text: null,
+      html: null,
+    };
   }
 }
 

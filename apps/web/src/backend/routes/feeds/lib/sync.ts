@@ -3,6 +3,10 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { createDb } from "../../../db";
 import { feed, feedItem } from "../../../db/schema";
 import { parseFeedXml } from "./parse";
+import {
+  channelIdFromFeedUrl,
+  fetchYoutubeChannelAvatar,
+} from "./youtube";
 
 const MAX_ITEMS_PER_SYNC = 50;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -61,6 +65,21 @@ async function fetchFeedBody(
   };
 }
 
+async function youtubeAvatarIfMissing(
+  kind: string,
+  feedUrl: string,
+  existing: string | null,
+): Promise<string | null> {
+  if (existing || kind !== "youtube") return existing;
+  const channelId = channelIdFromFeedUrl(feedUrl);
+  if (!channelId) return existing;
+  try {
+    return (await fetchYoutubeChannelAvatar(channelId)) ?? existing;
+  } catch {
+    return existing;
+  }
+}
+
 export async function syncFeed(
   env: Env,
   feedId: string,
@@ -78,15 +97,32 @@ export async function syncFeed(
   try {
     const fetched = await fetchFeedBody(row.url, row.etag, row.lastModified);
     if (fetched.notModified) {
+      const imageUrl = await youtubeAvatarIfMissing(
+        row.kind,
+        row.url,
+        row.imageUrl,
+      );
       await db
         .update(feed)
-        .set({ lastSyncedAt: new Date(), syncError: null })
+        .set({
+          lastSyncedAt: new Date(),
+          syncError: null,
+          ...(imageUrl !== row.imageUrl ? { imageUrl } : {}),
+        })
         .where(eq(feed.id, feedId));
       return { feedId, added: 0, updated: 0, unchanged: true };
     }
 
     const parsed = parseFeedXml(fetched.body, row.url);
     if (row.kind === "youtube") parsed.kind = "youtube";
+
+    const imageUrl = await youtubeAvatarIfMissing(
+      parsed.kind,
+      row.url,
+      parsed.kind === "youtube"
+        ? row.imageUrl
+        : parsed.imageUrl || row.imageUrl,
+    );
 
     let added = 0;
     let updated = 0;
@@ -151,7 +187,7 @@ export async function syncFeed(
         title: parsed.title || row.title,
         siteUrl: parsed.siteUrl || row.siteUrl,
         siteName: parsed.siteName || row.siteName,
-        imageUrl: parsed.imageUrl || row.imageUrl,
+        imageUrl,
         kind: parsed.kind,
         etag: fetched.etag,
         lastModified: fetched.lastModified,

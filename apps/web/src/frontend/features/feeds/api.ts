@@ -33,6 +33,7 @@ export type FeedItem = {
   createdAt: string;
   feedTitle: string | null;
   feedKind: FeedKind;
+  feedSiteUrl: string | null;
   feedImageUrl: string | null;
 };
 

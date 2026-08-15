@@ -43,13 +43,11 @@ function NavSection({
   name,
   addLabel,
   onAdd,
-  badge,
   children,
 }: {
   name: ReactNode;
   addLabel: string;
   onAdd: () => void;
-  badge?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -62,7 +60,6 @@ function NavSection({
           <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-normal text-muted-foreground hover:text-foreground">
             <span className="truncate">{name}</span>
             <CaretRightIcon className="size-2.5 shrink-0 text-muted-foreground transition-transform in-data-open:rotate-90" />
-            {badge}
           </CollapsibleTrigger>
           <button
             type="button"
@@ -182,15 +179,22 @@ export function SidebarNav() {
         name="Feeds"
         addLabel="Add feed"
         onAdd={() => setAddFeedOpen(true)}
-        badge={
-          feedsUnread > 0 ? (
-            <span className="ml-auto font-nums text-[10px] text-muted-foreground">
-              {feedsUnread}
-            </span>
-          ) : null
-        }
       >
         <SidebarMenu className="max-h-72 gap-0.5 overflow-y-auto">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isFeeds && !activeFeedId}
+              render={<Link to="/feeds" search={{ item: undefined }} />}
+              className="font-normal"
+            >
+              <span className="truncate">All</span>
+              {feedsUnread > 0 ? (
+                <span className="ml-auto font-nums text-xs text-muted-foreground">
+                  {feedsUnread}
+                </span>
+              ) : null}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           {feeds.map((feed) => (
             <SidebarMenuItem key={feed.id}>
               <SidebarMenuButton
@@ -204,7 +208,11 @@ export function SidebarNav() {
                 }
                 className="font-normal"
               >
-                <FeedFavicon siteUrl={feed.siteUrl} className="size-4" />
+                <FeedFavicon
+                  siteUrl={feed.siteUrl}
+                  imageUrl={feed.imageUrl}
+                  className="size-4"
+                />
                 <span className="truncate">
                   {feed.title?.trim() || feed.siteName || "Feed"}
                 </span>

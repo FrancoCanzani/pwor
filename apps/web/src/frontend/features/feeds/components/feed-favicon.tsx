@@ -14,27 +14,53 @@ function hostFromUrl(url: string | null): string | null {
 
 export function FeedFavicon({
   siteUrl,
+  imageUrl,
   className,
 }: {
   siteUrl: string | null;
+  imageUrl?: string | null;
   className?: string;
 }) {
   const host = hostFromUrl(siteUrl);
-  const [failed, setFailed] = useState(false);
+  const [failedImage, setFailedImage] = useState(false);
+  const [failedFavicon, setFailedFavicon] = useState(false);
+  const custom = imageUrl && !failedImage ? imageUrl : null;
+  const favicon =
+    !custom && host && !failedFavicon
+      ? `https://www.google.com/s2/favicons?domain=${host}&sz=32`
+      : null;
 
-  if (!host || failed) {
+  if (custom) {
     return (
-      <GlobeIcon className={cn("size-3.5 shrink-0 text-muted-foreground", className)} />
+      <img
+        src={custom}
+        alt=""
+        draggable={false}
+        referrerPolicy="no-referrer"
+        className={cn(
+          "size-3.5 shrink-0 rounded-xs object-cover",
+          className,
+        )}
+        onError={() => setFailedImage(true)}
+      />
+    );
+  }
+
+  if (favicon) {
+    return (
+      <img
+        src={favicon}
+        alt=""
+        draggable={false}
+        className={cn("size-3.5 shrink-0 rounded-xs object-cover", className)}
+        onError={() => setFailedFavicon(true)}
+      />
     );
   }
 
   return (
-    <img
-      src={`https://www.google.com/s2/favicons?domain=${host}&sz=32`}
-      alt=""
-      draggable={false}
-      className={cn("size-3.5 shrink-0 rounded-xs", className)}
-      onError={() => setFailed(true)}
+    <GlobeIcon
+      className={cn("size-3.5 shrink-0 text-muted-foreground", className)}
     />
   );
 }

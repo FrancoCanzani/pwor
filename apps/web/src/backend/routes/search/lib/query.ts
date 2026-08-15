@@ -1,4 +1,4 @@
-export type SearchKind = "note" | "item";
+export type SearchKind = "note" | "item" | "feed";
 
 export type SearchHit = {
   kind: SearchKind;
@@ -6,6 +6,7 @@ export type SearchHit = {
   title: string;
   snippet: string | null;
   workspaceId: string | null;
+  feedId: string | null;
   updatedAt: number;
 };
 
@@ -14,29 +15,53 @@ const SNIPPET_CHARS = 160;
 
 type Source = {
   kind: SearchKind;
-  table: string;
+  from: string;
+  id: string;
   title: string;
-  workspace: string;
+  userId: string;
+  workspace: string | null;
   timestamp: string;
   body: string | null;
+  snippet: string;
+  feedId: string;
 };
 
 const SOURCES: Source[] = [
   {
     kind: "note",
-    table: "note",
+    from: "note",
+    id: "id",
     title: "title",
+    userId: "user_id",
     workspace: "workspace_id",
     timestamp: "updated_at",
     body: "body",
+    snippet: `substr(trim(body), 1, ${SNIPPET_CHARS})`,
+    feedId: "null",
   },
   {
     kind: "item",
-    table: "item",
+    from: "item",
+    id: "id",
     title: "title",
+    userId: "user_id",
     workspace: "workspace_id",
     timestamp: "updated_at",
     body: "coalesce(summary, content, extracted_markdown, tags)",
+    snippet: `substr(trim(coalesce(summary, content, extracted_markdown, tags)), 1, ${SNIPPET_CHARS})`,
+    feedId: "null",
+  },
+  {
+    kind: "feed",
+    from: "feed_item inner join feed on feed.id = feed_item.feed_id",
+    id: "feed_item.id",
+    title: "feed_item.title",
+    userId: "feed_item.user_id",
+    workspace: null,
+    timestamp: "coalesce(feed_item.published_at, feed_item.created_at)",
+    body: "coalesce(feed_item.summary, feed_item.author, feed.title)",
+    snippet: "feed.title",
+    feedId: "feed_item.feed_id",
   },
 ];
 
@@ -61,15 +86,13 @@ export function buildSearchQuery({
   const infix = `%${term}%`;
   const params: unknown[] = [];
 
-  const arms = SOURCES.map((source) => {
-    const snippet = source.body
-      ? `substr(trim(${source.body}), 1, ${SNIPPET_CHARS})`
-      : "null";
-
+  const arms = SOURCES.filter(
+    (source) => !workspaceId || source.workspace != null,
+  ).map((source) => {
     params.push(prefix, infix, userId);
-    let where = `user_id = ?`;
+    let where = `${source.userId} = ?`;
 
-    if (workspaceId) {
+    if (workspaceId && source.workspace) {
       where += ` and ${source.workspace} = ?`;
       params.push(workspaceId);
     }
@@ -83,20 +106,23 @@ export function buildSearchQuery({
     }
     where += `)`;
 
+    const workspaceSelect = source.workspace ?? "null";
+
     return `select * from (
       select
         '${source.kind}' as kind,
-        id,
+        ${source.id} as id,
         coalesce(nullif(trim(${source.title}), ''), 'Untitled') as title,
-        ${snippet} as snippet,
-        ${source.workspace} as workspaceId,
+        ${source.snippet} as snippet,
+        ${workspaceSelect} as workspaceId,
+        ${source.feedId} as feedId,
         ${source.timestamp} as updatedAt,
         case
           when lower(${source.title}) like ? escape '\\' then 0
           when lower(${source.title}) like ? escape '\\' then 1
           else 2
         end as rank
-      from ${source.table}
+      from ${source.from}
       where ${where}
       order by rank, updatedAt desc
       limit ${PER_SOURCE_LIMIT}

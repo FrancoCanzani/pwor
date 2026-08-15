@@ -17,6 +17,7 @@ export const feedItemSelect = {
   createdAt: feedItem.createdAt,
   feedTitle: feed.title,
   feedKind: feed.kind,
+  feedSiteUrl: feed.siteUrl,
   feedImageUrl: feed.imageUrl,
 };
 

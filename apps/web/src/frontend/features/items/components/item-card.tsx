@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Item } from "@features/items/api";
-import { ItemMention } from "@features/items/components/item-mention";
+import { SiteFavicon } from "@features/items/components/item-mention";
 import { ItemVideo } from "@features/items/components/item-video";
 import { PdfThumb } from "@features/items/components/pdf-thumb";
 import {
@@ -142,6 +142,10 @@ export function ItemCard({
   onDelete: () => void;
 }) {
   const title = item.title?.trim() || "Untitled";
+  const source =
+    item.kind === "link"
+      ? item.siteName?.trim() || itemHost(item.url)
+      : null;
   const didDrag = useRef(false);
   const externalHref = itemOpenHref(item);
   const downloadHref = item.kind === "link" ? null : itemFileUrl(item.id);
@@ -250,10 +254,24 @@ export function ItemCard({
               {actions}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-2 px-2.5 py-2">
-            <ItemMention item={item} className="min-w-0 flex-1" />
-            <span className="shrink-0 text-xs font-nums text-muted-foreground">
-              {formatCardDate(item.createdAt)}
+          <div className="flex flex-col gap-1 px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              {source ? (
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {item.url ? (
+                    <SiteFavicon url={item.url} className="size-3.5" />
+                  ) : null}
+                  <span className="truncate text-xs text-blue-600">
+                    {source}
+                  </span>
+                </span>
+              ) : null}
+              <span className="ml-auto shrink-0 font-nums text-xs text-muted-foreground">
+                {formatCardDate(item.createdAt)}
+              </span>
+            </div>
+            <span className="min-w-0 truncate text-sm underline decoration-foreground/40 underline-offset-2">
+              {title}
             </span>
           </div>
         </ContextMenuTrigger>

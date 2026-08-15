@@ -91,3 +91,64 @@ export async function resolveYoutubeFeedUrl(
   }
   return { feedUrl: CHANNEL_FEED(channelId), channelId };
 }
+
+export function channelIdFromFeedUrl(url: string): string | null {
+  try {
+    const id = new URL(url).searchParams.get("channel_id");
+    return id && CHANNEL_ID_RE.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+function unescapeUrl(value: string): string {
+  return value
+    .replace(/\\u0026/gi, "&")
+    .replace(/\\\//g, "/")
+    .replace(/&amp;/g, "&");
+}
+
+function sizedAvatar(url: string): string {
+  return /=s\d+/.test(url) ? url.replace(/=s\d+/, "=s88") : url;
+}
+
+function extractChannelAvatar(html: string): string | null {
+  const avatar = html.match(
+    /"channelMetadataRenderer"[\s\S]{0,4000}"avatar"\s*:\s*\{\s*"thumbnails"\s*:\s*\[\s*\{\s*"url"\s*:\s*"([^"]+)"/,
+  );
+  if (avatar?.[1]) return sizedAvatar(unescapeUrl(avatar[1]));
+
+  const og =
+    html.match(
+      /<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+    ) ??
+    html.match(
+      /<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image["']/i,
+    );
+  const ogUrl = og?.[1] ? unescapeUrl(og[1]) : null;
+  if (
+    ogUrl &&
+    /yt3\.(ggpht|googleusercontent)\.com/.test(ogUrl) &&
+    !/fcrop/.test(ogUrl)
+  ) {
+    return sizedAvatar(ogUrl);
+  }
+  return null;
+}
+
+export async function fetchYoutubeChannelAvatar(
+  channelId: string,
+): Promise<string | null> {
+  const response = await fetch(`https://www.youtube.com/channel/${channelId}`, {
+    redirect: "follow",
+    signal: AbortSignal.timeout(15_000),
+    headers: {
+      "User-Agent": "PworFeedBot/1.0 (+https://pwor.app)",
+      Accept: "text/html",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!response.ok) return null;
+  const html = (await response.text()).slice(0, HTML_BYTES);
+  return extractChannelAvatar(html);
+}

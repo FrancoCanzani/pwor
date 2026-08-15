@@ -143,12 +143,13 @@ function parseRss(channel: Record<string, unknown>): ParsedFeed {
   }
 
   const image = channel.image as Record<string, unknown> | undefined;
+  const itunes = channel["itunes:image"] as Record<string, unknown> | undefined;
   return {
     kind: "rss",
     title: textOf(channel.title),
     siteUrl: textOf(channel.link) || linkHref(channel.link),
     siteName: textOf(channel.title),
-    imageUrl: textOf(image?.url) || null,
+    imageUrl: textOf(image?.url) || textOf(itunes?.["@_href"]) || null,
     items,
   };
 }
@@ -222,7 +223,7 @@ function parseAtom(
     title: textOf(root.title),
     siteUrl: linkHref(root.link, "alternate") || linkHref(root.link),
     siteName: textOf(author?.name) || textOf(root.title),
-    imageUrl: null,
+    imageUrl: textOf(root.icon) || textOf(root.logo) || null,
     items,
   };
 }

@@ -2,7 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
 
-export type SearchKind = "note" | "item";
+export type SearchKind = "note" | "item" | "feed";
 
 export type SearchHit = {
   kind: SearchKind;
@@ -10,6 +10,7 @@ export type SearchHit = {
   title: string;
   snippet: string | null;
   workspaceId: string | null;
+  feedId: string | null;
   updatedAt: number;
 };
 

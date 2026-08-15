@@ -32,9 +32,10 @@ const SPACE_NAV_ITEMS = [
 const KIND_META = {
   note: { label: "Notes" },
   item: { label: "Library" },
+  feed: { label: "Feeds" },
 } as const satisfies Record<SearchKind, { label: string }>;
 
-const KIND_ORDER: SearchKind[] = ["note", "item"];
+const KIND_ORDER: SearchKind[] = ["note", "item", "feed"];
 type PaletteItem = {
   id: string;
   label: string;
@@ -153,34 +154,54 @@ export function CommandPalette({
           detail: hit.snippet,
           meta: workspaceLabel(hit, currentWorkspaceId, workspaces),
           run: () => {
-            if (hit.kind === "item" && !hit.workspaceId) {
-              onOpenChange(false);
-              setQuery("");
-              void navigate({
-                to: "/inbox",
-                search: { item: hit.id },
-              });
-              return;
-            }
-            const workspaceId = hit.workspaceId ?? currentWorkspaceId;
-            if (!workspaceId) return;
-            select(workspaceId, () => {
-              switch (hit.kind) {
-                case "note":
-                  openNote(hit.id);
+            switch (hit.kind) {
+              case "feed":
+                onOpenChange(false);
+                setQuery("");
+                if (hit.feedId) {
+                  void navigate({
+                    to: "/feeds/$feedId",
+                    params: { feedId: hit.feedId },
+                    search: { item: hit.id },
+                  });
+                } else {
+                  void navigate({
+                    to: "/feeds",
+                    search: { item: hit.id },
+                  });
+                }
+                return;
+              case "item": {
+                if (!hit.workspaceId) {
+                  onOpenChange(false);
+                  setQuery("");
+                  void navigate({
+                    to: "/inbox",
+                    search: { item: hit.id },
+                  });
                   return;
-                case "item":
-                  return navigate({
+                }
+                const workspaceId = hit.workspaceId;
+                select(workspaceId, () =>
+                  navigate({
                     to: "/$workspaceId",
                     params: { workspaceId },
                     search: { item: hit.id },
-                  });
-                default: {
-                  const _exhaustive: never = hit.kind;
-                  return _exhaustive;
-                }
+                  }),
+                );
+                return;
               }
-            });
+              case "note": {
+                const workspaceId = hit.workspaceId ?? currentWorkspaceId;
+                if (!workspaceId) return;
+                select(workspaceId, () => openNote(hit.id));
+                return;
+              }
+              default: {
+                const _exhaustive: never = hit.kind;
+                return _exhaustive;
+              }
+            }
           },
         })),
       });
@@ -370,6 +391,7 @@ function workspaceLabel(
   currentWorkspaceId: string | undefined,
   workspaces: { id: string; name: string }[],
 ) {
+  if (hit.kind === "feed") return "Feeds";
   if (!hit.workspaceId) return hit.kind === "item" ? "Inbox" : undefined;
   if (hit.workspaceId === currentWorkspaceId) return undefined;
   return workspaces.find((workspace) => workspace.id === hit.workspaceId)?.name;

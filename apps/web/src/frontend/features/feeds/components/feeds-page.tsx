@@ -48,6 +48,7 @@ import {
 } from "@features/feeds/api";
 import { AddFeedDialog } from "@features/feeds/components/add-feed-dialog";
 import { ArticleReader } from "@features/feeds/components/article-reader";
+import { FeedFavicon } from "@features/feeds/components/feed-favicon";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
 import { sortBy, type ItemSort } from "@features/items/lib/list";
 
@@ -95,52 +96,63 @@ function FeedItemRow({
         active && "bg-muted/50",
       )}
     >
-      <div className="flex items-center gap-3">
-        <HoverPreview
-          content={
-            item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt=""
-                className="aspect-video w-full object-cover"
-              />
-            ) : null
-          }
-        >
-          <Mention
-            title={title}
-            label={showSource ? label : null}
-            className="min-w-0 flex-1"
-            titleClassName={cn(
-              "no-underline",
-              unread ? undefined : "text-muted-foreground",
-            )}
+      <div className="flex items-start gap-2">
+        {showSource ? (
+          <FeedFavicon
+            siteUrl={item.feedSiteUrl ?? item.url}
+            imageUrl={item.feedImageUrl}
+            className="mt-0.5 size-4"
           />
-        </HoverPreview>
-        <span className="flex shrink-0 items-center gap-1">
-          <span
-            className="flex size-4 items-center justify-center"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <TooltipIconButton
-              label="Open in new window"
-              className="size-4 text-muted-foreground [&_svg]:size-3"
-              disabled={!item.url}
-              onClick={openExternal}
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3">
+            <HoverPreview
+              content={
+                item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    className="aspect-video w-full object-cover"
+                  />
+                ) : null
+              }
             >
-              <OpenInNewWindowIcon />
-            </TooltipIconButton>
-          </span>
-          <span className="w-12 shrink-0 text-right font-nums text-xs leading-none text-muted-foreground">
-            {formatListDate(item.publishedAt)}
-          </span>
-        </span>
+              <Mention
+                title={title}
+                label={showSource ? label : null}
+                className="min-w-0 flex-1"
+                titleClassName={cn(
+                  "no-underline",
+                  unread ? undefined : "text-muted-foreground",
+                )}
+              />
+            </HoverPreview>
+            <span className="flex shrink-0 items-center gap-1">
+              <span
+                className="flex size-4 items-center justify-center"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <TooltipIconButton
+                  label="Open in new window"
+                  className="size-4 text-muted-foreground [&_svg]:size-3"
+                  disabled={!item.url}
+                  onClick={openExternal}
+                >
+                  <OpenInNewWindowIcon />
+                </TooltipIconButton>
+              </span>
+              <span className="w-12 shrink-0 text-right font-nums text-xs leading-none text-muted-foreground">
+                {formatListDate(item.publishedAt)}
+              </span>
+            </span>
+          </div>
+          {subtitle ? (
+            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
       </div>
-      {subtitle ? (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-          {subtitle}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -361,23 +373,25 @@ export function FeedsPage() {
 
   const readerPane = (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="flex h-12 shrink-0 items-center gap-2 px-4">
-        <SidebarTrigger className="md:hidden" />
-        {openItem ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            className="font-normal md:hidden"
-            onClick={() => setItem(undefined)}
-          >
-            <ArrowLeftIcon data-icon="inline-start" />
-            Back
-          </Button>
-        ) : null}
-        <h2 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
-          {openItem ? openItem.title?.trim() || "Untitled" : null}
-        </h2>
+      <div className="flex h-12 shrink-0 items-center">
+        <div className="mx-auto flex h-full w-full max-w-2xl items-center gap-2 px-4">
+          <SidebarTrigger className="md:hidden" />
+          {openItem ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="font-normal md:hidden"
+              onClick={() => setItem(undefined)}
+            >
+              <ArrowLeftIcon data-icon="inline-start" />
+              Back
+            </Button>
+          ) : null}
+          <h2 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
+            {openItem ? openItem.title?.trim() || "Untitled" : null}
+          </h2>
+        </div>
       </div>
       {openItem ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">

@@ -344,6 +344,7 @@ export function InboxPage() {
 
   useHotkey("Escape", () => setSelected(new Set()), {
     enabled: selectedCount > 0 && openItem == null,
+    conflictBehavior: "replace",
   });
 
   const deleteMutation = useMutation({

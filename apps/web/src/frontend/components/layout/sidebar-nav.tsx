@@ -1,4 +1,4 @@
-import { DotsHorizontalIcon, PlusIcon } from "@radix-ui/react-icons";
+import { CaretRightIcon, PlusIcon } from "@radix-ui/react-icons";
 import {
   useInfiniteQuery,
   useMutation,
@@ -6,39 +6,19 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
@@ -53,16 +33,53 @@ import {
 } from "@features/items/api";
 import { usePworItemDrop, type PworItemDrag } from "@features/items/lib/drag";
 import {
-  deleteWorkspace,
   workspacesQueryOptions,
   type Workspace,
 } from "@features/workspaces/api";
 import { CreateWorkspaceDialog } from "@features/workspaces/components/create-workspace-dialog";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 
-const sectionLabelClass = "pl-2 pr-6 text-sm font-normal";
-const addActionClass =
-  "top-3.5 right-2 size-5 after:hidden text-muted-foreground hover:text-foreground [&>svg]:size-3.5";
+function NavSection({
+  name,
+  addLabel,
+  onAdd,
+  badge,
+  children,
+}: {
+  name: ReactNode;
+  addLabel: string;
+  onAdd: () => void;
+  badge?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible
+      defaultOpen
+      className="group/section group-data-[collapsible=icon]:hidden"
+    >
+      <SidebarGroup className="pt-1">
+        <div className="group/header flex h-8 items-center rounded-md px-2 hover:bg-sidebar-accent">
+          <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-normal text-muted-foreground hover:text-foreground">
+            <span className="truncate">{name}</span>
+            <CaretRightIcon className="size-2.5 shrink-0 text-muted-foreground transition-transform in-data-open:rotate-90" />
+            {badge}
+          </CollapsibleTrigger>
+          <button
+            type="button"
+            aria-label={addLabel}
+            className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 hover:text-foreground [&>svg]:size-3.5"
+            onClick={onAdd}
+          >
+            <PlusIcon />
+          </button>
+        </div>
+        <CollapsibleContent>
+          <SidebarGroupContent>{children}</SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  );
+}
 
 async function movePworItems(item: PworItemDrag, workspaceId: string | null) {
   for (const id of item.ids) {
@@ -145,95 +162,62 @@ export function SidebarNav() {
         </SidebarGroupContent>
       </SidebarGroup>
 
-      <SidebarGroup className="relative">
-        <SidebarGroupLabel className={sectionLabelClass}>
-          Spaces
-        </SidebarGroupLabel>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <SidebarGroupAction
-                aria-label="New space"
-                className={addActionClass}
-                onClick={() => setCreateSpaceOpen(true)}
-              />
-            }
-          >
-            <PlusIcon />
-          </TooltipTrigger>
-          <TooltipContent>New space</TooltipContent>
-        </Tooltip>
+      <NavSection
+        name="Spaces"
+        addLabel="New space"
+        onAdd={() => setCreateSpaceOpen(true)}
+      >
+        <SidebarMenu className="max-h-72 gap-0.5 overflow-y-auto">
+          {spaces.map((space) => (
+            <SpaceRow
+              key={space.id}
+              space={space}
+              isActive={space.id === routeSpaceId}
+            />
+          ))}
+        </SidebarMenu>
+      </NavSection>
 
-        <SidebarGroupContent className="max-h-72 overflow-y-auto scrollbar-thin">
-          <SidebarMenu className="gap-0.5">
-            {spaces.map((space) => (
-              <SpaceRow
-                key={space.id}
-                space={space}
-                isActive={space.id === routeSpaceId}
-              />
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      <SidebarGroup className="relative">
-        <SidebarGroupLabel
-          className={sectionLabelClass}
-          render={<Link to="/feeds" search={{ item: undefined }} />}
-        >
-          Feeds
-          {feedsUnread > 0 ? (
-            <span className="ml-auto font-nums text-xs text-muted-foreground">
+      <NavSection
+        name="Feeds"
+        addLabel="Add feed"
+        onAdd={() => setAddFeedOpen(true)}
+        badge={
+          feedsUnread > 0 ? (
+            <span className="ml-auto font-nums text-[10px] text-muted-foreground">
               {feedsUnread}
             </span>
-          ) : null}
-        </SidebarGroupLabel>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <SidebarGroupAction
-                aria-label="Add feed"
-                className={addActionClass}
-                onClick={() => setAddFeedOpen(true)}
-              />
-            }
-          >
-            <PlusIcon />
-          </TooltipTrigger>
-          <TooltipContent>Add feed</TooltipContent>
-        </Tooltip>
-
-        <SidebarGroupContent className="max-h-72 overflow-y-auto scrollbar-thin">
-          <SidebarMenu className="gap-0.5">
-            {feeds.map((feed) => (
-              <SidebarMenuItem key={feed.id}>
-                <SidebarMenuButton
-                  isActive={activeFeedId === feed.id}
-                  render={
-                    <Link
-                      to="/feeds/$feedId"
-                      params={{ feedId: feed.id }}
-                      search={{ item: undefined }}
-                    />
-                  }
-                  className="font-normal"
-                >
-                  <FeedFavicon siteUrl={feed.siteUrl} className="size-4" />
-                  <span className="truncate">
-                    {feed.title?.trim() || feed.siteName || "Feed"}
+          ) : null
+        }
+      >
+        <SidebarMenu className="max-h-72 gap-0.5 overflow-y-auto">
+          {feeds.map((feed) => (
+            <SidebarMenuItem key={feed.id}>
+              <SidebarMenuButton
+                isActive={activeFeedId === feed.id}
+                render={
+                  <Link
+                    to="/feeds/$feedId"
+                    params={{ feedId: feed.id }}
+                    search={{ item: undefined }}
+                  />
+                }
+                className="font-normal"
+              >
+                <FeedFavicon siteUrl={feed.siteUrl} className="size-4" />
+                <span className="truncate">
+                  {feed.title?.trim() || feed.siteName || "Feed"}
+                </span>
+                {(feed.unreadCount ?? 0) > 0 ? (
+                  <span className="ml-auto font-nums text-xs text-muted-foreground">
+                    {feed.unreadCount}
                   </span>
-                  {(feed.unreadCount ?? 0) > 0 ? (
-                    <span className="ml-auto font-nums text-xs text-muted-foreground">
-                      {feed.unreadCount}
-                    </span>
-                  ) : null}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
+                ) : null}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </NavSection>
 
       <CreateWorkspaceDialog
         open={createSpaceOpen}
@@ -311,22 +295,8 @@ function SpaceRow({
   space: Workspace;
   isActive: boolean;
 }) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const label = space.name.trim() || "Untitled";
-
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteWorkspace(space.id),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: workspacesQueryOptions.queryKey,
-        exact: true,
-      });
-      if (isActive) {
-        void navigate({ to: "/inbox" });
-      }
-    },
-  });
 
   const moveMutation = useMutation({
     mutationFn: (item: PworItemDrag) => movePworItems(item, space.id),
@@ -347,77 +317,25 @@ function SpaceRow({
   });
 
   return (
-    <AlertDialog>
-      <SidebarMenuItem
-        {...dropProps}
-        className={cn(isOver && "bg-sidebar-accent")}
+    <SidebarMenuItem
+      {...dropProps}
+      className={cn(isOver && "bg-sidebar-accent")}
+    >
+      <SidebarMenuButton
+        isActive={isActive}
+        className="font-normal"
+        tooltip={label}
+        render={
+          <Link
+            to="/$workspaceId"
+            params={{ workspaceId: space.id }}
+            search={{ item: undefined }}
+          />
+        }
       >
-        <SidebarMenuButton
-          isActive={isActive}
-          className="font-normal"
-          tooltip={label}
-          render={
-            <Link
-              to="/$workspaceId"
-              params={{ workspaceId: space.id }}
-              search={{ item: undefined }}
-            />
-          }
-        >
-          <SpacePic shaderId={space.shader} className="size-4" />
-          <span className="truncate">{label}</span>
-        </SidebarMenuButton>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuAction
-                showOnHover
-                aria-label={`${label} actions`}
-                className={cn(isOver && "opacity-0")}
-              />
-            }
-          >
-            <DotsHorizontalIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-auto min-w-32 shadow-none"
-          >
-            <AlertDialogTrigger
-              nativeButton={false}
-              render={
-                <DropdownMenuItem
-                  variant="destructive"
-                  className="font-normal text-xs"
-                />
-              }
-            >
-              Delete
-            </AlertDialogTrigger>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete {label}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This permanently deletes the space and everything in it. This can’t
-            be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-          >
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        <SpacePic shaderId={space.shader} className="size-4" />
+        <span className="truncate">{label}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }

@@ -84,7 +84,10 @@ function FloatingNoteShell({
     shell.dataset.sized = "1";
   }, [isMobile]);
 
-  useHotkey("Escape", () => onClose(), { enabled: true });
+  useHotkey("Escape", () => onClose(), {
+    enabled: true,
+    conflictBehavior: "replace",
+  });
 
   function onDragPointerDown(event: ReactPointerEvent<HTMLElement>) {
     if (isMobile) return;
@@ -264,7 +267,6 @@ function FloatingNoteContent({
     initialDoc,
   } = useNoteDocumentSave({
     noteId,
-    workspaceId: workspaceId ?? "",
     note,
   });
 

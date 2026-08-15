@@ -59,35 +59,6 @@ html, body {
 }
 `;
 
-const COOKIE_BANNER_JS = `
-(() => {
-  const selectors = [
-    '[id*="cookie" i]',
-    '[class*="cookie" i]',
-    '[id*="consent" i]',
-    '[class*="consent" i]',
-    '#onetrust-banner-sdk',
-    '#onetrust-consent-sdk',
-    '#CybotCookiebotDialog',
-    '#sp_message_container',
-    '.qc-cmp2-container',
-    '.fc-consent-root',
-    '#didomi-host',
-    '.osano-cm-window',
-    '#usercentrics-root',
-    '#iubenda-cs-banner',
-  ];
-  for (const sel of selectors) {
-    try {
-      document.querySelectorAll(sel).forEach((el) => el.remove());
-    } catch {}
-  }
-  document.documentElement.style.overflow = 'auto';
-  document.body && (document.body.style.overflow = 'auto');
-  document.body && (document.body.style.position = 'static');
-})();
-`;
-
 export type SiteScreenshotResult = {
   bytes: ArrayBuffer;
   contentType: string;
@@ -119,7 +90,6 @@ export async function captureSiteScreenshot(
       },
       cookies: [],
       addStyleTag: [{ content: COOKIE_BANNER_CSS }],
-      addScriptTag: [{ content: COOKIE_BANNER_JS }],
     });
 
     if (!response.ok) {

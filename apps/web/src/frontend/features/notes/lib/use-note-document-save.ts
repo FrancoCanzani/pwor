@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   NoteConflictError,
   noteQueryOptions,
-  notesQueryOptions,
   updateNote,
   type Note,
   type NoteListItem,
@@ -15,7 +14,11 @@ import {
 import {
   inferTitleFromRaw,
   normalizeNoteTitle,
+  noteBodyPreview,
+  noteHasBody,
+  noteIsNoted,
   parseNoteDocument,
+  withNotedFlag,
 } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
 
@@ -30,11 +33,9 @@ export type NoteSaveState =
 
 export function useNoteDocumentSave({
   noteId,
-  workspaceId,
   note,
 }: {
   noteId: string;
-  workspaceId: string;
   note: Note | undefined;
 }) {
   const queryClient = useQueryClient();
@@ -59,8 +60,8 @@ export function useNoteDocumentSave({
     conflictRef.current = false;
     setTags(parseNoteDocument(updated.body).tags);
     queryClient.setQueryData(noteQueryOptions(noteId).queryKey, updated);
-    queryClient.setQueryData(
-      notesQueryOptions(workspaceId).queryKey,
+    queryClient.setQueriesData(
+      { queryKey: ["notes", "list"] },
       (current: NoteListItem[] | undefined) => {
         if (!current) return current;
         const next = current.map((item) =>
@@ -71,6 +72,9 @@ export function useNoteDocumentSave({
                 workspaceId: updated.workspaceId,
                 updatedAt: updated.updatedAt,
                 createdAt: updated.createdAt,
+                hasBody: noteHasBody(updated.body),
+                noted: noteIsNoted(updated.body),
+                bodyPreview: noteBodyPreview(updated.body),
               }
             : item,
         );
@@ -200,8 +204,11 @@ export function useNoteDocumentSave({
   }
 
   function handleBodyChange(value: string) {
-    latestBodyRef.current = value;
-    setTags(parseNoteDocument(value).tags);
+    const saved = savedBodyRef.current ?? "";
+    const next =
+      noteIsNoted(saved) && !noteHasBody(value) ? withNotedFlag(value) : value;
+    latestBodyRef.current = next;
+    setTags(parseNoteDocument(next).tags);
     scheduleSave();
   }
 

@@ -10,30 +10,40 @@ export type SearchHit = {
 };
 
 const PER_SOURCE_LIMIT = 6;
-const SNIPPET_TOKENS = 12;
+const SNIPPET_CHARS = 160;
 
-// SOH/STX — never appear in real text, so highlight() wraps are unambiguous.
-const MARK_OPEN = "\u0001";
-const MARK_CLOSE = "\u0002";
+type Source = {
+  kind: SearchKind;
+  table: string;
+  title: string;
+  workspace: string;
+  timestamp: string;
+  body: string | null;
+};
+
+const SOURCES: Source[] = [
+  {
+    kind: "note",
+    table: "note",
+    title: "title",
+    workspace: "workspace_id",
+    timestamp: "updated_at",
+    body: "body",
+  },
+  {
+    kind: "item",
+    table: "item",
+    title: "title",
+    workspace: "workspace_id",
+    timestamp: "updated_at",
+    body: "coalesce(summary, content, extracted_markdown, tags)",
+  },
+];
 
 // `%` / `_` are LIKE wildcards — a bare `_` would match every character.
 function escapeLike(term: string) {
   return term.toLowerCase().replace(/[\\%_]/g, "\\$&");
 }
-
-// Quoted prefix tokens, ANDed — FTS5 otherwise chokes on punctuation.
-function buildFtsQuery(term: string): string {
-  return term
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((token) => `"${token.replace(/"/g, '""')}"*`)
-    .join(" ");
-}
-
-const ARMS = [
-  { kind: "item", table: "item_fts", titleCol: 3 },
-  { kind: "note", table: "note_fts", titleCol: 3 },
-] as const;
 
 export function buildSearchQuery({
   userId,
@@ -46,33 +56,49 @@ export function buildSearchQuery({
   workspaceId?: string;
   limit: number;
 }): { sql: string; params: unknown[] } {
-  const exact = q.trim().toLowerCase();
-  const prefix = `${escapeLike(q)}%`;
-  const ftsQuery = buildFtsQuery(q);
-
+  const term = escapeLike(q);
+  const prefix = `${term}%`;
+  const infix = `%${term}%`;
   const params: unknown[] = [];
-  const arms = ARMS.map(({ kind, table, titleCol }) => {
-    params.push(exact, prefix, ftsQuery, userId);
-    if (workspaceId) params.push(workspaceId);
+
+  const arms = SOURCES.map((source) => {
+    const snippet = source.body
+      ? `substr(trim(${source.body}), 1, ${SNIPPET_CHARS})`
+      : "null";
+
+    params.push(prefix, infix, userId);
+    let where = `user_id = ?`;
+
+    if (workspaceId) {
+      where += ` and ${source.workspace} = ?`;
+      params.push(workspaceId);
+    }
+
+    params.push(infix);
+    where += ` and (lower(${source.title}) like ? escape '\\'`;
+
+    if (source.body) {
+      params.push(infix);
+      where += ` or lower(${source.body}) like ? escape '\\'`;
+    }
+    where += `)`;
 
     return `select * from (
       select
-        '${kind}' as kind,
-        ${table}.id as id,
-        coalesce(nullif(trim(highlight(${table}, ${titleCol}, '${MARK_OPEN}', '${MARK_CLOSE}')), ''), 'Untitled') as title,
-        snippet(${table}, -1, '${MARK_OPEN}', '${MARK_CLOSE}', '…', ${SNIPPET_TOKENS}) as snippet,
-        ${table}.workspace_id as workspaceId,
-        ${table}.updated_at as updatedAt,
+        '${source.kind}' as kind,
+        id,
+        coalesce(nullif(trim(${source.title}), ''), 'Untitled') as title,
+        ${snippet} as snippet,
+        ${source.workspace} as workspaceId,
+        ${source.timestamp} as updatedAt,
         case
-          when lower(${table}.title) = ? then bm25(${table}) - 1000
-          when lower(${table}.title) like ? escape '\\' then bm25(${table}) - 100
-          else bm25(${table})
+          when lower(${source.title}) like ? escape '\\' then 0
+          when lower(${source.title}) like ? escape '\\' then 1
+          else 2
         end as rank
-      from ${table}
-      where ${table} match ?
-        and ${table}.user_id = ?
-        ${workspaceId ? `and ${table}.workspace_id = ?` : ""}
-      order by rank
+      from ${source.table}
+      where ${where}
+      order by rank, updatedAt desc
       limit ${PER_SOURCE_LIMIT}
     )`;
   });
@@ -80,7 +106,7 @@ export function buildSearchQuery({
   params.push(limit);
 
   return {
-    sql: `${arms.join(" union all ")} order by rank limit ?`,
+    sql: `${arms.join(" union all ")} order by rank, updatedAt desc limit ?`,
     params,
   };
 }

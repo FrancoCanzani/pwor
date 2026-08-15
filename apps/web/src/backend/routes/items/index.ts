@@ -7,6 +7,7 @@ import { registerGetAllItems } from "./get-all";
 import { registerGetItemFile } from "./get-file";
 import { registerGetItemPreview } from "./get-preview";
 import { registerGetItemUsage } from "./get-usage";
+import { registerGetItemWeb } from "./get-web";
 import { registerPostItem } from "./post";
 import { registerPutItem } from "./put";
 
@@ -17,6 +18,7 @@ registerGetAllItems(items);
 registerPostItem(items);
 registerGetItemFile(items);
 registerGetItemPreview(items);
+registerGetItemWeb(items);
 registerGetItem(items);
 registerPutItem(items);
 registerDeleteItem(items);

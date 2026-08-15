@@ -2,6 +2,11 @@ import { zValidator } from "@hono/zod-validator";
 import { and, desc, eq } from "drizzle-orm";
 import type { Hono } from "hono";
 
+import {
+  noteBodyPreview,
+  noteHasBody,
+  noteIsNoted,
+} from "@shared/note-frontmatter";
 import { createDb } from "../../db";
 import { note } from "../../db/schema";
 import type { AppEnv } from "../../types";
@@ -32,11 +37,19 @@ export function registerGetAllNotes(app: Hono<AppEnv>) {
         anchorQuote: note.anchorQuote,
         anchorPrefix: note.anchorPrefix,
         anchorSuffix: note.anchorSuffix,
+        body: note.body,
       })
       .from(note)
       .where(and(...conditions))
       .orderBy(desc(note.updatedAt));
 
-    return c.json({ items });
+    return c.json({
+      items: items.map(({ body, ...item }) => ({
+        ...item,
+        hasBody: noteHasBody(body),
+        noted: noteIsNoted(body),
+        bodyPreview: noteBodyPreview(body),
+      })),
+    });
   });
 }

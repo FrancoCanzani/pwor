@@ -76,7 +76,10 @@ import { endPworItemDrag, setPworItemDrag } from "@features/items/lib/drag";
 import { formatItemDate, kindLabel, sortBy, type ItemSort } from "@features/items/lib/list";
 import { itemFileUrl, itemOpenHref } from "@features/items/lib/media";
 import { useLibraryView } from "@features/items/lib/view";
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import {
+  deleteWorkspace,
+  workspacesQueryOptions,
+} from "@features/workspaces/api";
 import { toEpochMs } from "@shared/time";
 
 type LibraryFacet = "links" | "files" | "text";
@@ -513,6 +516,19 @@ export function SpaceLibraryPage() {
 
   useHotkey("Escape", () => setSelected(new Set()), {
     enabled: selectedCount > 0,
+    conflictBehavior: "replace",
+  });
+
+  const deleteSpaceMutation = useMutation({
+    mutationFn: () => deleteWorkspace(workspaceId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: workspacesQueryOptions.queryKey,
+        exact: true,
+      });
+      void navigate({ to: "/inbox" });
+    },
+    onError: () => toast.error("Couldn’t delete space"),
   });
 
   const deleteMutation = useMutation({
@@ -634,9 +650,50 @@ export function SpaceLibraryPage() {
           </h1>
           <SidebarTrigger className="md:hidden" />
           <CaptureButton />
+          <AlertDialog>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <AlertDialogTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Delete space"
+                        className="text-muted-foreground hover:text-destructive active:text-destructive"
+                      />
+                    }
+                  />
+                }
+              >
+                <TrashIcon />
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete {spaceTitle}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes the space and everything in it. This
+                  can’t be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={() => deleteSpaceMutation.mutate()}
+                  disabled={deleteSpaceMutation.isPending}
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
         {hasCaptured ? (
-          <div className="flex items-center justify-end gap-2 px-4 pb-2">
+          <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-4">
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -696,8 +753,8 @@ export function SpaceLibraryPage() {
           <ul
             className={
               view === "cards"
-                ? cn(ITEM_CARD_GRID_CLASS, "px-4 pt-2 pb-24")
-                : "flex flex-col divide-y divide-dashed divide-border pt-2 pb-24"
+                ? cn(ITEM_CARD_GRID_CLASS, "px-4 pt-3 pb-24")
+                : "flex flex-col divide-y divide-dashed divide-border pt-3 pb-24"
             }
           >
             {rows.map((row) => {

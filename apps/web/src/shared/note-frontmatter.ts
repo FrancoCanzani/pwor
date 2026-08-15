@@ -12,6 +12,17 @@ export type ParsedNoteDocument = {
 
 export const EMPTY_NOTE_BODY = "";
 
+export function noteHasBody(raw: string): boolean {
+  return parseNoteDocument(raw).body.trim().length > 0;
+}
+
+export function noteBodyPreview(raw: string, max = 280): string | null {
+  const text = parseNoteDocument(raw).body.replace(/\s+/g, " ").trim();
+  if (text.length === 0) return null;
+  if (text.length <= max) return text;
+  return `${text.slice(0, max).trimEnd()}…`;
+}
+
 export function parseFrontmatter(raw: string): {
   frontmatter: string | null;
   body: string;
@@ -72,9 +83,25 @@ export function noteDisplayTitle(title: string | null | undefined): string {
   return normalizeNoteTitle(title) ?? "Untitled";
 }
 
+export function noteIsNoted(raw: string): boolean {
+  if (noteHasBody(raw)) return true;
+  const { frontmatter } = parseFrontmatter(raw);
+  return Boolean(frontmatter && /^noted:\s*true\s*$/m.test(frontmatter));
+}
+
+export function withNotedFlag(raw: string): string {
+  if (noteIsNoted(raw)) return raw;
+  const { frontmatter, body } = parseFrontmatter(raw);
+  if (frontmatter == null) return prependFrontmatter(body, { noted: true });
+  const next = /^noted:\s*/m.test(frontmatter)
+    ? frontmatter.replace(/^noted:\s*.*$/m, "noted: true")
+    : `${frontmatter.replace(/\s+$/, "")}\nnoted: true`;
+  return `---\n${next}\n---\n${body}`;
+}
+
 export function prependFrontmatter(
   body: string,
-  meta: { title?: string | null; tags?: string[] },
+  meta: { title?: string | null; tags?: string[]; noted?: boolean },
 ): string {
   const lines: string[] = ["---"];
   if (meta.title != null) {
@@ -82,6 +109,9 @@ export function prependFrontmatter(
   }
   if (meta.tags != null) {
     lines.push(`tags: [${meta.tags.map(formatYamlScalar).join(", ")}]`);
+  }
+  if (meta.noted) {
+    lines.push("noted: true");
   }
   lines.push("---", "");
   const prefix = `${lines.join("\n")}`;

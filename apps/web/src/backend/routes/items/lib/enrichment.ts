@@ -55,7 +55,8 @@ async function fetchPageMetadata(url: string): Promise<FetchedPage> {
       redirect: "follow",
       signal: AbortSignal.timeout(15_000),
       headers: {
-        "User-Agent": "PworItemBot/1.0 (+https://pwor.app)",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         Accept: "text/html,application/xhtml+xml",
       },
     });
@@ -80,7 +81,7 @@ async function fetchPageMetadata(url: string): Promise<FetchedPage> {
       };
     }
 
-    const html = (await response.text()).slice(0, 200_000);
+    const html = (await response.text()).slice(0, 2_000_000);
     const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
     const title =
       metaContent(html, "og:title") ||

@@ -110,9 +110,11 @@ function FeedItemRow({
           <Mention
             title={title}
             label={showSource ? label : null}
-            siteUrl={item.url}
             className="min-w-0 flex-1"
-            titleClassName={unread ? undefined : "text-muted-foreground"}
+            titleClassName={cn(
+              "no-underline",
+              unread ? undefined : "text-muted-foreground",
+            )}
           />
         </HoverPreview>
         <span className="flex shrink-0 items-center gap-1">
@@ -297,15 +299,17 @@ export function FeedsPage() {
           ) : null}
         </AlertDialog>
       </div>
-      <div className="flex shrink-0 items-center gap-2 px-4 pb-3">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search…"
-          className="min-w-0 flex-1"
-        />
-        <LibrarySortMenu value={sort} onChange={setSort} />
-      </div>
+      {feeds.length > 0 ? (
+        <div className="flex shrink-0 items-center gap-2 px-4 pb-3">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search…"
+            className="min-w-0 flex-1"
+          />
+          <LibrarySortMenu value={sort} onChange={setSort} />
+        </div>
+      ) : null}
       {items.length === 0 ? (
         <PageEmpty
           className={paneEmptyClass}
@@ -338,7 +342,7 @@ export function FeedsPage() {
           }
         />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="flex flex-col">
             {sorted.map((item) => (
               <FeedItemRow
@@ -357,23 +361,26 @@ export function FeedsPage() {
 
   const readerPane = (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="flex h-12 shrink-0 items-center gap-2 px-4 md:hidden">
-        <SidebarTrigger />
+      <div className="flex h-12 shrink-0 items-center gap-2 px-4">
+        <SidebarTrigger className="md:hidden" />
         {openItem ? (
           <Button
             type="button"
             variant="ghost"
             size="xs"
-            className="font-normal"
+            className="font-normal md:hidden"
             onClick={() => setItem(undefined)}
           >
             <ArrowLeftIcon data-icon="inline-start" />
             Back
           </Button>
         ) : null}
+        <h2 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
+          {openItem ? openItem.title?.trim() || "Untitled" : null}
+        </h2>
       </div>
       {openItem ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-thin">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <ArticleReader item={openItem} />
         </div>
       ) : (

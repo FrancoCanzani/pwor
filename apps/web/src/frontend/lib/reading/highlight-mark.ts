@@ -1,6 +1,6 @@
-import { Mark, mergeAttributes } from "@tiptap/core";
+import { Mark } from "@tiptap/core";
 
-const HIGHLIGHT_BG = "#fef08a";
+export const NOTED_MARK_SELECTOR = "mark[data-noted][data-highlight-note-id]";
 
 export const HighlightMark = Mark.create({
   name: "readingHighlight",
@@ -8,6 +8,10 @@ export const HighlightMark = Mark.create({
   addAttributes() {
     return {
       noteId: { default: "" },
+      noted: {
+        default: false,
+        parseHTML: (el) => el.hasAttribute("data-noted"),
+      },
     };
   },
 
@@ -16,12 +20,14 @@ export const HighlightMark = Mark.create({
   },
 
   renderHTML({ mark }) {
+    const noted = Boolean(mark.attrs.noted);
     return [
       "mark",
-      mergeAttributes({
+      {
         "data-highlight-note-id": mark.attrs.noteId,
-        style: `background-color:${HIGHLIGHT_BG};border-radius:2px;padding:0 1px;cursor:pointer;`,
-      }),
+        ...(noted ? { "data-noted": "" } : {}),
+        class: noted ? "reading-noted" : "reading-highlight",
+      },
       0,
     ];
   },

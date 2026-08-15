@@ -1,6 +1,4 @@
 import { format, isValid } from "date-fns";
-import DOMPurify from "dompurify";
-import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 import type { FeedItem } from "@features/feeds/api";
@@ -23,31 +21,17 @@ export function ArticleReader({
   const title = item.title?.trim() || "Untitled";
   const source = item.feedTitle?.trim() || item.author?.trim() || null;
   const isYoutube = item.feedKind === "youtube" || Boolean(item.videoId);
-  const content = useMemo(
-    () =>
-      item.contentHtml
-        ? DOMPurify.sanitize(item.contentHtml, {
-            USE_PROFILES: { html: true },
-            FORBID_TAGS: ["form", "input", "button"],
-          })
-        : "",
-    [item.contentHtml],
-  );
+  const content = item.contentHtml?.trim() || "";
 
   return (
     <article
-      className={cn("mx-auto w-full max-w-2xl px-4 pt-8 pb-20", className)}
+      className={cn("mx-auto w-full max-w-2xl px-4 pt-3 pb-20", className)}
     >
-      <header className="mb-10 flex flex-col gap-3">
-        <h1 className="text-xl font-normal tracking-tight text-balance">
-          {title}
-        </h1>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {source ? <span>{source}</span> : null}
-          {item.publishedAt ? (
-            <span className="font-nums">{formatDate(item.publishedAt)}</span>
-          ) : null}
-        </div>
+      <header className="mb-8 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        {source ? <span>{source}</span> : null}
+        {item.publishedAt ? (
+          <span className="font-nums">{formatDate(item.publishedAt)}</span>
+        ) : null}
       </header>
 
       {isYoutube && item.videoId ? (

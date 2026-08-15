@@ -27,16 +27,12 @@ const GLOBAL_NAV_ITEMS = [
 
 const SPACE_NAV_ITEMS = [
   { to: "/$workspaceId", label: "Library" },
-  { to: "/$workspaceId/items", label: "Items" },
 ] as const;
 
 const KIND_META = {
   note: { label: "Notes" },
-  item: { label: "Items", to: "/$workspaceId/items" },
-} as const satisfies Record<
-  SearchKind,
-  { label: string; to?: "/$workspaceId/items" }
->;
+  item: { label: "Library" },
+} as const satisfies Record<SearchKind, { label: string }>;
 
 const KIND_ORDER: SearchKind[] = ["note", "item"];
 type PaletteItem = {
@@ -54,8 +50,13 @@ const SEARCH_DEBOUNCE_MS = 120;
 const NO_HITS: SearchHit[] = [];
 const NO_WORKSPACES: { id: string; name: string }[] = [];
 
-export function CommandPalette() {
-  const [open, setOpen] = useState(false);
+export function CommandPalette({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -68,14 +69,14 @@ export function CommandPalette() {
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const { data: hits = NO_HITS } = useQuery(searchQueryOptions(debouncedQuery));
 
-  useHotkey("Mod+K", () => setOpen((previous) => !previous));
+  useHotkey("Mod+K", () => onOpenChange(!open));
 
   const { sections, items } = useMemo(() => {
     const term = query.trim();
     const groups: { label: string; items: Omit<PaletteItem, "index">[] }[] = [];
 
     function select(workspaceId: string, run: () => void) {
-      setOpen(false);
+      onOpenChange(false);
       setQuery("");
       setStoredWorkspaceId(workspaceId);
       run();
@@ -86,7 +87,7 @@ export function CommandPalette() {
         id: `nav:${item.to}`,
         label: item.label,
         run: () => {
-          setOpen(false);
+          onOpenChange(false);
           setQuery("");
           void navigate({ to: item.to });
         },
@@ -129,7 +130,7 @@ export function CommandPalette() {
         label: "Capture",
         meta: "⌘U",
         run: () => {
-          setOpen(false);
+          onOpenChange(false);
           setQuery("");
           openCreate();
         },
@@ -153,7 +154,7 @@ export function CommandPalette() {
           meta: workspaceLabel(hit, currentWorkspaceId, workspaces),
           run: () => {
             if (hit.kind === "item" && !hit.workspaceId) {
-              setOpen(false);
+              onOpenChange(false);
               setQuery("");
               void navigate({
                 to: "/inbox",
@@ -170,7 +171,7 @@ export function CommandPalette() {
                   return;
                 case "item":
                   return navigate({
-                    to: "/$workspaceId/items",
+                    to: "/$workspaceId",
                     params: { workspaceId },
                     search: { item: hit.id },
                   });
@@ -200,6 +201,7 @@ export function CommandPalette() {
     navigate,
     openNote,
     openCreate,
+    onOpenChange,
   ]);
 
   // Keyed on the query and the result count, not on `items` identity — a
@@ -239,7 +241,7 @@ export function CommandPalette() {
     <Dialog.Root
       open={open}
       onOpenChange={(next) => {
-        setOpen(next);
+        onOpenChange(next);
         if (!next) setQuery("");
       }}
     >
@@ -267,7 +269,7 @@ export function CommandPalette() {
             ref={listRef}
             id="command-list"
             role="listbox"
-            className="scrollbar-thin max-h-[min(24rem,50vh)] overflow-y-auto overscroll-contain p-1"
+            className="max-h-[min(24rem,50vh)] overflow-y-auto overscroll-contain p-1"
           >
             {sections.length === 0 ? (
               <p className="px-2 py-8 text-center text-[11px] text-muted-foreground">

@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import { CreateDialog } from "@features/command/components/create-dialog";
+import { CommandPaletteProvider } from "@features/command/command-palette-context";
 import { CreateDialogProvider } from "@features/command/create-dialog-context";
 import { PasteCapture } from "@features/inbox/components/paste-capture";
 import { noteQueryOptions } from "@features/notes/api";
@@ -23,6 +24,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const { id: workspaceId } = useCurrentWorkspace();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [floatingOpen, setFloatingOpen] = useState(false);
   const [floatingNoteId, setFloatingNoteId] = useState<string | null>(null);
 
@@ -38,34 +40,39 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <TooltipProvider>
       <CreateDialogProvider value={{ open: () => setCreateOpen(true) }}>
-        <FloatingNoteProvider
-          value={{
-            openNote,
-            activeNoteId: floatingOpen ? floatingNoteId : null,
-          }}
-        >
-          <SidebarProvider
-            className={cn(
-              "pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]",
-              isFlush && "h-dvh min-h-0 overflow-hidden",
-            )}
+        <CommandPaletteProvider value={{ open: () => setPaletteOpen(true) }}>
+          <FloatingNoteProvider
+            value={{
+              openNote,
+              activeNoteId: floatingOpen ? floatingNoteId : null,
+            }}
           >
-            <CommandPalette />
-            <PasteCapture />
-            <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
-            {floatingOpen && floatingNoteId ? (
-              <FloatingNoteHost
-                noteId={floatingNoteId}
-                onClose={() => {
-                  setFloatingOpen(false);
-                  setFloatingNoteId(null);
-                }}
+            <SidebarProvider
+              className={cn(
+                "pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]",
+                isFlush && "h-dvh min-h-0 overflow-hidden",
+              )}
+            >
+              <CommandPalette
+                open={paletteOpen}
+                onOpenChange={setPaletteOpen}
               />
-            ) : null}
+              <PasteCapture />
+              <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+              {floatingOpen && floatingNoteId ? (
+                <FloatingNoteHost
+                  noteId={floatingNoteId}
+                  onClose={() => {
+                    setFloatingOpen(false);
+                    setFloatingNoteId(null);
+                  }}
+                />
+              ) : null}
 
-            {children}
-          </SidebarProvider>
-        </FloatingNoteProvider>
+              {children}
+            </SidebarProvider>
+          </FloatingNoteProvider>
+        </CommandPaletteProvider>
       </CreateDialogProvider>
     </TooltipProvider>
   );

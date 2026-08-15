@@ -3,6 +3,8 @@ import { type Extension, EditorState } from "@codemirror/state";
 import { EditorView, placeholder as placeholderExt } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import {
+  codeBlockDecorationsExtension,
+  codeFenceTheme,
   prosemarkBaseThemeSetup,
   prosemarkBasicSetup,
   prosemarkMarkdownSyntaxExtensions,
@@ -46,8 +48,6 @@ const previewTheme = EditorView.theme({
     "--pm-muted-color": "var(--muted-foreground)",
     "--pm-code-background-color": "var(--muted)",
     "--pm-code-font": "var(--font-mono)",
-    "--pm-code-btn-background-color": "var(--muted)",
-    "--pm-code-btn-hover-background-color": "var(--border)",
     "--pm-blockquote-vertical-line-background-color": "var(--border)",
     "--pm-syntax-comment": "var(--muted-foreground)",
   },
@@ -119,6 +119,19 @@ function uploadAndInsertFiles(
   })();
 }
 
+function withoutExtension(setup: Extension, drop: Extension): Extension {
+  if (!Array.isArray(setup)) return setup;
+  return setup.filter((ext) => ext !== drop);
+}
+
+function noteProsemarkBasicSetup(): Extension {
+  return withoutExtension(prosemarkBasicSetup(), codeBlockDecorationsExtension);
+}
+
+function noteProsemarkBaseThemeSetup(): Extension {
+  return withoutExtension(prosemarkBaseThemeSetup(), codeFenceTheme);
+}
+
 function createImageUploadHandler(
   uploadImage: (file: File) => Promise<{ url: string }>,
 ) {
@@ -169,8 +182,8 @@ export function createNoteEditorState({
       base: markdownLanguage,
       extensions: [GFM, ...prosemarkMarkdownSyntaxExtensions],
     }),
-    prosemarkBasicSetup(),
-    prosemarkBaseThemeSetup(),
+    noteProsemarkBasicSetup(),
+    noteProsemarkBaseThemeSetup(),
     baseChromeTheme,
     previewTheme,
     placeholder ? placeholderExt(placeholder) : [],

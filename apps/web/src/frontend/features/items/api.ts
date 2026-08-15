@@ -82,21 +82,6 @@ export function inboxItemsInfiniteQueryOptions() {
   });
 }
 
-export function itemUsageQueryOptions(workspaceId?: string) {
-  return queryOptions({
-    queryKey: ["item", "items", "usage", workspaceId] as const,
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (workspaceId) params.set("workspaceId", workspaceId);
-      const query = params.toString();
-      return parseJson<{ totalBytes: number }>(
-        await fetch(`/api/items/usage${query ? `?${query}` : ""}`),
-      );
-    },
-    staleTime: 60_000,
-  });
-}
-
 export type ItemDetail = Item & {
   content: string | null;
   contentHtml: string | null;

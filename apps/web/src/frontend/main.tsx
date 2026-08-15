@@ -7,8 +7,8 @@ import { Loading } from "@components/loading";
 import { NotFound } from "@components/not-found";
 import { RouteError } from "@components/route-error";
 
-import { routeTree } from "./route-tree.gen";
 import "./index.css";
+import { routeTree } from "./route-tree.gen";
 
 const queryClient = new QueryClient({
   defaultOptions: {

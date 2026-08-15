@@ -19,6 +19,9 @@ export type NoteListItem = {
   anchorQuote: string | null;
   anchorPrefix: string | null;
   anchorSuffix: string | null;
+  hasBody?: boolean;
+  noted?: boolean;
+  bodyPreview?: string | null;
 };
 
 export type Note = NoteListItem & {
@@ -38,7 +41,7 @@ export class NoteConflictError extends Error {
 
 export { toEpochMs };
 
-function noteAnchor(note: NoteListItem): HighlightAnchor | null {
+export function noteAnchor(note: NoteListItem): HighlightAnchor | null {
   if (
     note.anchorFrom == null ||
     note.anchorTo == null ||
@@ -63,6 +66,10 @@ export function noteHasAnchor(
   anchorQuote: string;
 } {
   return noteAnchor(note) != null;
+}
+
+export function passageIsNoted(note: NoteListItem): boolean {
+  return Boolean(note.noted ?? note.hasBody);
 }
 
 async function fetchNotes(filter?: {

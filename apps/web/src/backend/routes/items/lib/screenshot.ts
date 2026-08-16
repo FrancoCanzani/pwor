@@ -1,3 +1,5 @@
+import { tweetIdFromUrl } from "@shared/tweet";
+
 import { assertPublicHttpUrl } from "../../../lib/safe-url";
 import { putItemObject } from "./storage";
 
@@ -64,11 +66,26 @@ export type SiteScreenshotResult = {
   contentType: string;
 };
 
+export function shouldCaptureScreenshot(url: string): boolean {
+  if (tweetIdFromUrl(url)) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "raindrop.io" || host === "app.raindrop.io") return false;
+    if (host.endsWith(".raindrop.io") || host.endsWith(".raindrop.page")) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function captureSiteScreenshot(
   env: Env,
   url: string,
 ): Promise<SiteScreenshotResult | null> {
   if (!env.BROWSER) return null;
+  if (!shouldCaptureScreenshot(url)) return null;
 
   try {
     assertPublicHttpUrl(url);
@@ -85,8 +102,8 @@ export async function captureSiteScreenshot(
         deviceScaleFactor: 1,
       },
       gotoOptions: {
-        waitUntil: "networkidle2",
-        timeout: 45_000,
+        waitUntil: "domcontentloaded",
+        timeout: 15_000,
       },
       cookies: [],
       addStyleTag: [{ content: COOKIE_BANNER_CSS }],

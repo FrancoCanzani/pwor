@@ -21,6 +21,10 @@ export default defineConfig({
       "https://pwor.app/*",
       "https://x.com/*",
       "https://twitter.com/*",
+      "https://app.raindrop.io/*",
+      "https://raindrop.io/*",
+      "https://*.raindrop.io/*",
+      "https://*.raindrop.page/*",
     ],
     action: {
       default_title: "Save to Pwor",

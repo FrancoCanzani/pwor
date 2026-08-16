@@ -22,11 +22,11 @@ export function registerGetAllFeeds(app: Hono<AppEnv>) {
         lastSyncedAt: feed.lastSyncedAt,
         syncError: feed.syncError,
         createdAt: feed.createdAt,
-        unreadCount: sql<number>`(
+        unreadCount: sql<number>`coalesce((
           select count(*) from feed_item
-          where feed_item.feed_id = ${feed.id}
+          where feed_item.feed_id = feed.id
             and feed_item.read_at is null
-        )`.mapWith(Number),
+        ), 0)`.mapWith(Number),
       })
       .from(feed)
       .where(eq(feed.userId, user.id))

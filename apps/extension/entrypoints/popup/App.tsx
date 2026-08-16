@@ -6,8 +6,13 @@ import {
   fetchMe,
   getLinkingState,
   getStoredUser,
+  getStoredWorkspaceId,
+  listWorkspaces,
+  setStoredWorkspaceId,
+  workspaceLabel,
 } from "../../lib/api";
-import { APP_URL, STORAGE_KEYS } from "../../lib/config";
+import { APP_URL, STORAGE_KEYS, type Workspace } from "../../lib/config";
+import { resolveCaptureUrl } from "../../lib/page";
 import { cn } from "../../lib/utils";
 
 type PageInfo = {
@@ -21,7 +26,7 @@ async function readActivePage(): Promise<PageInfo> {
     active: true,
     currentWindow: true,
   });
-  const url = tab?.url ?? "";
+  const url = (await resolveCaptureUrl(tab ?? {}, tab?.url)) ?? "";
   const title = tab?.title ?? url;
   let selection = "";
 
@@ -68,6 +73,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [linking, setLinking] = useState(false);
   const [page, setPage] = useState<PageInfo | null>(null);
+  const [spaces, setSpaces] = useState<Workspace[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,10 +103,27 @@ export default function App() {
           return;
         }
 
-        try {
-          const me = await fetchMe();
-          setEmail(me.email);
-        } catch {
+        const [meResult, listed, storedWorkspaceId] = await Promise.all([
+          fetchMe()
+            .then((me) => ({ ok: true as const, me }))
+            .catch(() => ({ ok: false as const })),
+          listWorkspaces().catch(() => [] as Workspace[]),
+          getStoredWorkspaceId(),
+        ]);
+        setSpaces(listed);
+        const nextWorkspaceId =
+          storedWorkspaceId &&
+          listed.some((space) => space.id === storedWorkspaceId)
+            ? storedWorkspaceId
+            : null;
+        setWorkspaceId(nextWorkspaceId);
+        if (storedWorkspaceId && !nextWorkspaceId) {
+          void setStoredWorkspaceId(null);
+        }
+
+        if (meResult.ok) {
+          setEmail(meResult.me.email);
+        } else {
           const still = await getStoredUser();
           if (still) setEmail(still.email);
         }
@@ -124,6 +148,19 @@ export default function App() {
         if (user?.email) {
           setLinking(false);
           setError(null);
+          void (async () => {
+            const [listed, stored] = await Promise.all([
+              listWorkspaces().catch(() => [] as Workspace[]),
+              getStoredWorkspaceId(),
+            ]);
+            setSpaces(listed);
+            const next =
+              stored && listed.some((space) => space.id === stored)
+                ? stored
+                : null;
+            setWorkspaceId(next);
+            if (stored && !next) await setStoredWorkspaceId(null);
+          })();
         }
       }
       if (STORAGE_KEYS.linking in changes) {
@@ -158,6 +195,12 @@ export default function App() {
     setStatus(null);
   }
 
+  async function handleDestination(nextId: string) {
+    const id = nextId || null;
+    setWorkspaceId(id);
+    await setStoredWorkspaceId(id);
+  }
+
   async function handleSave(kind: "page" | "selection") {
     if (!page?.url) return;
     setBusy(true);
@@ -168,11 +211,11 @@ export default function App() {
         if (!page.selection.trim()) {
           throw new Error("Nothing selected on the page.");
         }
-        await capture({ input: page.selection, workspaceId: null });
+        await capture({ input: page.selection, workspaceId });
       } else {
-        await capture({ input: page.url, workspaceId: null });
+        await capture({ input: page.url, workspaceId });
       }
-      setStatus("Saved to Inbox");
+      setStatus(`Saved to ${workspaceLabel(workspaceId, spaces)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -231,16 +274,39 @@ export default function App() {
     }
   })();
 
+  const openPath = workspaceId ? `/${workspaceId}` : "/inbox";
+
   return (
     <div className="flex min-h-[280px] flex-col p-4">
       <h1 className="mb-3 font-pixel text-base font-normal tracking-tight">
-        Save to Inbox
+        Pwor
       </h1>
 
       <div className="mb-4 min-w-0">
         <div className="truncate text-xs">{page?.title || "This page"}</div>
         <div className="truncate text-xs text-muted-foreground">{host}</div>
       </div>
+
+      <label className="mb-3 flex min-w-0 flex-col gap-1">
+        <span className="text-xs text-muted-foreground">Save to</span>
+        <select
+          value={workspaceId ?? ""}
+          disabled={busy}
+          onChange={(event) => void handleDestination(event.target.value)}
+          className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs font-normal outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-50"
+        >
+          <option value="">Inbox</option>
+          {spaces.length > 0 ? (
+            <optgroup label="Spaces">
+              {spaces.map((space) => (
+                <option key={space.id} value={space.id}>
+                  {space.name.trim() || "Untitled"}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
+        </select>
+      </label>
 
       {error ? <p className="mb-2 text-xs text-destructive">{error}</p> : null}
       {status ? <p className="mb-2 text-xs">{status}</p> : null}
@@ -269,7 +335,7 @@ export default function App() {
           variant="outline"
           className="flex-1"
           onClick={() => {
-            void browser.tabs.create({ url: `${APP_URL}/inbox` });
+            void browser.tabs.create({ url: `${APP_URL}${openPath}` });
           }}
         >
           Open

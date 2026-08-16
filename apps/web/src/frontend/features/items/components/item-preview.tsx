@@ -122,9 +122,9 @@ function LinkArticle({
     ) : (
       <div className="flex h-full items-center justify-center">
         <p className="text-xs text-muted-foreground">
-          {item.parseStatus === "failed"
-            ? "Couldn't extract this page."
-            : "Extracting content…"}
+          {item.parseStatus === "pending"
+            ? "Extracting content…"
+            : "Couldn't extract this page."}
         </p>
       </div>
     ),

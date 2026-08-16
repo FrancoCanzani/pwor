@@ -12,13 +12,11 @@ import {
   type NoteListItem,
 } from "@features/notes/api";
 import {
+  dropNotedFlag,
   inferTitleFromRaw,
   normalizeNoteTitle,
   noteBodyPreview,
   noteHasBody,
-  noteIsNoted,
-  parseNoteDocument,
-  withNotedFlag,
 } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
 
@@ -41,7 +39,6 @@ export function useNoteDocumentSave({
   const queryClient = useQueryClient();
   const [saveState, setSaveState] = useState<NoteSaveState>("idle");
   const [editorNonce, setEditorNonce] = useState(0);
-  const [tags, setTags] = useState<string[]>([]);
 
   const latestBodyRef = useRef<string | null>(null);
   const savedBodyRef = useRef<string | null>(null);
@@ -54,11 +51,10 @@ export function useNoteDocumentSave({
   noteIdRef.current = noteId;
 
   function applySavedNote(updated: Note) {
-    savedBodyRef.current = updated.body;
+    savedBodyRef.current = dropNotedFlag(updated.body);
     savedTitleRef.current = updated.title ?? null;
     baseUpdatedAtRef.current = updated.updatedAt;
     conflictRef.current = false;
-    setTags(parseNoteDocument(updated.body).tags);
     queryClient.setQueryData(noteQueryOptions(noteId).queryKey, updated);
     queryClient.setQueriesData(
       { queryKey: ["notes", "list"] },
@@ -73,7 +69,7 @@ export function useNoteDocumentSave({
                 updatedAt: updated.updatedAt,
                 createdAt: updated.createdAt,
                 hasBody: noteHasBody(updated.body),
-                noted: noteIsNoted(updated.body),
+                noted: noteHasBody(updated.body),
                 bodyPreview: noteBodyPreview(updated.body),
               }
             : item,
@@ -114,9 +110,10 @@ export function useNoteDocumentSave({
     const expectedUpdatedAt = baseUpdatedAtRef.current;
     if (body === null || expectedUpdatedAt == null) return;
 
-    const nextTitle = normalizeNoteTitle(inferTitleFromRaw(body).title);
+    const inferred = normalizeNoteTitle(inferTitleFromRaw(body).title);
+    const nextTitle = inferred ?? savedTitleRef.current;
     const bodyChanged = body !== savedBodyRef.current;
-    const titleChanged = nextTitle !== savedTitleRef.current;
+    const titleChanged = inferred != null && inferred !== savedTitleRef.current;
     if (!bodyChanged && !titleChanged) return;
 
     savingRef.current = true;
@@ -124,7 +121,7 @@ export function useNoteDocumentSave({
     try {
       await saveMutation.mutateAsync({
         body,
-        title: nextTitle,
+        ...(titleChanged ? { title: nextTitle } : {}),
         expectedUpdatedAt: toEpochMs(expectedUpdatedAt),
       });
     } finally {
@@ -134,8 +131,8 @@ export function useNoteDocumentSave({
         noteIdRef.current === noteId &&
         latestBodyRef.current !== null &&
         (latestBodyRef.current !== savedBodyRef.current ||
-          normalizeNoteTitle(inferTitleFromRaw(latestBodyRef.current).title) !==
-            savedTitleRef.current)
+          (normalizeNoteTitle(inferTitleFromRaw(latestBodyRef.current).title) ??
+            savedTitleRef.current) !== savedTitleRef.current)
       ) {
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
@@ -154,7 +151,6 @@ export function useNoteDocumentSave({
     latestBodyRef.current = null;
     baseUpdatedAtRef.current = null;
     conflictRef.current = false;
-    setTags([]);
     setSaveState("idle");
     if (timerRef.current) clearTimeout(timerRef.current);
   }, [noteId]);
@@ -162,13 +158,10 @@ export function useNoteDocumentSave({
   useEffect(() => {
     if (!note) return;
     if (savedBodyRef.current === null) {
-      const body = note.body;
+      const body = dropNotedFlag(note.body);
       savedBodyRef.current = body;
       latestBodyRef.current = body;
-      savedTitleRef.current = normalizeNoteTitle(
-        inferTitleFromRaw(body).title,
-      );
-      setTags(parseNoteDocument(body).tags);
+      savedTitleRef.current = normalizeNoteTitle(note.title);
     }
     if (baseUpdatedAtRef.current === null) {
       baseUpdatedAtRef.current = note.updatedAt;
@@ -204,11 +197,7 @@ export function useNoteDocumentSave({
   }
 
   function handleBodyChange(value: string) {
-    const saved = savedBodyRef.current ?? "";
-    const next =
-      noteIsNoted(saved) && !noteHasBody(value) ? withNotedFlag(value) : value;
-    latestBodyRef.current = next;
-    setTags(parseNoteDocument(next).tags);
+    latestBodyRef.current = value;
     scheduleSave();
   }
 
@@ -216,23 +205,21 @@ export function useNoteDocumentSave({
     if (!note) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     conflictRef.current = false;
-    const body = note.body;
+    const body = dropNotedFlag(note.body);
     savedBodyRef.current = body;
     latestBodyRef.current = body;
-    savedTitleRef.current = normalizeNoteTitle(inferTitleFromRaw(body).title);
+    savedTitleRef.current = normalizeNoteTitle(note.title);
     baseUpdatedAtRef.current = note.updatedAt;
-    setTags(parseNoteDocument(body).tags);
     setSaveState("idle");
     setEditorNonce((n) => n + 1);
   }
 
   function initialDoc() {
-    return latestBodyRef.current ?? (note ? note.body : "");
+    return dropNotedFlag(latestBodyRef.current ?? note?.body ?? "");
   }
 
   return {
     saveState,
-    tags,
     editorNonce,
     handleBodyChange,
     reloadFromServer,

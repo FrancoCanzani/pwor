@@ -187,9 +187,9 @@ export function SidebarNav() {
               render={<Link to="/feeds" search={{ item: undefined }} />}
               className="font-normal"
             >
-              <span className="truncate">All</span>
+              <span className="min-w-0 truncate">All</span>
               {feedsUnread > 0 ? (
-                <span className="ml-auto font-nums text-xs text-muted-foreground">
+                <span className="ml-auto shrink-0 font-nums text-xs text-muted-foreground">
                   {feedsUnread}
                 </span>
               ) : null}
@@ -213,11 +213,11 @@ export function SidebarNav() {
                   imageUrl={feed.imageUrl}
                   className="size-4"
                 />
-                <span className="truncate">
+                <span className="min-w-0 truncate">
                   {feed.title?.trim() || feed.siteName || "Feed"}
                 </span>
                 {(feed.unreadCount ?? 0) > 0 ? (
-                  <span className="ml-auto font-nums text-xs text-muted-foreground">
+                  <span className="ml-auto shrink-0 font-nums text-xs text-muted-foreground">
                     {feed.unreadCount}
                   </span>
                 ) : null}
@@ -285,9 +285,9 @@ function InboxRow({
         render={<Link to="/inbox" />}
         className="font-normal"
       >
-        <span className="truncate">Inbox</span>
+        <span className="min-w-0 truncate">Inbox</span>
         {inboxCount > 0 ? (
-          <span className="ml-auto font-nums text-xs text-muted-foreground">
+          <span className="ml-auto shrink-0 font-nums text-xs text-muted-foreground">
             {inboxCount}
           </span>
         ) : null}

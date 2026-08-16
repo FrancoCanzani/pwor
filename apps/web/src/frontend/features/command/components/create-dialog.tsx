@@ -17,10 +17,7 @@ import { cn } from "@/lib/utils";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { captureItemInput, uploadItem } from "@features/items/api";
 import { createNote } from "@features/notes/api";
-import {
-  inferTitleFromRaw,
-  prependFrontmatter,
-} from "@shared/note-frontmatter";
+import { inferTitleFromRaw } from "@shared/note-frontmatter";
 
 function isMarkdownFile(file: File) {
   return file.name.toLowerCase().endsWith(".md") || file.type === "text/markdown";
@@ -78,11 +75,8 @@ export function CreateDialog({
             const inferred = inferTitleFromRaw(raw).title;
             const fallbackTitle = file.name.replace(/\.md$/i, "");
             const noteTitle = inferred || fallbackTitle;
-            const body = inferred
-              ? raw
-              : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
             await createNote({
-              body,
+              body: raw,
               title: noteTitle,
               workspaceId: spaceId,
             });

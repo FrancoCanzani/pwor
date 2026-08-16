@@ -47,7 +47,7 @@ export function setPworItemDrag(event: DragEvent, item: PworItemDrag) {
   activeDrag = item;
   event.dataTransfer.setData(PWOR_ITEM_DRAG_TYPE, JSON.stringify(item));
   event.dataTransfer.effectAllowed = "move";
-  setDragPreview(event, item.title, item.ids.length);
+  setDragPreview(event);
 }
 
 export function usePworItemDrop({
@@ -101,54 +101,32 @@ export function usePworItemDrop({
   };
 }
 
-function setDragPreview(event: DragEvent, title: string, count: number) {
-  const ghost = document.createElement("div");
+function setDragPreview(event: DragEvent) {
+  const source = event.currentTarget;
+  if (!(source instanceof HTMLElement) || !event.dataTransfer) return;
+
+  const rect = source.getBoundingClientRect();
+  const ghost = source.cloneNode(true) as HTMLElement;
+  ghost.removeAttribute("id");
+  ghost.querySelectorAll("[id]").forEach((el) => el.removeAttribute("id"));
   ghost.setAttribute("aria-hidden", "true");
   Object.assign(ghost.style, {
     position: "absolute",
-    top: "-1000px",
+    top: "-10000px",
     left: "0",
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    maxWidth: "168px",
-    height: "20px",
-    padding: "0 7px",
-    background: "#ffffff",
-    border: "1px solid #e8e8e8",
-    borderRadius: "4px",
-    fontFamily: '"Geist Variable", ui-sans-serif, system-ui, sans-serif',
-    fontSize: "11px",
-    fontWeight: "400",
-    lineHeight: "20px",
-    color: "#111111",
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    margin: "0",
     pointerEvents: "none",
-    whiteSpace: "nowrap",
+    opacity: "1",
   });
-
-  const titleEl = document.createElement("span");
-  titleEl.textContent = title.trim() || "Untitled";
-  Object.assign(titleEl.style, {
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    minWidth: "0",
-  });
-  ghost.appendChild(titleEl);
-
-  if (count > 1) {
-    const countEl = document.createElement("span");
-    countEl.textContent = `+${count - 1}`;
-    Object.assign(countEl.style, {
-      flexShrink: "0",
-      color: "#737373",
-      fontFamily: '"Geist Mono Variable", ui-monospace, monospace',
-      fontVariantNumeric: "tabular-nums",
-    });
-    ghost.appendChild(countEl);
-  }
 
   document.body.appendChild(ghost);
-  event.dataTransfer.setDragImage(ghost, 8, 10);
+  event.dataTransfer.setDragImage(
+    ghost,
+    event.clientX - rect.left,
+    event.clientY - rect.top,
+  );
 
   const cleanup = () => {
     ghost.remove();

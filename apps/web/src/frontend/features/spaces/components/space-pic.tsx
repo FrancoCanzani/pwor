@@ -8,8 +8,10 @@ import {
 } from "@features/spaces/lib/space-shaders";
 
 const cache = new Map<string, string>();
+const cacheListeners = new Set<(key: string, url: string) => void>();
 const CAPTURE_SIZE = 64;
 const MAX_CAPTURE_FRAMES = 180;
+const CAPTURE_TIMEOUT_MS = 4000;
 
 const waiters: Array<() => void> = [];
 let capturing = false;
@@ -35,6 +37,21 @@ function releaseCapture() {
 
 function cacheKey(shaderId: string) {
   return `${shaderId}:${CAPTURE_SIZE}`;
+}
+
+function publishCache(key: string, url: string) {
+  cache.set(key, url);
+  for (const listener of cacheListeners) listener(key, url);
+}
+
+function canvasIsReady(canvas: HTMLCanvasElement) {
+  return (
+    canvas.width > 0 &&
+    canvas.height > 0 &&
+    canvas.width === canvas.height &&
+    canvas.clientWidth === CAPTURE_SIZE &&
+    canvas.clientHeight === CAPTURE_SIZE
+  );
 }
 
 function fallbackGradient(preset: SpaceShaderPreset): string {
@@ -81,6 +98,16 @@ export function SpacePic({
   }, [key]);
 
   useEffect(() => {
+    const onCache = (cachedKey: string, url: string) => {
+      if (cachedKey === key) setSrc(url);
+    };
+    cacheListeners.add(onCache);
+    return () => {
+      cacheListeners.delete(onCache);
+    };
+  }, [key]);
+
+  useEffect(() => {
     const cached = cache.get(key);
     if (cached) {
       setSrc(cached);
@@ -93,6 +120,12 @@ export function SpacePic({
 
     void acquireCapture().then(() => {
       if (cancelled) {
+        releaseCapture();
+        return;
+      }
+      const next = cache.get(key);
+      if (next) {
+        setSrc(next);
         releaseCapture();
         return;
       }
@@ -117,8 +150,11 @@ export function SpacePic({
 
     const finish = (next: string | null) => {
       if (cancelled) return;
+      cancelled = true;
+      clearTimeout(watchdog);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (next) {
-        cache.set(key, next);
+        publishCache(key, next);
         setSrc(next);
       } else {
         setFailed(true);
@@ -126,10 +162,20 @@ export function SpacePic({
       setLive(false);
     };
 
+    // requestAnimationFrame is fully paused in backgrounded tabs, so a stuck
+    // capture would otherwise hold the module-level capture lock forever and
+    // freeze every other SpacePic on the page. These guarantee the lock
+    // releases even if the tab never comes back to the foreground.
+    const watchdog = window.setTimeout(() => finish(null), CAPTURE_TIMEOUT_MS);
+    const onVisibilityChange = () => {
+      if (document.hidden) finish(null);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     const capture = () => {
       if (cancelled) return;
       const canvas = host.querySelector("canvas");
-      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      if (!canvas || !canvasIsReady(canvas)) {
         if (attempts++ < MAX_CAPTURE_FRAMES) {
           raf = requestAnimationFrame(capture);
         } else {
@@ -158,6 +204,8 @@ export function SpacePic({
 
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       cancelAnimationFrame(raf);
     };
   }, [key, live, src, failed]);
@@ -180,6 +228,11 @@ export function SpacePic({
         >
           <Component
             {...props}
+            speed={0}
+            frame={0}
+            width={CAPTURE_SIZE}
+            height={CAPTURE_SIZE}
+            minPixelRatio={1}
             style={{ width: CAPTURE_SIZE, height: CAPTURE_SIZE }}
           />
         </div>
@@ -189,7 +242,7 @@ export function SpacePic({
           src={src}
           alt=""
           draggable={false}
-          className="size-full object-cover object-left"
+          className="size-full object-cover"
         />
       ) : null}
     </span>

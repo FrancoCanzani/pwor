@@ -15,7 +15,7 @@ export type Feed = {
   lastSyncedAt: string | null;
   syncError: string | null;
   createdAt: string;
-  unreadCount?: number;
+  unreadCount: number;
 };
 
 export type FeedItem = {

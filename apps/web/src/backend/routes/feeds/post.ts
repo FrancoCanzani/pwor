@@ -58,6 +58,6 @@ export function registerPostFeed(app: Hono<AppEnv>) {
       .where(ownedBy(feed.id, id, feed.userId, user.id))
       .limit(1);
 
-    return c.json(created!, 201);
+    return c.json({ ...created!, unreadCount: 0 }, 201);
   });
 }

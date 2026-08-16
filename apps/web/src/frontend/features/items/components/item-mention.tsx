@@ -58,7 +58,7 @@ export function Mention({
     >
       {siteUrl ? <SiteFavicon url={siteUrl} /> : null}
       {label ? (
-        <span className="max-w-[7rem] shrink-0 truncate text-blue-600">
+        <span className="max-w-[11rem] shrink-0 truncate text-blue-600">
           {label}
         </span>
       ) : null}

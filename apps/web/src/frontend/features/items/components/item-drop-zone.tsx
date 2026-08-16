@@ -7,10 +7,7 @@ import { SweepEffect } from "@components/sweep-effect";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
 import { uploadItem } from "@features/items/api";
-import {
-  inferTitleFromRaw,
-  prependFrontmatter,
-} from "@shared/note-frontmatter";
+import { inferTitleFromRaw } from "@shared/note-frontmatter";
 
 const SWEEP_DURATION_MS = 800;
 
@@ -55,10 +52,7 @@ export function ItemDropZone() {
               const inferred = inferTitleFromRaw(raw).title;
               const fallbackTitle = file.name.replace(/\.md$/i, "");
               const title = inferred || fallbackTitle;
-              const body = inferred
-                ? raw
-                : prependFrontmatter(raw, { title: fallbackTitle, tags: [] });
-              await createNote({ body, title, workspaceId: spaceId });
+              await createNote({ body: raw, title, workspaceId: spaceId });
               notesChanged = true;
               toast.success(`${file.name} added as note`, { id: toastId });
               return;

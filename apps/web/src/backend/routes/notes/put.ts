@@ -27,10 +27,9 @@ export function registerPutNote(app: Hono<AppEnv>) {
     if (title !== undefined) {
       normalizedTitle = normalizeNoteTitle(title);
     }
-    if (body !== undefined) {
-      normalizedTitle =
-        normalizedTitle ??
-        normalizeNoteTitle(inferTitleFromRaw(body).title);
+    if (body !== undefined && normalizedTitle === undefined) {
+      const inferred = normalizeNoteTitle(inferTitleFromRaw(body).title);
+      if (inferred) normalizedTitle = inferred;
     }
     const patch = {
       ...(body !== undefined ? { body } : {}),

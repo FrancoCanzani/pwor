@@ -22,8 +22,31 @@ export async function getStoredWorkspaceId(): Promise<string | null> {
   return (stored[STORAGE_KEYS.workspaceId] as string | undefined) ?? null;
 }
 
-export async function setStoredWorkspaceId(id: string) {
-  await browser.storage.local.set({ [STORAGE_KEYS.workspaceId]: id });
+export async function setStoredWorkspaceId(id: string | null) {
+  if (id) {
+    await browser.storage.local.set({ [STORAGE_KEYS.workspaceId]: id });
+    return;
+  }
+  await browser.storage.local.remove(STORAGE_KEYS.workspaceId);
+}
+
+export async function resolveStoredWorkspaceId(): Promise<string | null> {
+  const id = await getStoredWorkspaceId();
+  if (!id) return null;
+  const spaces = await listWorkspaces().catch(() => null);
+  if (!spaces) return id;
+  if (spaces.some((space) => space.id === id)) return id;
+  await setStoredWorkspaceId(null);
+  return null;
+}
+
+export function workspaceLabel(
+  workspaceId: string | null,
+  spaces: Workspace[],
+): string {
+  if (!workspaceId) return "Inbox";
+  const name = spaces.find((space) => space.id === workspaceId)?.name.trim();
+  return name || "Untitled";
 }
 
 export async function setSession(apiKey: string, user: ExtensionUser) {
@@ -115,9 +138,13 @@ export type CaptureInput = {
 };
 
 export async function capture(input: CaptureInput): Promise<Item> {
+  const workspaceId =
+    input.workspaceId !== undefined
+      ? input.workspaceId
+      : await resolveStoredWorkspaceId();
   return api<Item>("/api/items", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, workspaceId }),
   });
 }
 

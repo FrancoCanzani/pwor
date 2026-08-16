@@ -96,7 +96,7 @@ function FeedItemRow({
         active && "bg-muted/50",
       )}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-3">
         {showSource ? (
           <FeedFavicon
             siteUrl={item.feedSiteUrl ?? item.url}

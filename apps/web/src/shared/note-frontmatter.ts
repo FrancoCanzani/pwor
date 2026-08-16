@@ -83,40 +83,16 @@ export function noteDisplayTitle(title: string | null | undefined): string {
   return normalizeNoteTitle(title) ?? "Untitled";
 }
 
-export function noteIsNoted(raw: string): boolean {
-  if (noteHasBody(raw)) return true;
-  const { frontmatter } = parseFrontmatter(raw);
-  return Boolean(frontmatter && /^noted:\s*true\s*$/m.test(frontmatter));
-}
-
-export function withNotedFlag(raw: string): string {
-  if (noteIsNoted(raw)) return raw;
+export function dropNotedFlag(raw: string): string {
   const { frontmatter, body } = parseFrontmatter(raw);
-  if (frontmatter == null) return prependFrontmatter(body, { noted: true });
-  const next = /^noted:\s*/m.test(frontmatter)
-    ? frontmatter.replace(/^noted:\s*.*$/m, "noted: true")
-    : `${frontmatter.replace(/\s+$/, "")}\nnoted: true`;
+  if (frontmatter == null || !/^noted:\s*/m.test(frontmatter)) return raw;
+  const next = frontmatter
+    .replace(/^noted:\s*.*$/m, "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== "")
+    .join("\n");
+  if (next === "") return body;
   return `---\n${next}\n---\n${body}`;
-}
-
-export function prependFrontmatter(
-  body: string,
-  meta: { title?: string | null; tags?: string[]; noted?: boolean },
-): string {
-  const lines: string[] = ["---"];
-  if (meta.title != null) {
-    lines.push(`title: ${formatYamlScalar(meta.title)}`);
-  }
-  if (meta.tags != null) {
-    lines.push(`tags: [${meta.tags.map(formatYamlScalar).join(", ")}]`);
-  }
-  if (meta.noted) {
-    lines.push("noted: true");
-  }
-  lines.push("---", "");
-  const prefix = `${lines.join("\n")}`;
-  if (body.length === 0) return prefix;
-  return body.startsWith("\n") ? `${prefix}${body}` : `${prefix}\n${body}`;
 }
 
 function getFrontmatterTitle(frontmatter: string | null): string | null {
@@ -203,12 +179,4 @@ function parseYamlScalar(raw: string): string {
   }
   const withoutComment = trimmed.replace(/\s+#.*$/, "").trim();
   return withoutComment;
-}
-
-function formatYamlScalar(value: string): string {
-  if (value === "") return '""';
-  if (/[:#{}[\],&*?|>!%@`]/.test(value) || /\s/.test(value) || /["']/.test(value)) {
-    return JSON.stringify(value);
-  }
-  return value;
 }

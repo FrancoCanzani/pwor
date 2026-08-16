@@ -18,7 +18,6 @@ import {
   noteAnchor,
   passageIsNoted,
   targetNotesQueryOptions,
-  updateNote,
   type HighlightTarget,
   type NoteListItem,
 } from "@features/notes/api";
@@ -28,7 +27,6 @@ import {
   HighlightMark,
   NOTED_MARK_SELECTOR,
 } from "@lib/reading/highlight-mark";
-import { withNotedFlag } from "@shared/note-frontmatter";
 
 import { ArticleNotesMenu } from "./article-notes-menu";
 import { NoteHoverPreview } from "./note-hover-preview";
@@ -110,12 +108,6 @@ function promoteHighlightToNote(
 ) {
   upsertListedNote(queryClient, { ...note, noted: true });
   editor.chain().setTextSelection(editor.state.selection.to).run();
-  void updateNote(note.id, {
-    body: withNotedFlag(""),
-    expectedUpdatedAt: note.updatedAt,
-  }).catch(() => {
-    void queryClient.invalidateQueries({ queryKey: ["notes"] });
-  });
 }
 
 export function ContentReader({
@@ -236,7 +228,6 @@ export function ContentReader({
       const created = await createNote({
         target,
         anchor: createAnchor(editor.state.doc, from, to),
-        body: mode === "note" ? withNotedFlag("") : undefined,
       });
       editor.chain().setTextSelection(to).run();
       return { created, mode };

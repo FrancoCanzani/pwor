@@ -9,7 +9,10 @@ import { assertPublicHttpUrl } from "../../../lib/safe-url";
 import { tweetIdFromUrl } from "@shared/tweet";
 import { titleFromText } from "./capture";
 import { extractArticleHtml } from "./extract";
-import { storeSiteScreenshot } from "./screenshot";
+import {
+  shouldCaptureScreenshot,
+  storeSiteScreenshot,
+} from "./screenshot";
 import { extractItemMarkdown } from "./to-markdown";
 import { fetchTweet, tweetToHtml } from "./tweet";
 
@@ -183,7 +186,6 @@ export async function enrichItem(
     let summary = row.summary;
     let content = row.content;
     let contentHtml = row.contentHtml;
-    let previewR2Key = row.previewR2Key;
 
     if (tweet) {
       title = titleFromText(tweet.text) || row.title || row.url;
@@ -204,18 +206,6 @@ export async function enrichItem(
         if (extracted) contentHtml = extracted.html;
         else console.error("link content extraction failed", itemId);
       }
-      if (!previewR2Key && !tweetId) {
-        try {
-          previewR2Key = await storeSiteScreenshot(
-            env,
-            row.userId,
-            itemId,
-            row.url,
-          );
-        } catch (error) {
-          console.error("link preview screenshot failed", itemId, error);
-        }
-      }
     }
 
     await db
@@ -227,7 +217,6 @@ export async function enrichItem(
         summary,
         content,
         contentHtml,
-        ...(previewR2Key ? { previewR2Key } : {}),
       })
       .where(eq(item.id, itemId));
 
@@ -239,7 +228,6 @@ export async function enrichItem(
       summary,
       content,
       contentHtml,
-      previewR2Key: previewR2Key ?? row.previewR2Key,
     };
   }
 
@@ -323,14 +311,70 @@ export async function enrichItem(
   }
 }
 
+async function markEnrichmentFailed(
+  env: Env,
+  itemId: string,
+  err: unknown,
+): Promise<void> {
+  const message = err instanceof Error ? err.message : String(err);
+  const db = createDb(env.DB);
+  await db
+    .update(item)
+    .set({
+      parseStatus: "failed",
+      parseError: message.slice(0, 500),
+      parsedAt: new Date(),
+    })
+    .where(eq(item.id, itemId));
+}
+
+async function enrichItemScreenshot(
+  env: Env,
+  itemId: string,
+): Promise<void> {
+  const db = createDb(env.DB);
+  const [row] = await db
+    .select()
+    .from(item)
+    .where(eq(item.id, itemId))
+    .limit(1);
+
+  if (!row) return;
+  if (row.kind !== "link" || !row.url || row.previewR2Key) return;
+  if (!shouldCaptureScreenshot(row.url)) return;
+
+  const previewR2Key = await storeSiteScreenshot(
+    env,
+    row.userId,
+    itemId,
+    row.url,
+  );
+  if (!previewR2Key) return;
+
+  await db
+    .update(item)
+    .set({ previewR2Key })
+    .where(eq(item.id, itemId));
+}
+
 export function scheduleItemEnrichment(
   ctx: { waitUntil(promise: Promise<unknown>): void },
   env: Env,
   itemId: string,
 ): void {
   ctx.waitUntil(
-    enrichItem(env, itemId).catch((err) => {
+    enrichItem(env, itemId).catch(async (err) => {
       console.error("item enrichment failed", itemId, err);
+      try {
+        await markEnrichmentFailed(env, itemId, err);
+      } catch (updateErr) {
+        console.error("item enrichment status update failed", itemId, updateErr);
+      }
+    }),
+  );
+  ctx.waitUntil(
+    enrichItemScreenshot(env, itemId).catch((err) => {
+      console.error("item screenshot failed", itemId, err);
     }),
   );
 }

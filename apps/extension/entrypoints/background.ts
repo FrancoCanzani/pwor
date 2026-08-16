@@ -3,16 +3,19 @@ import {
   clearLinkingState,
   getLinkingState,
   getStoredUser,
+  listWorkspaces,
   pollLink,
   setLinkingState,
   setSession,
   startLink,
+  workspaceLabel,
 } from "../lib/api";
 import {
   LINK_TIMEOUT_MS,
   STORAGE_KEYS,
   type LinkingState,
 } from "../lib/config";
+import { resolveCaptureUrl } from "../lib/page";
 
 let linkPoll: Promise<void> | null = null;
 
@@ -97,16 +100,17 @@ export default defineBackground(() => {
         if (info.menuItemId === "pwor-save-selection" && info.selectionText) {
           await capture({
             input: info.selectionText,
-            workspaceId: null,
           });
           return;
         }
 
-        const url = info.linkUrl || info.pageUrl || tab?.url;
+        const url = await resolveCaptureUrl(
+          tab ?? {},
+          info.linkUrl || info.pageUrl || tab?.url,
+        );
         if (!url) return;
         await capture({
           input: url,
-          workspaceId: null,
         });
       } catch (error) {
         console.error("context menu capture failed", error);
@@ -125,9 +129,10 @@ export default defineBackground(() => {
       const user = await getStoredUser();
       if (!user) return;
       try {
+        const url = await resolveCaptureUrl(tab, tab.url);
+        if (!url) return;
         await capture({
-          input: tab.url,
-          workspaceId: null,
+          input: url,
         });
       } catch (error) {
         console.error("hotkey capture failed", error);
@@ -183,15 +188,15 @@ export default defineBackground(() => {
 
           const item = await capture({
             input: message.url as string,
-            workspaceId: null,
             hint: (message.hint as string | undefined) ?? null,
             tags: ["x", "bookmark"],
           });
+          const spaces = await listWorkspaces().catch(() => []);
 
           sendResponse({
             ok: true,
             workspaceId: item.workspaceId,
-            spaceName: "Inbox",
+            spaceName: workspaceLabel(item.workspaceId, spaces),
           });
         } catch (error) {
           sendResponse({

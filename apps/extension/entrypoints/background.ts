@@ -1,10 +1,78 @@
 import {
   capture,
+  clearLinkingState,
+  getLinkingState,
   getStoredUser,
+  pollLink,
+  setLinkingState,
+  setSession,
+  startLink,
 } from "../lib/api";
-import { STORAGE_KEYS } from "../lib/config";
+import {
+  LINK_TIMEOUT_MS,
+  STORAGE_KEYS,
+  type LinkingState,
+} from "../lib/config";
+
+let linkPoll: Promise<void> | null = null;
+
+async function beginLinkSession(): Promise<LinkingState> {
+  const existing = await getLinkingState();
+  if (existing && Date.now() - existing.startedAt < LINK_TIMEOUT_MS) {
+    return existing;
+  }
+
+  const started = await startLink();
+  const state: LinkingState = {
+    pairingId: started.pairingId,
+    secret: started.secret,
+    linkUrl: started.linkUrl,
+    startedAt: Date.now(),
+  };
+  await setLinkingState(state);
+  return state;
+}
+
+async function runLinkPoll(state: LinkingState) {
+  const deadline = state.startedAt + LINK_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const result = await pollLink(state.pairingId, state.secret);
+    switch (result.status) {
+      case "pending":
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        break;
+      case "approved":
+        await setSession(result.apiKey, result.user);
+        await clearLinkingState();
+        return;
+      case "expired":
+      case "consumed":
+        await clearLinkingState();
+        throw new Error("Link expired. Try again.");
+      default: {
+        const _exhaustive: never = result;
+        throw new Error(`Unexpected link status: ${String(_exhaustive)}`);
+      }
+    }
+  }
+  await clearLinkingState();
+  throw new Error("Link timed out.");
+}
+
+function pollLinkSession(state: LinkingState) {
+  if (!linkPoll) {
+    linkPoll = runLinkPoll(state).finally(() => {
+      linkPoll = null;
+    });
+  }
+  return linkPoll;
+}
 
 export default defineBackground(() => {
+  void getLinkingState().then((state) => {
+    if (state) void pollLinkSession(state);
+  });
+
   browser.runtime.onInstalled.addListener(() => {
     void browser.contextMenus.removeAll().then(() => {
       browser.contextMenus.create({
@@ -69,6 +137,29 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || typeof message !== "object") return;
+
+    // Popup dies when the link tab opens, so pairing continues here.
+    if (message.type === "pwor:link-start") {
+      void (async () => {
+        try {
+          const state = await beginLinkSession();
+          sendResponse({ ok: true });
+          await browser.tabs.create({ url: state.linkUrl });
+          await pollLinkSession(state);
+        } catch (error) {
+          await clearLinkingState();
+          try {
+            sendResponse({
+              ok: false,
+              error: error instanceof Error ? error.message : "Could not sign in",
+            });
+          } catch {
+            console.error("link start failed", error);
+          }
+        }
+      })();
+      return true;
+    }
 
     if (message.type === "pwor:capture-tweet") {
       void (async () => {

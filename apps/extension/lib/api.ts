@@ -3,6 +3,7 @@ import {
   STORAGE_KEYS,
   type ExtensionUser,
   type Item,
+  type LinkingState,
   type Workspace,
 } from "./config";
 
@@ -33,7 +34,36 @@ export async function setSession(apiKey: string, user: ExtensionUser) {
 }
 
 export async function clearSession() {
-  await browser.storage.local.remove([STORAGE_KEYS.apiKey, STORAGE_KEYS.user]);
+  await browser.storage.local.remove([
+    STORAGE_KEYS.apiKey,
+    STORAGE_KEYS.user,
+    STORAGE_KEYS.linking,
+  ]);
+}
+
+function isLinkingState(value: unknown): value is LinkingState {
+  if (!value || typeof value !== "object") return false;
+  const state = value as Record<string, unknown>;
+  return (
+    typeof state.pairingId === "string" &&
+    typeof state.secret === "string" &&
+    typeof state.linkUrl === "string" &&
+    typeof state.startedAt === "number"
+  );
+}
+
+export async function getLinkingState(): Promise<LinkingState | null> {
+  const stored = await browser.storage.local.get(STORAGE_KEYS.linking);
+  const value = stored[STORAGE_KEYS.linking];
+  return isLinkingState(value) ? value : null;
+}
+
+export async function setLinkingState(state: LinkingState) {
+  await browser.storage.local.set({ [STORAGE_KEYS.linking]: state });
+}
+
+export async function clearLinkingState() {
+  await browser.storage.local.remove(STORAGE_KEYS.linking);
 }
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {

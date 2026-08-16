@@ -8,7 +8,17 @@ export const STORAGE_KEYS = {
   workspaceId: "pwor:extension:workspace-id",
   saveOnBookmark: "pwor:extension:save-on-bookmark",
   showInlineButton: "pwor:extension:show-inline-button",
+  linking: "pwor:extension:linking",
 } as const;
+
+export const LINK_TIMEOUT_MS = 10 * 60 * 1000;
+
+export type LinkingState = {
+  pairingId: string;
+  secret: string;
+  linkUrl: string;
+  startedAt: number;
+};
 
 export type ExtensionUser = {
   id: string;

@@ -4,10 +4,8 @@ import {
   capture,
   clearSession,
   fetchMe,
+  getLinkingState,
   getStoredUser,
-  pollLink,
-  setSession,
-  startLink,
 } from "../../lib/api";
 import { APP_URL, STORAGE_KEYS } from "../../lib/config";
 import { cn } from "../../lib/utils";
@@ -79,33 +77,32 @@ export default function App() {
   useEffect(() => {
     void (async () => {
       try {
-        const [user, pageInfo, settings] = await Promise.all([
+        const [user, pageInfo, settings, linkingState] = await Promise.all([
           getStoredUser(),
           readActivePage(),
           browser.storage.local.get([
             STORAGE_KEYS.saveOnBookmark,
             STORAGE_KEYS.showInlineButton,
           ]),
+          getLinkingState(),
         ]);
         setPage(pageInfo);
         setSaveOnBookmark(settings[STORAGE_KEYS.saveOnBookmark] !== false);
         setShowInlineButton(settings[STORAGE_KEYS.showInlineButton] !== false);
+        if (linkingState) setLinking(true);
 
         if (!user) {
           setLoading(false);
           return;
         }
 
-        const me = await fetchMe().catch(async () => {
-          await clearSession();
-          return null;
-        });
-        if (!me) {
-          setLoading(false);
-          return;
+        try {
+          const me = await fetchMe();
+          setEmail(me.email);
+        } catch {
+          const still = await getStoredUser();
+          if (still) setEmail(still.email);
         }
-
-        setEmail(me.email);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load");
       } finally {
@@ -114,29 +111,42 @@ export default function App() {
     })();
   }, []);
 
+  useEffect(() => {
+    const onChanged: Parameters<
+      typeof browser.storage.onChanged.addListener
+    >[0] = (changes, area) => {
+      if (area !== "local") return;
+      if (STORAGE_KEYS.user in changes) {
+        const user = changes[STORAGE_KEYS.user]?.newValue as
+          | { email?: string }
+          | undefined;
+        setEmail(user?.email ?? null);
+        if (user?.email) {
+          setLinking(false);
+          setError(null);
+        }
+      }
+      if (STORAGE_KEYS.linking in changes) {
+        setLinking(changes[STORAGE_KEYS.linking]?.newValue != null);
+      }
+    };
+    browser.storage.onChanged.addListener(onChanged);
+    return () => browser.storage.onChanged.removeListener(onChanged);
+  }, []);
+
   async function handleSignIn() {
     setError(null);
     setLinking(true);
     try {
-      const { pairingId, secret, linkUrl } = await startLink();
-      await browser.tabs.create({ url: linkUrl });
-
-      const started = Date.now();
-      while (Date.now() - started < 10 * 60 * 1000) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        const result = await pollLink(pairingId, secret);
-        if (result.status === "approved") {
-          await setSession(result.apiKey, result.user);
-          setEmail(result.user.email);
-          setLinking(false);
-          return;
-        }
-        if (result.status === "expired" || result.status === "consumed") {
-          throw new Error("Link expired. Try again.");
-        }
+      const result = (await browser.runtime.sendMessage({
+        type: "pwor:link-start",
+      })) as { ok: true } | { ok: false; error?: string } | undefined;
+      if (result && result.ok === false) {
+        throw new Error(result.error ?? "Could not sign in");
       }
-      throw new Error("Link timed out.");
     } catch (err) {
+      const stillLinking = await getLinkingState();
+      if (stillLinking) return;
       setError(err instanceof Error ? err.message : "Could not sign in");
       setLinking(false);
     }

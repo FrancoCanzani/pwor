@@ -5,10 +5,13 @@ import { createWorkersAI } from "workers-ai-provider";
 
 import { createDb } from "../../../db";
 import { item } from "../../../db/schema";
-import { extractArticleHtml } from "./extract";
-import { extractItemMarkdown } from "./to-markdown";
-import { storeSiteScreenshot } from "./screenshot";
 import { assertPublicHttpUrl } from "../../../lib/safe-url";
+import { tweetIdFromUrl } from "@shared/tweet";
+import { titleFromText } from "./capture";
+import { extractArticleHtml } from "./extract";
+import { storeSiteScreenshot } from "./screenshot";
+import { extractItemMarkdown } from "./to-markdown";
+import { fetchTweet, tweetToHtml } from "./tweet";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
@@ -172,32 +175,46 @@ export async function enrichItem(
   const kind = row.kind;
 
   if (kind === "link" && row.url) {
-    const page = await fetchPageMetadata(row.url);
-    const title = page.title || row.title || row.url;
-    const siteName = page.siteName ?? row.siteName;
-    const summary = page.description ?? row.summary;
-    const content =
-      [page.description, page.text].filter(Boolean).join("\n\n") ||
-      row.content;
+    const tweetId = tweetIdFromUrl(row.url);
+    const tweet = tweetId ? await fetchTweet(tweetId) : null;
 
+    let title = row.title;
+    let siteName = row.siteName;
+    let summary = row.summary;
+    let content = row.content;
     let contentHtml = row.contentHtml;
-    if (page.html) {
-      const extracted = extractArticleHtml(page.html, row.url);
-      if (extracted) contentHtml = extracted.html;
-      else console.error("link content extraction failed", itemId);
-    }
-
     let previewR2Key = row.previewR2Key;
-    if (!previewR2Key) {
-      try {
-        previewR2Key = await storeSiteScreenshot(
-          env,
-          row.userId,
-          itemId,
-          row.url,
-        );
-      } catch (error) {
-        console.error("link preview screenshot failed", itemId, error);
+
+    if (tweet) {
+      title = titleFromText(tweet.text) || row.title || row.url;
+      siteName = "X";
+      summary = tweet.text.slice(0, 500) || row.summary;
+      content = tweet.text || row.content;
+      contentHtml = tweetToHtml(tweet);
+    } else {
+      const page = await fetchPageMetadata(row.url);
+      title = page.title || row.title || row.url;
+      siteName = page.siteName ?? row.siteName;
+      summary = page.description ?? row.summary;
+      content =
+        [page.description, page.text].filter(Boolean).join("\n\n") ||
+        row.content;
+      if (page.html) {
+        const extracted = extractArticleHtml(page.html, row.url);
+        if (extracted) contentHtml = extracted.html;
+        else console.error("link content extraction failed", itemId);
+      }
+      if (!previewR2Key && !tweetId) {
+        try {
+          previewR2Key = await storeSiteScreenshot(
+            env,
+            row.userId,
+            itemId,
+            row.url,
+          );
+        } catch (error) {
+          console.error("link preview screenshot failed", itemId, error);
+        }
       }
     }
 

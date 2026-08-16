@@ -9,11 +9,13 @@ import { items } from "./items";
 import { registerGetMe } from "./me";
 import { notes } from "./notes";
 import { search } from "./search";
+import { registerGetTweet } from "./tweet/get";
 import { workspaces } from "./workspaces";
 
 const api = new Hono<AppEnv>();
 
 registerGetMe(api);
+registerGetTweet(api);
 api.route("/feeds", feeds);
 api.route("/inbox", inbox);
 api.route("/notes", notes);

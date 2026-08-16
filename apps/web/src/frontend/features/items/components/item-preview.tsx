@@ -16,13 +16,15 @@ import {
 import { KindBadge } from "@features/items/components/kind-badge";
 import { PdfViewer } from "@features/items/components/pdf-viewer";
 import { SheetViewer } from "@features/items/components/sheet-viewer";
+import { TweetEmbed } from "@features/items/components/tweet-embed";
 import { isVideoFile, itemHost, itemPreviewUrl } from "@features/items/lib/media";
+import { isTextPreviewable } from "@features/items/lib/preview";
+import { isSheetPreviewable } from "@features/items/lib/sheet";
 import { targetNotesQueryOptions } from "@features/notes/api";
 import { useFloatingNote } from "@features/notes/floating-note-context";
 import { ArticleNotesMenu } from "@features/reading/article-notes-menu";
 import { ContentReader } from "@features/reading/content-reader";
-import { isTextPreviewable } from "@features/items/lib/preview";
-import { isSheetPreviewable } from "@features/items/lib/sheet";
+import { tweetIdFromUrl } from "@shared/tweet";
 
 function TextPreview({
   content,
@@ -96,6 +98,7 @@ function LinkArticle({
 }) {
   const { openNote } = useFloatingNote();
   const host = itemHost(item.url);
+  const tweetId = tweetIdFromUrl(item.url ?? "");
   const hasScreenshot = Boolean(item.hasPreview);
   const tags = item.tags ?? [];
   const title = item.title?.trim() || "Untitled";
@@ -105,7 +108,9 @@ function LinkArticle({
   });
 
   const panes: Record<LinkView, ReactNode> = {
-    content: html ? (
+    content: tweetId ? (
+      <TweetEmbed id={tweetId} />
+    ) : html ? (
       <ContentReader
         target={{ itemId: item.id }}
         content={html}
@@ -115,7 +120,7 @@ function LinkArticle({
         onFocusHandled={() => setFocusNoteId(null)}
       />
     ) : (
-      <div className="flex h-48 items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <p className="text-xs text-muted-foreground">
           {item.parseStatus === "failed"
             ? "Couldn't extract this page."

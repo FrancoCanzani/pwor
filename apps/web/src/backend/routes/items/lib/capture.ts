@@ -1,5 +1,7 @@
 import normalizeUrlLib from "normalize-url";
 
+import { tweetIdFromUrl } from "@shared/tweet";
+
 const TRACKING_PARAMS = [
   /^utm_/,
   "fbclid",
@@ -18,8 +20,6 @@ const TRACKING_PARAMS = [
   "spm",
 ];
 
-const TWEET_RE =
-  /^https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^/]+\/status\/\d+/i;
 const URL_RE = /^https?:\/\/\S+$/i;
 
 export type ParsedCapture =
@@ -54,7 +54,7 @@ export function normalizeUrl(rawUrl: string): string | null {
 
 export function extractUrl(input: string): string | null {
   const trimmed = input.trim();
-  if (!URL_RE.test(trimmed) && !TWEET_RE.test(trimmed)) return null;
+  if (!URL_RE.test(trimmed) && !tweetIdFromUrl(trimmed)) return null;
   try {
     return new URL(trimmed).toString();
   } catch {

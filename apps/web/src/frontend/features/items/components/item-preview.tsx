@@ -14,34 +14,29 @@ import {
   type Item,
 } from "@features/items/api";
 import { KindBadge } from "@features/items/components/kind-badge";
+import { AudioPlayer } from "@features/items/components/audio-player";
 import { PdfViewer } from "@features/items/components/pdf-viewer";
 import { SheetViewer } from "@features/items/components/sheet-viewer";
 import { TweetEmbed } from "@features/items/components/tweet-embed";
-import { isVideoFile, itemHost, itemPreviewUrl } from "@features/items/lib/media";
+import { isAudioFile, isVideoFile, itemHost, itemPreviewUrl } from "@features/items/lib/media";
+import { itemTitle, isAudioTitlePending } from "@features/items/lib/list";
 import { isTextPreviewable } from "@features/items/lib/preview";
 import { isSheetPreviewable } from "@features/items/lib/sheet";
 import { targetNotesQueryOptions } from "@features/notes/api";
 import { useFloatingNote } from "@features/notes/floating-note-context";
 import { ArticleNotesMenu } from "@features/reading/article-notes-menu";
 import { ContentReader } from "@features/reading/content-reader";
-import { tweetIdFromUrl } from "@shared/tweet";
+import { TWEET_HOSTS, tweetIdFromUrl } from "@shared/tweet";
 
 function TextPreview({
   content,
   downloadUrl,
-  fill,
 }: {
   content: string | null;
   downloadUrl?: string;
-  fill?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3",
-        fill ? "h-full min-h-0" : "h-[70vh]",
-      )}
-    >
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex shrink-0 justify-end gap-2">
         {downloadUrl ? (
           <Button variant="outline" render={<a href={downloadUrl} download />}>
@@ -83,16 +78,29 @@ function isLinkView(value: unknown): value is LinkView {
   return LINK_VIEWS.some((item) => item.id === value);
 }
 
+function isSourceTag(
+  tag: string,
+  host: string | null,
+  siteName: string | null,
+): boolean {
+  const t = tag.trim().toLowerCase();
+  if (!t) return true;
+  if (siteName && t === siteName.trim().toLowerCase()) return true;
+  if (!host) return false;
+  const h = host.toLowerCase();
+  if (t === h) return true;
+  if (t === h.split(".")[0]) return true;
+  return TWEET_HOSTS.has(h) && (t === "twitter" || t === "bookmark");
+}
+
 function LinkArticle({
   item,
   html,
-  fill,
   view,
   onViewChange,
 }: {
   item: Item;
   html: string | null;
-  fill?: boolean;
   view: LinkView;
   onViewChange: (view: LinkView) => void;
 }) {
@@ -100,7 +108,9 @@ function LinkArticle({
   const host = itemHost(item.url);
   const tweetId = tweetIdFromUrl(item.url ?? "");
   const hasScreenshot = Boolean(item.hasPreview);
-  const tags = item.tags ?? [];
+  const tags = (item.tags ?? []).filter(
+    (tag) => !isSourceTag(tag, host, item.siteName),
+  );
   const title = item.title?.trim() || "Untitled";
   const [focusNoteId, setFocusNoteId] = useState<string | null>(null);
   const { data: notes = [] } = useQuery({
@@ -150,10 +160,8 @@ function LinkArticle({
   };
 
   return (
-    <div
-      className={cn("flex min-h-0 flex-col gap-2", fill ? "h-full" : undefined)}
-    >
-      <div className="flex shrink-0 items-center justify-between gap-3 px-0.5">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-3 pb-4">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {item.url && host ? (
             <a
@@ -205,7 +213,7 @@ function LinkArticle({
       </div>
       <div
         className={cn(
-          "min-h-0 flex-1",
+          "min-h-0 flex-1 px-4 pt-3 pb-3",
           view !== "web" && "overflow-y-auto overscroll-contain",
         )}
       >
@@ -218,19 +226,16 @@ function LinkArticle({
 export function ItemPreview({
   item,
   active = true,
-  variant = "panel",
   onClose,
 }: {
   item: Item;
   active?: boolean;
-  variant?: "panel" | "dialog";
   onClose?: () => void;
 }) {
-  const fill = variant === "panel";
   const [linkView, setLinkView] = useState<LinkView>("content");
 
   useHotkey("Escape", () => onClose?.(), {
-    enabled: Boolean(onClose) && active && variant === "panel",
+    enabled: Boolean(onClose) && active,
     conflictBehavior: "replace",
   });
 
@@ -239,6 +244,7 @@ export function ItemPreview({
   const fileUrl = `/api/items/${item.id}/file`;
   const isImage = item.mimeType?.startsWith("image/") ?? false;
   const isVideo = isVideoFile(item);
+  const isAudio = isAudioFile(item);
   const isPdf = item.mimeType === "application/pdf";
   const isSheet =
     item.kind === "file" && isSheetPreviewable(item.mimeType, item.title);
@@ -253,7 +259,7 @@ export function ItemPreview({
 
   const { data: detail } = useQuery({
     ...itemQueryOptions(item.id),
-    enabled: active && (isTextItem || isLinkLike),
+    enabled: active && (isTextItem || isLinkLike || isAudio),
     refetchInterval: (query) =>
       query.state.data?.parseStatus === "pending" ? 2500 : false,
   });
@@ -276,6 +282,10 @@ export function ItemPreview({
     ? (detail?.contentHtml?.trim() || null)
     : null;
 
+  const transcript = isAudio
+    ? detail?.extractedMarkdown?.trim() || null
+    : null;
+
   const displayItem = detail
     ? {
         ...item,
@@ -292,7 +302,6 @@ export function ItemPreview({
     <LinkArticle
       item={displayItem}
       html={linkContentHtml}
-      fill={fill}
       view={linkView}
       onViewChange={setLinkView}
     />
@@ -300,16 +309,10 @@ export function ItemPreview({
     <TextPreview
       content={textContent}
       downloadUrl={isTextFile ? fileUrl : undefined}
-      fill={fill}
     />
   ) : isSheet ? (
     sheetError ? (
-      <div
-        className={cn(
-          "flex flex-col items-center justify-center gap-3",
-          fill ? "h-full" : "h-[70vh]",
-        )}
-      >
+      <div className="flex h-full flex-col items-center justify-center gap-3">
         <p className="text-sm text-muted-foreground">
           Couldn't preview this sheet.{" "}
           <a href={fileUrl} download className="underline">
@@ -319,12 +322,7 @@ export function ItemPreview({
         </p>
       </div>
     ) : (
-      <div
-        className={cn(
-          "min-w-0 overflow-hidden",
-          fill ? "h-full min-h-0" : "h-[70vh]",
-        )}
-      >
+      <div className="h-full min-h-0 min-w-0 overflow-hidden">
         <SheetViewer key={item.id} workbook={workbook} downloadUrl={fileUrl} />
       </div>
     )
@@ -332,28 +330,37 @@ export function ItemPreview({
     <PdfViewer
       key={item.id}
       fileUrl={fileUrl}
-      className={fill ? "flex h-full min-h-0 flex-col" : undefined}
+      className="flex h-full min-h-0 flex-col"
     />
   ) : isImage ? (
-    <div
-      className={cn(
-        "flex items-center justify-center overflow-auto",
-        fill ? "h-full min-h-0" : "h-[70vh]",
-      )}
-    >
+    <div className="flex h-full min-h-0 items-center justify-center overflow-auto">
       <img
         src={fileUrl}
         alt={item.title ?? "Item file"}
         className="max-h-full max-w-full object-contain"
       />
     </div>
+  ) : isAudio ? (
+    <div className="flex h-full min-h-0 flex-col gap-5 pt-1">
+      <AudioPlayer src={fileUrl} />
+      <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+        {transcript ? (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
+            {transcript}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {displayItem.parseStatus === "pending"
+              ? "Transcribing…"
+              : displayItem.parseStatus === "failed"
+                ? "Couldn't transcribe this recording."
+                : "No transcript."}
+          </p>
+        )}
+      </div>
+    </div>
   ) : isVideo ? (
-    <div
-      className={cn(
-        "flex items-center justify-center",
-        fill ? "h-full min-h-0" : "h-[70vh]",
-      )}
-    >
+    <div className="flex h-full min-h-0 items-center justify-center">
       <video
         key={item.id}
         src={fileUrl}
@@ -364,12 +371,7 @@ export function ItemPreview({
       />
     </div>
   ) : (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center",
-        fill ? "h-full" : "h-[40vh]",
-      )}
-    >
+    <div className="flex h-full flex-col items-center justify-center">
       <p className="text-sm text-muted-foreground">
         No preview available for this file.{" "}
         <a href={fileUrl} download className="underline">
@@ -386,7 +388,7 @@ export function ItemPreview({
       variant="ghost"
       size="icon"
       aria-label="Close"
-      className={variant === "panel" ? "hidden md:inline-flex" : undefined}
+      className="hidden md:inline-flex"
       onClick={onClose}
     >
       <Cross2Icon />
@@ -395,33 +397,17 @@ export function ItemPreview({
 
   const title = (
     <div className="flex min-w-0 max-w-full items-center gap-2">
-      <span className="min-w-0 truncate text-sm leading-none font-normal">
-        {displayItem.title ?? "Untitled"}
+      <span
+        className={cn(
+          "min-w-0 truncate text-sm leading-none font-normal",
+          isAudioTitlePending(displayItem) && "text-muted-foreground",
+        )}
+      >
+        {itemTitle(displayItem)}
       </span>
-      {isLinkLike ? null : <KindBadge item={displayItem} />}
+      {isLinkLike || isAudio ? null : <KindBadge item={displayItem} />}
     </div>
   );
-
-  if (variant === "dialog") {
-    return (
-      <>
-        {onClose ? (
-          <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
-            {chrome}
-          </div>
-        ) : null}
-        <div className="min-w-0">
-          <h2 className="flex min-w-0 items-center gap-2 pr-8 text-base leading-none font-normal tracking-tight">
-            <span className="min-w-0 truncate">
-              {displayItem.title ?? "Untitled"}
-            </span>
-            {isLinkLike ? null : <KindBadge item={displayItem} />}
-          </h2>
-        </div>
-        {body}
-      </>
-    );
-  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -440,7 +426,12 @@ export function ItemPreview({
         <div className="min-w-0 flex-1">{title}</div>
         {chrome}
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden px-3 pb-3">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-hidden",
+          !isLinkLike && "px-4 pt-3 pb-3",
+        )}
+      >
         {body}
       </div>
     </div>

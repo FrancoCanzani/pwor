@@ -27,6 +27,11 @@ import {
   HighlightMark,
   NOTED_MARK_SELECTOR,
 } from "@lib/reading/highlight-mark";
+import {
+  noteHasBody,
+  noteIsNoted,
+  withNotedFlag,
+} from "@shared/note-frontmatter";
 
 import { ArticleNotesMenu } from "./article-notes-menu";
 import { NoteHoverPreview } from "./note-hover-preview";
@@ -55,11 +60,7 @@ function revealNote(editor: Editor, note: NoteListItem) {
     ?.scrollIntoView({ block: "center" });
 }
 
-function paintHighlights(
-  editor: Editor,
-  notes: NoteListItem[],
-  activeNoteId: string | null,
-) {
+function paintHighlights(editor: Editor, notes: NoteListItem[]) {
   if (editor.isDestroyed || !editor.schema) return;
   const markType = editor.schema.marks.readingHighlight;
   if (!markType) return;
@@ -76,7 +77,7 @@ function paintHighlights(
       resolved.to,
       markType.create({
         noteId: note.id,
-        noted: passageIsNoted(note) || note.id === activeNoteId,
+        noted: passageIsNoted(note),
       }),
     );
   }
@@ -128,7 +129,7 @@ export function ContentReader({
   onFocusHandled?: () => void;
 }) {
   const queryClient = useQueryClient();
-  const { openNote, activeNoteId } = useFloatingNote();
+  const { openNote } = useFloatingNote();
   const html = useMemo(() => prepareReaderHtml(content), [content]);
 
   const editor = useEditor(
@@ -193,14 +194,14 @@ export function ContentReader({
     if (!editor) return;
     const paint = () => {
       if (editor.isDestroyed || !editor.state.selection.empty) return;
-      paintHighlights(editor, notes, activeNoteId);
+      paintHighlights(editor, notes);
     };
     paint();
     editor.on("selectionUpdate", paint);
     return () => {
       editor.off("selectionUpdate", paint);
     };
-  }, [editor, notes, activeNoteId]);
+  }, [editor, notes]);
 
   useEffect(() => {
     if (!editor || !focusNoteId) return;
@@ -228,17 +229,18 @@ export function ContentReader({
       const created = await createNote({
         target,
         anchor: createAnchor(editor.state.doc, from, to),
+        body: mode === "note" ? withNotedFlag("") : undefined,
       });
-      editor.chain().setTextSelection(to).run();
-      return { created, mode };
+      return { created, mode, to };
     },
-    onSuccess: ({ created, mode }) => {
+    onSuccess: ({ created, mode, to }) => {
       upsertListedNote(queryClient, {
         ...created,
-        hasBody: false,
-        noted: mode === "note",
+        hasBody: noteHasBody(created.body),
+        noted: noteIsNoted(created.body),
         bodyPreview: null,
       });
+      editor.chain().setTextSelection(to).run();
       void queryClient.invalidateQueries({ queryKey: ["notes"] });
       if (mode === "note") openNote(created.id);
     },

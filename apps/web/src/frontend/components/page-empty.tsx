@@ -16,7 +16,7 @@ export function PageEmpty({
   className,
 }: {
   title?: string;
-  description?: string;
+  description?: ReactNode;
   action?: ReactNode;
   className?: string;
 }) {

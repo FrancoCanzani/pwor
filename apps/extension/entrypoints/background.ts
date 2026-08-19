@@ -189,7 +189,7 @@ export default defineBackground(() => {
           const item = await capture({
             input: message.url as string,
             hint: (message.hint as string | undefined) ?? null,
-            tags: ["x", "bookmark"],
+            tags: message.via === "bookmark" ? ["bookmark"] : undefined,
           });
           const spaces = await listWorkspaces().catch(() => []);
 

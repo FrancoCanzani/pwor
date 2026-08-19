@@ -12,7 +12,8 @@ import {
   type SearchHit,
   type SearchKind,
 } from "@features/command/api";
-import { useCreateDialog } from "@features/command/create-dialog-context";
+import { useCaptureComposer } from "@features/command/capture-composer-context";
+import { isCaptureUrl, captureHost } from "@features/command/lib/capture";
 import { MarkedText } from "@features/command/components/marked-text";
 import { fuzzyScore } from "@features/command/lib/score";
 import { workspacesQueryOptions } from "@features/workspaces/api";
@@ -64,7 +65,7 @@ export function CommandPalette({
   const navigate = useNavigate();
   const { id: currentWorkspaceId } = useCurrentWorkspace();
   const { openNote } = useFloatingNote();
-  const { open: openCreate } = useCreateDialog();
+  const { open: openCreate } = useCaptureComposer();
   const { data: workspaces = NO_WORKSPACES } = useQuery(workspacesQueryOptions);
 
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
@@ -137,7 +138,18 @@ export function CommandPalette({
         },
       },
     ];
-    const matchedActions = term ? rank(actions, term) : actions;
+    const matchedActions = term ? rank(actions, term) : [...actions];
+    if (isCaptureUrl(term)) {
+      matchedActions.unshift({
+        id: "action:capture-url",
+        label: `Capture ${captureHost(term) ?? "link"}`,
+        run: () => {
+          onOpenChange(false);
+          setQuery("");
+          openCreate({ input: term });
+        },
+      });
+    }
     if (matchedActions.length > 0) {
       groups.push({ label: "Actions", items: matchedActions });
     }

@@ -22,7 +22,7 @@ export function CaptureHint() {
   return (
     <div className="group-data-[collapsible=icon]:hidden flex items-center justify-between gap-1 rounded-md bg-background px-2 py-1">
       <p className="flex items-center gap-1 text-[11px] leading-snug text-muted-foreground">
-        Paste anywhere to capture. Or
+        Paste a link anywhere. Or
         <Kbd>⌘U</Kbd>
       </p>
       <Button

@@ -35,6 +35,12 @@ export const item = sqliteTable(
     }),
     parseError: text("parse_error"),
     parsedAt: integer("parsed_at", { mode: "timestamp_ms" }),
+    embedStatus: text("embed_status", {
+      enum: ["pending", "ready", "failed"],
+    })
+      .notNull()
+      .default("pending"),
+    embeddedAt: integer("embedded_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),

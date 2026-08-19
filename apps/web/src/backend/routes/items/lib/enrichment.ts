@@ -5,15 +5,15 @@ import { createWorkersAI } from "workers-ai-provider";
 
 import { createDb } from "../../../db";
 import { item } from "../../../db/schema";
+import { embedItem } from "../../../lib/embed";
 import { assertPublicHttpUrl } from "../../../lib/safe-url";
+import { isPlaceholderAudioTitle } from "@shared/audio";
 import { tweetIdFromUrl } from "@shared/tweet";
 import { titleFromText } from "./capture";
 import { extractArticleHtml } from "./extract";
-import {
-  shouldCaptureScreenshot,
-  storeSiteScreenshot,
-} from "./screenshot";
+import { shouldCaptureScreenshot, storeSiteScreenshot } from "./screenshot";
 import { extractItemMarkdown } from "./to-markdown";
+import { isAudioMime } from "./transcribe";
 import { fetchTweet, tweetToHtml } from "./tweet";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -161,10 +161,7 @@ function normalizeTags(tags: string[]): string[] {
   return out;
 }
 
-export async function enrichItem(
-  env: Env,
-  itemId: string,
-): Promise<void> {
+export async function enrichItem(env: Env, itemId: string): Promise<void> {
   const db = createDb(env.DB);
   const [initial] = await db
     .select()
@@ -240,16 +237,32 @@ export async function enrichItem(
       .limit(1);
     if (!refreshed) return;
     row = refreshed;
+    if (isAudioMime(row.mimeType, row.title) && row.parseStatus === "failed") {
+      return;
+    }
   }
 
+  const audio = isAudioMime(row.mimeType, row.title);
+  const autoTitle = row.extractedMarkdown
+    ? titleFromText(row.extractedMarkdown)
+    : null;
+  const keepAudioTitle =
+    audio &&
+    Boolean(row.title) &&
+    !isPlaceholderAudioTitle(row.title) &&
+    row.title !== autoTitle;
+
   const bodyParts = [
-    row.title ? `Title: ${row.title}` : null,
+    audio
+      ? 'This is a voice memo. Title it from what was said (under 60 characters). Do not use a filename or the words "voice memo".'
+      : null,
+    row.title && (!audio || keepAudioTitle) ? `Title: ${row.title}` : null,
     row.url ? `URL: ${row.url}` : null,
     row.siteName ? `Site: ${row.siteName}` : null,
     row.kind ? `Kind: ${row.kind}` : null,
     row.content ? `Content:\n${row.content.slice(0, BODY_CHARS)}` : null,
     row.extractedMarkdown
-      ? `Extracted:\n${row.extractedMarkdown.slice(0, BODY_CHARS)}`
+      ? `${audio ? "Transcript" : "Extracted"}:\n${row.extractedMarkdown.slice(0, BODY_CHARS)}`
       : null,
     row.summary ? `Existing summary: ${row.summary}` : null,
   ].filter(Boolean);
@@ -281,8 +294,11 @@ export async function enrichItem(
     ]);
 
     const aiTitle = object.title.trim() || row.title;
-    const title =
-      kind === "file"
+    const title = audio
+      ? keepAudioTitle
+        ? row.title
+        : aiTitle || row.title
+      : kind === "file"
         ? row.title || filenameFromR2Key(row.r2Key) || aiTitle
         : aiTitle;
 
@@ -328,10 +344,7 @@ async function markEnrichmentFailed(
     .where(eq(item.id, itemId));
 }
 
-async function enrichItemScreenshot(
-  env: Env,
-  itemId: string,
-): Promise<void> {
+async function enrichItemScreenshot(env: Env, itemId: string): Promise<void> {
   const db = createDb(env.DB);
   const [row] = await db
     .select()
@@ -351,10 +364,7 @@ async function enrichItemScreenshot(
   );
   if (!previewR2Key) return;
 
-  await db
-    .update(item)
-    .set({ previewR2Key })
-    .where(eq(item.id, itemId));
+  await db.update(item).set({ previewR2Key }).where(eq(item.id, itemId));
 }
 
 export function scheduleItemEnrichment(
@@ -363,14 +373,23 @@ export function scheduleItemEnrichment(
   itemId: string,
 ): void {
   ctx.waitUntil(
-    enrichItem(env, itemId).catch(async (err) => {
-      console.error("item enrichment failed", itemId, err);
+    (async () => {
       try {
-        await markEnrichmentFailed(env, itemId, err);
-      } catch (updateErr) {
-        console.error("item enrichment status update failed", itemId, updateErr);
+        await enrichItem(env, itemId);
+      } catch (err) {
+        console.error("item enrichment failed", itemId, err);
+        try {
+          await markEnrichmentFailed(env, itemId, err);
+        } catch (updateErr) {
+          console.error(
+            "item enrichment status update failed",
+            itemId,
+            updateErr,
+          );
+        }
       }
-    }),
+      await embedItem(env, itemId);
+    })(),
   );
   ctx.waitUntil(
     enrichItemScreenshot(env, itemId).catch((err) => {

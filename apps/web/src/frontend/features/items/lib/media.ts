@@ -31,6 +31,13 @@ export function isVideoFile(item: {
   return item.kind === "file" && Boolean(item.mimeType?.startsWith("video/"));
 }
 
+export function isAudioFile(item: {
+  kind: "file" | "link" | "text";
+  mimeType: string | null;
+}): boolean {
+  return item.kind === "file" && Boolean(item.mimeType?.startsWith("audio/"));
+}
+
 export function isPdfFile(item: { mimeType: string | null }): boolean {
   return item.mimeType === "application/pdf";
 }

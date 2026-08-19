@@ -25,6 +25,7 @@ export type Item = {
   hasPreview?: boolean;
   sizeBytes?: number | null;
   createdAt: string;
+  duplicate?: boolean;
 };
 
 export type ItemListPage = {
@@ -85,6 +86,7 @@ export function inboxItemsInfiniteQueryOptions() {
 export type ItemDetail = Item & {
   content: string | null;
   contentHtml: string | null;
+  extractedMarkdown: string | null;
 };
 
 export function itemQueryOptions(id: string) {
@@ -123,7 +125,7 @@ export async function uploadItem(
   file: File,
   workspaceId?: string | null,
   options?: { title?: string | null },
-): Promise<{ id: string }> {
+): Promise<Item> {
   const formData = new FormData();
   formData.append("file", file);
   if (workspaceId) formData.append("workspaceId", workspaceId);
@@ -131,7 +133,7 @@ export async function uploadItem(
   const poster = await captureVideoPoster(file);
   if (poster) formData.append("poster", poster);
 
-  return parseJson<{ id: string }>(
+  return parseJson<Item>(
     await fetch("/api/items", { method: "POST", body: formData }),
   );
 }
@@ -139,7 +141,7 @@ export async function uploadItem(
 export async function captureItemInput(
   input: string,
   workspaceId?: string | null,
-  options?: { title?: string | null },
+  options?: { title?: string | null; autoSpace?: boolean },
 ): Promise<Item> {
   return parseJson<Item>(
     await fetch("/api/items", {
@@ -149,6 +151,7 @@ export async function captureItemInput(
         input,
         title: options?.title || undefined,
         workspaceId,
+        autoSpace: options?.autoSpace || undefined,
       }),
     }),
   );
@@ -160,7 +163,7 @@ export async function deleteItem(id: string): Promise<{ id: string }> {
   );
 }
 
-export async function updateItemProject(
+export async function updateItemWorkspace(
   id: string,
   workspaceId: string | null,
 ): Promise<Item> {

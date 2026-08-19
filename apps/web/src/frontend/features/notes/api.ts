@@ -68,8 +68,12 @@ export function noteHasAnchor(
   return noteAnchor(note) != null;
 }
 
+export function isStandaloneNote(note: NoteListItem): boolean {
+  return note.itemId == null && note.feedItemId == null;
+}
+
 export function passageIsNoted(note: NoteListItem): boolean {
-  return Boolean(note.noted ?? note.hasBody);
+  return Boolean(note.noted || note.hasBody);
 }
 
 async function fetchNotes(filter?: {
@@ -169,7 +173,7 @@ export async function updateNote(
   return parseJson<Note>(res);
 }
 
-export async function updateNoteProject(
+export async function updateNoteWorkspace(
   id: string,
   workspaceId: string | null,
 ): Promise<Note> {

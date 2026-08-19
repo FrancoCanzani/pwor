@@ -5,6 +5,7 @@ import {
   EMPTY_NOTE_BODY,
   inferTitleFromRaw,
   normalizeNoteTitle,
+  noteHasBody,
 } from "@shared/note-frontmatter";
 import { createDb } from "../../db";
 import {
@@ -13,6 +14,7 @@ import {
   assertOwnedWorkspace,
 } from "../../db/helpers";
 import { note } from "../../db/schema";
+import { scheduleNoteEmbed } from "../../lib/embed";
 import type { AppEnv } from "../../types";
 import { createNoteSchema, titleFromQuote } from "./schemas";
 
@@ -62,6 +64,10 @@ export function registerPostNote(app: Hono<AppEnv>) {
           : {}),
       })
       .returning();
+
+    if (created && noteHasBody(created.body)) {
+      scheduleNoteEmbed(c.executionCtx, c.env, created.id);
+    }
 
     return c.json(created, 201);
   });

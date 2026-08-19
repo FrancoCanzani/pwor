@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { AppEnv } from "../../types";
 import { buildSearchQuery, type SearchHit } from "./lib/query";
+import { mergeSearchHits, semanticSearchHits } from "./lib/semantic";
 
 const searchQuerySchema = z.object({
   q: z.string().trim().min(2),
@@ -23,10 +24,24 @@ export function registerGetSearch(app: Hono<AppEnv>) {
       limit,
     });
 
-    const { results } = await c.env.DB.prepare(sql)
+    const lexical = c.env.DB.prepare(sql)
       .bind(...params)
       .all<SearchHit>();
 
-    return c.json({ items: results ?? [] });
+    const semantic = semanticSearchHits(c.env, {
+      userId: user.id,
+      q,
+      workspaceId,
+      limit,
+    }).catch((error) => {
+      console.error("semantic search failed", error);
+      return [] as SearchHit[];
+    });
+
+    const [{ results }, semanticHits] = await Promise.all([lexical, semantic]);
+
+    return c.json({
+      items: mergeSearchHits(results ?? [], semanticHits, limit),
+    });
   });
 }

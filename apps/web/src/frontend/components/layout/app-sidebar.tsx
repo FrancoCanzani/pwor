@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CaptureButton } from "@features/command/components/capture-button";
 import { useCommandPalette } from "@features/command/command-palette-context";
 
 export function AppSidebar() {
@@ -24,33 +25,36 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="h-12 flex-row items-center justify-between gap-1 px-4 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+      <SidebarHeader className="h-12 flex-row items-center justify-between gap-1 px-4 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-2">
         <Link
           to="/"
           className="text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
         >
           Pwor
         </Link>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Search"
-                className="text-muted-foreground"
-                onClick={() => openPalette()}
-              />
-            }
-          >
-            <MagnifyingGlassIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>
-            Search
-            <Kbd>⌘K</Kbd>
-          </TooltipContent>
-        </Tooltip>
+        <div className="flex items-center group-data-[collapsible=icon]:flex-col">
+          <CaptureButton />
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Search"
+                  className="text-muted-foreground"
+                  onClick={() => openPalette()}
+                />
+              }
+            >
+              <MagnifyingGlassIcon />
+            </TooltipTrigger>
+            <TooltipContent>
+              Search
+              <Kbd>⌘K</Kbd>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>

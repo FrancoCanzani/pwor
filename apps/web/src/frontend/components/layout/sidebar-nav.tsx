@@ -25,11 +25,11 @@ import {
 import { feedsQueryOptions } from "@features/feeds/api";
 import { AddFeedDialog } from "@features/feeds/components/add-feed-dialog";
 import { FeedFavicon } from "@features/feeds/components/feed-favicon";
-import { updateNoteProject } from "@features/notes/api";
+import { updateNoteWorkspace } from "@features/notes/api";
 import { SpacePic } from "@features/spaces/components/space-pic";
 import {
   inboxItemsInfiniteQueryOptions,
-  updateItemProject,
+  updateItemWorkspace,
 } from "@features/items/api";
 import { usePworItemDrop, type PworItemDrag } from "@features/items/lib/drag";
 import {
@@ -82,10 +82,10 @@ async function movePworItems(item: PworItemDrag, workspaceId: string | null) {
   for (const id of item.ids) {
     switch (item.kind) {
       case "item":
-        await updateItemProject(id, workspaceId);
+        await updateItemWorkspace(id, workspaceId);
         break;
       case "note":
-        await updateNoteProject(id, workspaceId);
+        await updateNoteWorkspace(id, workspaceId);
         break;
       default: {
         const _exhaustive: never = item.kind;

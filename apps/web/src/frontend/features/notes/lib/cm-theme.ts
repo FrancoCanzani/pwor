@@ -1,14 +1,19 @@
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+} from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { type Extension, EditorState } from "@codemirror/state";
-import { EditorView, placeholder as placeholderExt } from "@codemirror/view";
-import { GFM } from "@lezer/markdown";
 import {
-  codeBlockDecorationsExtension,
-  codeFenceTheme,
-  prosemarkBaseThemeSetup,
-  prosemarkBasicSetup,
-  prosemarkMarkdownSyntaxExtensions,
-} from "@prosemark/core";
+  drawSelection,
+  dropCursor,
+  EditorView,
+  keymap,
+  placeholder as placeholderExt,
+} from "@codemirror/view";
+import { GFM } from "@lezer/markdown";
 
 import { createHtmlPasteHandler } from "@features/notes/lib/cm-html-paste";
 import {
@@ -16,11 +21,12 @@ import {
   type WikiLinkEditorOptions,
 } from "@features/notes/lib/cm-wiki-links";
 
-const baseChromeTheme = EditorView.theme({
+const noteTheme = EditorView.theme({
   "&": {
     height: "100%",
     backgroundColor: "transparent",
     color: "var(--foreground)",
+    fontSize: "13px",
   },
   ".cm-line": { padding: "0" },
   "&.cm-focused": { outline: "none" },
@@ -36,20 +42,6 @@ const baseChromeTheme = EditorView.theme({
   ".cm-placeholder": {
     color: "var(--muted-foreground)",
     fontStyle: "normal",
-  },
-});
-
-const previewTheme = EditorView.theme({
-  "&": {
-    fontSize: "13px",
-    "--pm-cursor-color": "var(--foreground)",
-    "--pm-header-mark-color": "var(--muted-foreground)",
-    "--pm-link-color": "var(--foreground)",
-    "--pm-muted-color": "var(--muted-foreground)",
-    "--pm-code-background-color": "var(--muted)",
-    "--pm-code-font": "var(--font-mono)",
-    "--pm-blockquote-vertical-line-background-color": "var(--border)",
-    "--pm-syntax-comment": "var(--muted-foreground)",
   },
   ".cm-scroller": {
     fontFamily: "var(--font-sans)",
@@ -119,19 +111,6 @@ function uploadAndInsertFiles(
   })();
 }
 
-function withoutExtension(setup: Extension, drop: Extension): Extension {
-  if (!Array.isArray(setup)) return setup;
-  return setup.filter((ext) => ext !== drop);
-}
-
-function noteProsemarkBasicSetup(): Extension {
-  return withoutExtension(prosemarkBasicSetup(), codeBlockDecorationsExtension);
-}
-
-function noteProsemarkBaseThemeSetup(): Extension {
-  return withoutExtension(prosemarkBaseThemeSetup(), codeFenceTheme);
-}
-
 function createImageUploadHandler(
   uploadImage: (file: File) => Promise<{ url: string }>,
 ) {
@@ -180,12 +159,13 @@ export function createNoteEditorState({
   const extensions: Extension[] = [
     markdown({
       base: markdownLanguage,
-      extensions: [GFM, ...prosemarkMarkdownSyntaxExtensions],
+      extensions: [GFM],
     }),
-    noteProsemarkBasicSetup(),
-    noteProsemarkBaseThemeSetup(),
-    baseChromeTheme,
-    previewTheme,
+    history(),
+    drawSelection(),
+    dropCursor(),
+    keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+    noteTheme,
     placeholder ? placeholderExt(placeholder) : [],
     createHtmlPasteHandler(),
     uploadImage ? createImageUploadHandler(uploadImage) : [],

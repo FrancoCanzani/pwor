@@ -152,7 +152,6 @@ export function SpacePic({
       if (cancelled) return;
       cancelled = true;
       clearTimeout(watchdog);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (next) {
         publishCache(key, next);
         setSrc(next);
@@ -162,15 +161,7 @@ export function SpacePic({
       setLive(false);
     };
 
-    // requestAnimationFrame is fully paused in backgrounded tabs, so a stuck
-    // capture would otherwise hold the module-level capture lock forever and
-    // freeze every other SpacePic on the page. These guarantee the lock
-    // releases even if the tab never comes back to the foreground.
     const watchdog = window.setTimeout(() => finish(null), CAPTURE_TIMEOUT_MS);
-    const onVisibilityChange = () => {
-      if (document.hidden) finish(null);
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
 
     const capture = () => {
       if (cancelled) return;
@@ -205,7 +196,6 @@ export function SpacePic({
     return () => {
       cancelled = true;
       clearTimeout(watchdog);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
       cancelAnimationFrame(raf);
     };
   }, [key, live, src, failed]);

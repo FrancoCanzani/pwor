@@ -5,6 +5,7 @@ import type { Hono } from "hono";
 import { createDb } from "../../db";
 import { ownedBy, assertOwnedWorkspace } from "../../db/helpers";
 import { item } from "../../db/schema";
+import { scheduleItemEmbed } from "../../lib/embed";
 import type { AppEnv } from "../../types";
 import { serializeItemDetail } from "./lib/serialize";
 import { updateItemSchema } from "./schemas";
@@ -30,6 +31,9 @@ export function registerPutItem(app: Hono<AppEnv>) {
       .returning();
 
     if (!updated) throw new HTTPException(404, { message: "Not found" });
+    if (title !== undefined) {
+      scheduleItemEmbed(c.executionCtx, c.env, id);
+    }
     return c.json(serializeItemDetail(updated));
   });
 }

@@ -68,11 +68,13 @@ export function serializeItemDetail(
   row: ItemRow & {
     content: string | null;
     contentHtml: string | null;
+    extractedMarkdown?: string | null;
   },
 ) {
   return {
     ...serializeItem(row),
     content: row.content,
     contentHtml: row.contentHtml,
+    extractedMarkdown: row.extractedMarkdown ?? null,
   };
 }

@@ -2,10 +2,8 @@ import { eq, inArray, lte } from "drizzle-orm";
 
 import { createDb, type Db } from "../../../db";
 import { note, noteImage } from "../../../db/schema";
-import {
-  NOTE_IMAGE_ORPHAN_GRACE_MS,
-  noteImageMarkdownUrl,
-} from "./images";
+import { deleteEmbeddings, vectorId } from "../../../lib/embed";
+import { NOTE_IMAGE_ORPHAN_GRACE_MS, noteImageMarkdownUrl } from "./images";
 
 export async function deleteNoteImagesFromR2(
   bucket: R2Bucket,
@@ -21,7 +19,7 @@ export async function deleteNoteImagesFromR2(
 
 export async function deleteNotesForItem(
   db: Db,
-  bucket: R2Bucket,
+  env: Env,
   itemId: string,
 ): Promise<void> {
   const notes = await db
@@ -39,8 +37,12 @@ export async function deleteNotesForItem(
         notes.map((row) => row.id),
       ),
     );
-  await deleteNoteImagesFromR2(bucket, images);
+  await deleteNoteImagesFromR2(env.ITEMS_BUCKET, images);
   await db.delete(note).where(eq(note.itemId, itemId));
+  await deleteEmbeddings(
+    env,
+    notes.map((row) => vectorId("note", row.id)),
+  );
 }
 
 export async function cleanupOrphanNoteImages(env: Env): Promise<number> {

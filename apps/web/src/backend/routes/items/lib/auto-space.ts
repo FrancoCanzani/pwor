@@ -22,17 +22,17 @@ function scoreOverlap(haystack: string, needle: string): number {
   return hits / words.length;
 }
 
-function pickPreferredOrNewest(
+function pickPreferredOrInbox(
   spaces: Array<{ id: string }>,
   preferredWorkspaceId?: string | null,
-): string {
+): string | null {
   if (
     preferredWorkspaceId &&
     spaces.some((space) => space.id === preferredWorkspaceId)
   ) {
     return preferredWorkspaceId;
   }
-  return spaces[0]!.id;
+  return null;
 }
 
 export async function resolveAutoSpace(
@@ -57,7 +57,7 @@ export async function resolveAutoSpace(
 
   const trimmed = hint?.trim() ?? "";
   if (!trimmed) {
-    return pickPreferredOrNewest(spaces, preferredWorkspaceId);
+    return pickPreferredOrInbox(spaces, preferredWorkspaceId);
   }
 
   const scored = spaces
@@ -83,7 +83,7 @@ export async function resolveAutoSpace(
       }),
       prompt: `Pick the best Pwor space for this captured content.
 Only choose a space if you are reasonably confident it fits.
-If unsure, still return a workspaceId but set confidence below 0.55.
+If unsure, still return a workspaceId but set confidence below 0.55 so the item stays in Inbox.
 
 Spaces:
 ${spaces
@@ -107,5 +107,5 @@ ${trimmed.slice(0, 2000)}`,
     console.error("auto-space AI failed", error);
   }
 
-  return pickPreferredOrNewest(spaces, preferredWorkspaceId);
+  return pickPreferredOrInbox(spaces, preferredWorkspaceId);
 }

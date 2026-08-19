@@ -11,6 +11,7 @@ import { toEpochMs } from "@shared/time";
 import { createDb } from "../../db";
 import { ownedBy, assertOwnedWorkspace } from "../../db/helpers";
 import { note } from "../../db/schema";
+import { scheduleNoteEmbed } from "../../lib/embed";
 import type { AppEnv } from "../../types";
 import { updateNoteSchema } from "./schemas";
 
@@ -31,14 +32,14 @@ export function registerPutNote(app: Hono<AppEnv>) {
       const inferred = normalizeNoteTitle(inferTitleFromRaw(body).title);
       if (inferred) normalizedTitle = inferred;
     }
+    const touchesContent = body !== undefined || title !== undefined;
     const patch = {
       ...(body !== undefined ? { body } : {}),
       ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
       ...(workspaceId !== undefined ? { workspaceId } : {}),
+      ...(touchesContent ? { embedStatus: "pending" as const } : {}),
       updatedAt: new Date(),
     };
-
-    const touchesContent = body !== undefined || title !== undefined;
     if (touchesContent) {
       const expectedMs = toEpochMs(expectedUpdatedAt!);
       if (Number.isNaN(expectedMs)) {
@@ -56,7 +57,10 @@ export function registerPutNote(app: Hono<AppEnv>) {
         )
         .returning();
 
-      if (updated) return c.json(updated);
+      if (updated) {
+        scheduleNoteEmbed(c.executionCtx, c.env, updated.id);
+        return c.json(updated);
+      }
 
       const [existing] = await db
         .select()

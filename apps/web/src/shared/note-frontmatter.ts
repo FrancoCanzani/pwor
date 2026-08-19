@@ -83,6 +83,24 @@ export function noteDisplayTitle(title: string | null | undefined): string {
   return normalizeNoteTitle(title) ?? "Untitled";
 }
 
+export function noteIsNoted(raw: string): boolean {
+  if (noteHasBody(raw)) return true;
+  const { frontmatter } = parseFrontmatter(raw);
+  return Boolean(frontmatter && /^noted:\s*true\s*$/m.test(frontmatter));
+}
+
+export function withNotedFlag(raw: string): string {
+  if (noteIsNoted(raw)) return raw;
+  const { frontmatter, body } = parseFrontmatter(raw);
+  if (frontmatter == null || frontmatter.trim() === "") {
+    return `---\nnoted: true\n---\n${body}`;
+  }
+  const next = /^noted:\s*/m.test(frontmatter)
+    ? frontmatter.replace(/^noted:\s*.*$/m, "noted: true")
+    : `${frontmatter.replace(/\s+$/, "")}\nnoted: true`;
+  return `---\n${next}\n---\n${body}`;
+}
+
 export function dropNotedFlag(raw: string): string {
   const { frontmatter, body } = parseFrontmatter(raw);
   if (frontmatter == null || !/^noted:\s*/m.test(frontmatter)) return raw;

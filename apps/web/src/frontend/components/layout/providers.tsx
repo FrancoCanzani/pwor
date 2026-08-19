@@ -7,9 +7,12 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
-import { CreateDialog } from "@features/command/components/create-dialog";
+import { CaptureComposer } from "@features/command/components/capture-composer";
 import { CommandPaletteProvider } from "@features/command/command-palette-context";
-import { CreateDialogProvider } from "@features/command/create-dialog-context";
+import {
+  CaptureComposerProvider,
+  type CaptureDraft,
+} from "@features/command/capture-composer-context";
 import { PasteCapture } from "@features/inbox/components/paste-capture";
 import { noteQueryOptions } from "@features/notes/api";
 import { FloatingNoteHost } from "@features/notes/components/floating-note-window";
@@ -24,6 +27,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const { id: workspaceId } = useCurrentWorkspace();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [draft, setDraft] = useState<CaptureDraft | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [floatingOpen, setFloatingOpen] = useState(false);
   const [floatingNoteId, setFloatingNoteId] = useState<string | null>(null);
@@ -39,7 +43,15 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <TooltipProvider>
-      <CreateDialogProvider value={{ open: () => setCreateOpen(true) }}>
+      <CaptureComposerProvider
+        value={{
+          open: (next) => {
+            setCreateOpen(true);
+            if (next) setDraft({ ...next });
+          },
+          isOpen: createOpen,
+        }}
+      >
         <CommandPaletteProvider value={{ open: () => setPaletteOpen(true) }}>
           <FloatingNoteProvider
             value={{
@@ -58,7 +70,14 @@ export function Providers({ children }: { children: ReactNode }) {
                 onOpenChange={setPaletteOpen}
               />
               <PasteCapture />
-              <CreateDialog open={createOpen} onOpenChange={setCreateOpen} />
+              <CaptureComposer
+                open={createOpen}
+                onOpenChange={(next) => {
+                  setCreateOpen(next);
+                  if (!next) setDraft(null);
+                }}
+                draft={draft}
+              />
               {floatingOpen && floatingNoteId ? (
                 <FloatingNoteHost
                   noteId={floatingNoteId}
@@ -73,7 +92,7 @@ export function Providers({ children }: { children: ReactNode }) {
             </SidebarProvider>
           </FloatingNoteProvider>
         </CommandPaletteProvider>
-      </CreateDialogProvider>
+      </CaptureComposerProvider>
     </TooltipProvider>
   );
 }

@@ -1,12 +1,15 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SweepEffect } from "@components/sweep-effect";
+import { useCaptureComposer } from "@features/command/capture-composer-context";
+import { useCaptureFeedback } from "@features/command/lib/use-capture-feedback";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
-import { uploadItem } from "@features/items/api";
+import { uploadItem, type Item } from "@features/items/api";
+import { workspacesQueryOptions } from "@features/workspaces/api";
 import { inferTitleFromRaw } from "@shared/note-frontmatter";
 
 const SWEEP_DURATION_MS = 800;
@@ -30,6 +33,12 @@ export function ItemDropZone() {
   const dragDepth = useRef(0);
   const queryClient = useQueryClient();
   const { workspaceId } = useParams({ strict: false });
+  const { open, isOpen } = useCaptureComposer();
+  const { data: spaces = [] } = useQuery(workspacesQueryOptions);
+  const { notifySaved, invalidateItems } = useCaptureFeedback();
+  const label = workspaceId
+    ? spaces.find((space) => space.id === workspaceId)?.name.trim() || "Untitled"
+    : "Inbox";
 
   const handleFiles = useCallback(
     async (files: FileList) => {
@@ -40,50 +49,43 @@ export function ItemDropZone() {
       window.setTimeout(() => setIsSweeping(false), SWEEP_DURATION_MS);
 
       let notesChanged = false;
-      let itemChanged = false;
+      const captured: Item[] = [];
       const spaceId = workspaceId ?? null;
 
-      await Promise.all(
-        list.map(async (file) => {
-          const toastId = toast.loading(`Adding ${file.name}…`);
-          try {
-            if (isMarkdownFile(file) && spaceId) {
-              const raw = await file.text();
-              const inferred = inferTitleFromRaw(raw).title;
-              const fallbackTitle = file.name.replace(/\.md$/i, "");
-              const title = inferred || fallbackTitle;
-              await createNote({ body: raw, title, workspaceId: spaceId });
-              notesChanged = true;
-              toast.success(`${file.name} added as note`, { id: toastId });
-              return;
-            }
-
-            await uploadItem(file, spaceId);
-            itemChanged = true;
-            toast.success(
-              spaceId ? `${file.name} added` : `${file.name} saved to Inbox`,
-              { id: toastId },
-            );
-          } catch {
-            toast.error(`Failed to add ${file.name}`, { id: toastId });
+      for (const file of list) {
+        try {
+          if (isMarkdownFile(file) && spaceId) {
+            const raw = await file.text();
+            const inferred = inferTitleFromRaw(raw).title;
+            const fallbackTitle = file.name.replace(/\.md$/i, "");
+            const title = inferred || fallbackTitle;
+            await createNote({ body: raw, title, workspaceId: spaceId });
+            notesChanged = true;
+            toast.success(`${file.name} added as note`);
+            continue;
           }
-        }),
-      );
+
+          captured.push(await uploadItem(file, spaceId));
+        } catch {
+          toast.error(`Failed to add ${file.name}`);
+        }
+      }
 
       if (notesChanged) {
         await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
+        markCaptureHintSeen();
       }
-      if (itemChanged) {
-        await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
+      if (captured.length > 0) {
+        await invalidateItems();
+        notifySaved(label, captured);
       }
-      if (notesChanged || itemChanged) markCaptureHintSeen();
     },
-    [queryClient, workspaceId],
+    [invalidateItems, label, notifySaved, queryClient, workspaceId],
   );
 
   useEffect(() => {
     function onDragEnter(event: DragEvent) {
-      if (!hasFiles(event) || isNoteEditorTarget(event)) return;
+      if (!hasFiles(event) || isNoteEditorTarget(event) || isOpen) return;
       event.preventDefault();
       dragDepth.current += 1;
       setIsDraggingOver(true);
@@ -95,7 +97,7 @@ export function ItemDropZone() {
     }
 
     function onDragLeave(event: DragEvent) {
-      if (!hasFiles(event) || isNoteEditorTarget(event)) return;
+      if (!hasFiles(event) || isNoteEditorTarget(event) || isOpen) return;
       dragDepth.current = Math.max(0, dragDepth.current - 1);
       if (dragDepth.current === 0) setIsDraggingOver(false);
     }
@@ -112,7 +114,12 @@ export function ItemDropZone() {
       setIsDraggingOver(false);
 
       const files = event.dataTransfer?.files;
-      if (files && files.length > 0) void handleFiles(files);
+      if (!files || files.length === 0) return;
+      if (isOpen) {
+        open({ files: Array.from(files) });
+        return;
+      }
+      void handleFiles(files);
     }
 
     window.addEventListener("dragenter", onDragEnter);
@@ -126,7 +133,7 @@ export function ItemDropZone() {
       window.removeEventListener("dragleave", onDragLeave);
       window.removeEventListener("drop", onDrop);
     };
-  }, [handleFiles]);
+  }, [handleFiles, isOpen, open]);
 
   return (
     <>

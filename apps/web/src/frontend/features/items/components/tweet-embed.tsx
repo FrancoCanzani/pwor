@@ -4,7 +4,7 @@ import { type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import { tweetQueryOptions } from "@features/items/lib/tweet";
-import type { TweetView } from "@shared/tweet";
+import { decodeTweetText, type TweetView } from "@shared/tweet";
 
 const TOKEN_RE = /(https?:\/\/[^\s]+)|(@[A-Za-z0-9_]+)|(#\w+)/g;
 
@@ -20,12 +20,13 @@ function formatTweetDate(value: string | null): string {
 }
 
 function TweetText({ text }: { text: string }) {
+  const decoded = decodeTweetText(text);
   const nodes: ReactNode[] = [];
   let last = 0;
   let key = 0;
-  for (const match of text.matchAll(TOKEN_RE)) {
+  for (const match of decoded.matchAll(TOKEN_RE)) {
     const index = match.index ?? 0;
-    if (index > last) nodes.push(text.slice(last, index));
+    if (index > last) nodes.push(decoded.slice(last, index));
     const token = match[0];
     const href = token.startsWith("@")
       ? `https://x.com/${token.slice(1)}`
@@ -46,7 +47,7 @@ function TweetText({ text }: { text: string }) {
     key += 1;
     last = index + token.length;
   }
-  if (last < text.length) nodes.push(text.slice(last));
+  if (last < decoded.length) nodes.push(decoded.slice(last));
   return (
     <p className="whitespace-pre-wrap text-sm leading-relaxed">{nodes}</p>
   );

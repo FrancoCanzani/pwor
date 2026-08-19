@@ -5,6 +5,7 @@ import type { Hono } from "hono";
 import {
   noteBodyPreview,
   noteHasBody,
+  noteIsNoted,
 } from "@shared/note-frontmatter";
 import { createDb } from "../../db";
 import { note } from "../../db/schema";
@@ -46,7 +47,7 @@ export function registerGetAllNotes(app: Hono<AppEnv>) {
       items: items.map(({ body, ...item }) => ({
         ...item,
         hasBody: noteHasBody(body),
-        noted: noteHasBody(body),
+        noted: noteIsNoted(body),
         bodyPreview: noteBodyPreview(body),
       })),
     });

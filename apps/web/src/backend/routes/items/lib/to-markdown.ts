@@ -2,6 +2,9 @@ import { eq } from "drizzle-orm";
 
 import { createDb } from "../../../db";
 import { item } from "../../../db/schema";
+import { isPlaceholderAudioTitle } from "@shared/audio";
+import { titleFromText } from "./capture";
+import { isAudioMime, transcribeAudio } from "./transcribe";
 
 const EXTENSION_MIME: Record<string, string> = {
   pdf: "application/pdf",
@@ -73,6 +76,7 @@ async function markParse(
     extractedMarkdown?: string | null;
     parseError?: string | null;
     parsedAt?: Date | null;
+    title?: string | null;
   },
 ): Promise<void> {
   const db = createDb(env.DB);
@@ -83,6 +87,7 @@ async function markParse(
       extractedMarkdown: values.extractedMarkdown ?? null,
       parseError: values.parseError ?? null,
       parsedAt: values.parsedAt ?? null,
+      ...(values.title !== undefined ? { title: values.title } : {}),
     })
     .where(eq(item.id, id));
 }
@@ -107,16 +112,6 @@ export async function extractItemMarkdown(
     return;
   }
 
-  const mime = resolveMime(row.title, row.mimeType);
-  if (!mime) {
-    await markParse(env, itemId, {
-      parseStatus: "skipped",
-      parseError: "unsupported format for toMarkdown",
-      parsedAt: new Date(),
-    });
-    return;
-  }
-
   const object = await env.ITEMS_BUCKET.get(row.r2Key);
   if (!object) {
     await markParse(env, itemId, {
@@ -128,6 +123,40 @@ export async function extractItemMarkdown(
   }
 
   const buffer = await object.arrayBuffer();
+
+  if (isAudioMime(row.mimeType, row.title)) {
+    const transcribed = await transcribeAudio(env, buffer);
+    if (!transcribed.ok) {
+      await markParse(env, itemId, {
+        parseStatus: "failed",
+        parseError: transcribed.error,
+        parsedAt: new Date(),
+      });
+      return;
+    }
+    const nextTitle = isPlaceholderAudioTitle(row.title)
+      ? titleFromText(transcribed.text) || null
+      : undefined;
+    await markParse(env, itemId, {
+      parseStatus: "pending",
+      extractedMarkdown: transcribed.text,
+      parseError: null,
+      parsedAt: new Date(),
+      ...(nextTitle !== undefined ? { title: nextTitle } : {}),
+    });
+    return;
+  }
+
+  const mime = resolveMime(row.title, row.mimeType);
+  if (!mime) {
+    await markParse(env, itemId, {
+      parseStatus: "skipped",
+      parseError: "unsupported format for toMarkdown",
+      parsedAt: new Date(),
+    });
+    return;
+  }
+
   const filename = row.title?.trim() || `document.${extensionOf(row.title) ?? "bin"}`;
 
   const converted = await markdownFromFile(

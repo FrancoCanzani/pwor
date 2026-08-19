@@ -148,6 +148,16 @@ export async function capture(input: CaptureInput): Promise<Item> {
   });
 }
 
+export async function updateItemWorkspace(
+  id: string,
+  workspaceId: string | null,
+): Promise<Item> {
+  return api<Item>(`/api/items/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ workspaceId }),
+  });
+}
+
 export async function startLink(): Promise<{
   pairingId: string;
   secret: string;

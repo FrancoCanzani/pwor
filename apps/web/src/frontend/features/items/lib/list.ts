@@ -2,7 +2,9 @@ import { format, isValid } from "date-fns";
 
 import type { Item } from "@features/items/api";
 import { typeFacetOf, type ItemTypeFacet } from "@features/items/lib/facet";
+import { isAudioFile } from "@features/items/lib/media";
 import { isSheetPreviewable } from "@features/items/lib/sheet";
+import { isPlaceholderAudioTitle } from "@shared/audio";
 
 export type ItemSort = "newest" | "oldest" | "name";
 
@@ -16,10 +18,18 @@ export const ITEM_SORT_ORDER: ItemSort[] = ["newest", "oldest", "name"];
 
 export type ItemNav = { mode: "all" } | { mode: "type"; type: ItemTypeFacet };
 
-export function formatItemDate(value: string): string {
+export function formatItemDate(value: string | Date): string {
   const date = new Date(value);
   if (!isValid(date)) return "";
   return format(date, "MMM d, yyyy, h:mm a");
+}
+
+export function formatCardDate(value: string | Date): string {
+  const date = new Date(value);
+  if (!isValid(date)) return "";
+  const pattern =
+    date.getFullYear() === new Date().getFullYear() ? "MMM d" : "MMM d, yyyy";
+  return format(date, pattern);
 }
 
 export function filterAndSortItems(
@@ -51,6 +61,7 @@ export function filterAndSortItems(
 
     if (!q) return true;
     const haystack = [
+      itemTitle(item),
       item.title,
       item.summary,
       item.url,
@@ -100,8 +111,19 @@ export function sortBy<T>(
 export function sortItems(items: Item[], sort: ItemSort): Item[] {
   return sortBy(items, sort, {
     date: (item) => item.createdAt,
-    name: (item) => item.title ?? "",
+    name: (item) => itemTitle(item),
   });
+}
+
+export function itemTitle(item: Item): string {
+  if (isAudioFile(item) && isPlaceholderAudioTitle(item.title)) {
+    return "Voice memo";
+  }
+  return item.title?.trim() || "Untitled";
+}
+
+export function isAudioTitlePending(item: Item): boolean {
+  return isAudioFile(item) && isPlaceholderAudioTitle(item.title);
 }
 
 export function kindLabel(item: Item): string {
@@ -113,6 +135,7 @@ export function kindLabel(item: Item): string {
     case "file":
       if (item.mimeType?.startsWith("image/")) return "image";
       if (item.mimeType?.startsWith("video/")) return "video";
+      if (item.mimeType?.startsWith("audio/")) return "audio";
       if (item.mimeType === "application/pdf") return "pdf";
       if (isSheetPreviewable(item.mimeType, item.title)) return "sheet";
       return "file";

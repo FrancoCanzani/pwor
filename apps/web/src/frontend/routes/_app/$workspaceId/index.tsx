@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { itemsInfiniteQueryOptions } from "@features/items/api";
+import { notesQueryOptions } from "@features/notes/api";
 import { SpaceLibraryPage } from "@features/spaces/components/space-library-page";
 
 const spaceSearchSchema = z.object({
@@ -11,8 +12,13 @@ const spaceSearchSchema = z.object({
 export const Route = createFileRoute("/_app/$workspaceId/")({
   validateSearch: spaceSearchSchema,
   loader: ({ context, params }) =>
-    context.queryClient.ensureInfiniteQueryData(
-      itemsInfiniteQueryOptions(params.workspaceId),
-    ),
+    Promise.all([
+      context.queryClient.ensureInfiniteQueryData(
+        itemsInfiniteQueryOptions(params.workspaceId),
+      ),
+      context.queryClient.ensureQueryData(
+        notesQueryOptions(params.workspaceId),
+      ),
+    ]),
   component: SpaceLibraryPage,
 });

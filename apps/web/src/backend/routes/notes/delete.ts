@@ -4,6 +4,7 @@ import type { Hono } from "hono";
 import { createDb } from "../../db";
 import { ownedBy } from "../../db/helpers";
 import { note, noteImage } from "../../db/schema";
+import { deleteEmbeddings, vectorId } from "../../lib/embed";
 import type { AppEnv } from "../../types";
 import { deleteNoteImagesFromR2 } from "./lib/cleanup";
 
@@ -28,6 +29,7 @@ export function registerDeleteNote(app: Hono<AppEnv>) {
 
     await deleteNoteImagesFromR2(c.env.ITEMS_BUCKET, images);
     await db.delete(note).where(ownedBy(note.id, id, note.userId, user.id));
+    await deleteEmbeddings(c.env, [vectorId("note", id)]);
 
     return c.json({ ok: true });
   });

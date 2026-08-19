@@ -1,4 +1,4 @@
-import { TWEET_ID_RE, type TweetView } from "@shared/tweet";
+import { decodeTweetText, TWEET_ID_RE, type TweetView } from "@shared/tweet";
 
 function syndicationToken(id: string): string {
   return ((Number(id) / 1e15) * Math.PI)
@@ -72,10 +72,11 @@ function mapSyndication(tweet: SyndicationTweet, depth: number): TweetView | nul
   const id = tweet.id_str;
   const handle = tweet.user?.screen_name;
   if (!id || !handle) return null;
-  const text =
+  const text = decodeTweetText(
     tweet.note_tweet?.note_tweet_results?.result?.text?.trim() ||
-    tweet.text?.trim() ||
-    "";
+      tweet.text?.trim() ||
+      "",
+  );
   const videoUrl = bestVideoUrl(tweet.video?.variants);
 
   return {
@@ -111,7 +112,7 @@ function mapFx(tweet: FxTweet, depth: number): TweetView | null {
   return {
     id,
     url: tweet.url?.trim() || `https://x.com/${handle}/status/${id}`,
-    text: tweet.text?.trim() || "",
+    text: decodeTweetText(tweet.text?.trim() || ""),
     createdAt:
       isoFromUnknown(tweet.created_timestamp) ?? isoFromUnknown(tweet.created_at),
     author: {

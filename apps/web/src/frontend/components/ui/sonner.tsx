@@ -17,11 +17,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
-        success: <CheckCircledIcon className="size-4" />,
-        info: <InfoCircledIcon className="size-4" />,
-        warning: <ExclamationTriangleIcon className="size-4" />,
-        error: <CrossCircledIcon className="size-4" />,
-        loading: <UpdateIcon className="size-4 animate-spin" />,
+        success: <CheckCircledIcon className="size-3.5" />,
+        info: <InfoCircledIcon className="size-3.5" />,
+        warning: <ExclamationTriangleIcon className="size-3.5" />,
+        error: <CrossCircledIcon className="size-3.5" />,
+        loading: <UpdateIcon className="size-3.5 animate-spin" />,
       }}
       style={
         {
@@ -33,7 +33,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast px-3 py-2 text-xs gap-2",
+          toast: "cn-toast !px-2.5 !py-1.5 text-xs !gap-1.5",
           title: "text-xs font-normal",
           description: "text-xs",
           icon: "size-3.5",

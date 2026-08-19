@@ -1,4 +1,4 @@
-const TWEET_HOSTS = new Set([
+export const TWEET_HOSTS = new Set([
   "x.com",
   "twitter.com",
   "mobile.twitter.com",
@@ -41,4 +41,13 @@ export function tweetIdFromUrl(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+export function decodeTweetText(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'");
 }

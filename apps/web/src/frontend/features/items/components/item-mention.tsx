@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Mic } from "lucide-react";
 
 import {
   HoverCard,
@@ -7,9 +8,12 @@ import {
 } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
 import type { Item } from "@features/items/api";
+import { AudioPlayer } from "@features/items/components/audio-player";
 import { ItemVideo } from "@features/items/components/item-video";
 import { PdfThumb } from "@features/items/components/pdf-thumb";
+import { itemTitle, isAudioTitlePending } from "@features/items/lib/list";
 import {
+  isAudioFile,
   isPdfFile,
   isVideoFile,
   itemFileUrl,
@@ -39,16 +43,36 @@ export function SiteFavicon({
   );
 }
 
+export function ItemGlyph({
+  item,
+  className,
+}: {
+  item: Item;
+  className?: string;
+}) {
+  if (item.kind === "link" && item.url) {
+    return <SiteFavicon url={item.url} className={className} />;
+  }
+  if (isAudioFile(item)) {
+    return (
+      <Mic
+        className={cn("size-4 shrink-0 text-muted-foreground", className)}
+      />
+    );
+  }
+  return null;
+}
+
 export function Mention({
   title,
   label,
-  siteUrl,
+  icon,
   className,
   titleClassName,
 }: {
   title: string;
   label?: string | null;
-  siteUrl?: string | null;
+  icon?: ReactNode;
   className?: string;
   titleClassName?: string;
 }) {
@@ -56,7 +80,7 @@ export function Mention({
     <span
       className={cn("inline-flex min-w-0 items-center gap-1.5 text-sm", className)}
     >
-      {siteUrl ? <SiteFavicon url={siteUrl} /> : null}
+      {icon}
       {label ? (
         <span className="max-w-[11rem] shrink-0 truncate text-blue-600">
           {label}
@@ -81,8 +105,8 @@ export function ItemMention({
   item: Item;
   className?: string;
 }) {
-  const title = item.title?.trim() || "Untitled";
-  const siteUrl = item.kind === "link" ? item.url : null;
+  const title = itemTitle(item);
+  const pending = isAudioTitlePending(item);
   const label =
     item.kind === "link"
       ? item.siteName?.trim() || itemHost(item.url)
@@ -92,8 +116,13 @@ export function ItemMention({
     <Mention
       title={title}
       label={label}
-      siteUrl={siteUrl}
+      icon={<ItemGlyph item={item} />}
       className={className}
+      titleClassName={
+        pending
+          ? "text-muted-foreground no-underline decoration-transparent"
+          : undefined
+      }
     />
   );
 }
@@ -123,17 +152,22 @@ export function HoverPreview({
 }
 
 function itemHoverContent(item: Item): ReactNode {
-  const title = item.title?.trim() || "Untitled";
+  const title = itemTitle(item);
   const summary = item.summary?.trim() || null;
   const still = itemStillUrl(item);
   const host = item.kind === "link" ? itemHost(item.url) : null;
   const video = isVideoFile(item);
+  const audio = isAudioFile(item);
   const pdf = isPdfFile(item);
 
   return (
     <div className="flex flex-col">
       {video ? (
         <ItemVideo item={item} play="mount" />
+      ) : audio ? (
+        <div className="px-3 pt-3">
+          <AudioPlayer src={itemFileUrl(item.id)} />
+        </div>
       ) : pdf ? (
         <div className="aspect-[4/3] w-full overflow-hidden">
           <PdfThumb fileUrl={itemFileUrl(item.id)} />
@@ -149,7 +183,14 @@ function itemHoverContent(item: Item): ReactNode {
         />
       ) : null}
       <div className="flex flex-col gap-1 px-3 py-2.5">
-        <p className="line-clamp-2 text-sm font-bold">{title}</p>
+        <p
+          className={cn(
+            "line-clamp-2 text-sm",
+            isAudioTitlePending(item) && "text-muted-foreground",
+          )}
+        >
+          {title}
+        </p>
         {summary ? (
           <p className="line-clamp-2 text-xs text-muted-foreground">
             {summary}

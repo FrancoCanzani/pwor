@@ -34,6 +34,12 @@
   "ai": {
     "binding": "AI",
   },
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "pwor",
+    },
+  ],
   "browser": {
     "binding": "BROWSER",
     "remote": true,

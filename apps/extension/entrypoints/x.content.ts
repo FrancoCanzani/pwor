@@ -162,17 +162,21 @@ function findArticleFromEventTarget(target: EventTarget | null): Element | null 
   return target.closest('article[data-testid="tweet"], article[role="article"]');
 }
 
-function looksLikeBookmarkControl(target: Element): boolean {
+function bookmarkControlTestId(target: Element): string | null {
   const testId = target
     .closest("[data-testid]")
     ?.getAttribute("data-testid");
-  if (testId === "bookmark" || testId === "removeBookmark") return true;
+  if (testId === "bookmark" || testId === "removeBookmark") return testId;
+
   const label = (
     target.getAttribute("aria-label") ||
     target.closest("[aria-label]")?.getAttribute("aria-label") ||
     ""
   ).toLowerCase();
-  return label.includes("bookmark");
+  if (!label.includes("bookmark")) return null;
+  return label.includes("remove") || label.includes("unbookmark")
+    ? "removeBookmark"
+    : "bookmark";
 }
 
 export default defineContentScript({
@@ -204,20 +208,15 @@ export default defineContentScript({
         if (!saveOnBookmark) return;
         const target = event.target;
         if (!(target instanceof Element)) return;
-        if (!looksLikeBookmarkControl(target)) return;
+        const testId = bookmarkControlTestId(target);
+        if (!testId) return;
+        // Unbookmark must not delete from Pwor (capture is additive).
+        if (testId === "removeBookmark") return;
 
         const article = findArticleFromEventTarget(target);
         if (!article) return;
         const url = tweetUrlFromArticle(article);
         if (!url || !isTweetUrl(url)) return;
-
-        const label = (
-          target.getAttribute("aria-label") ||
-          target.closest("[aria-label]")?.getAttribute("aria-label") ||
-          ""
-        ).toLowerCase();
-        // Unbookmark must not delete from Pwor (capture is additive).
-        if (label.includes("remove") || label.includes("unbookmark")) return;
 
         window.setTimeout(() => {
           void saveTweet(url, tweetHint(article), "bookmark");

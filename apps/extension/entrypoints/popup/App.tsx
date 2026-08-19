@@ -9,6 +9,7 @@ import {
   getStoredWorkspaceId,
   listWorkspaces,
   setStoredWorkspaceId,
+  updateItemWorkspace,
   workspaceLabel,
 } from "../../lib/api";
 import { APP_URL, STORAGE_KEYS, type Workspace } from "../../lib/config";
@@ -78,6 +79,7 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [saveOnBookmark, setSaveOnBookmark] = useState(true);
   const [showInlineButton, setShowInlineButton] = useState(true);
 
@@ -199,6 +201,13 @@ export default function App() {
     const id = nextId || null;
     setWorkspaceId(id);
     await setStoredWorkspaceId(id);
+    if (!savedId) return;
+    try {
+      await updateItemWorkspace(savedId, id);
+      setStatus(`Saved to ${workspaceLabel(id, spaces)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn’t move");
+    }
   }
 
   async function handleSave(kind: "page" | "selection") {
@@ -211,9 +220,11 @@ export default function App() {
         if (!page.selection.trim()) {
           throw new Error("Nothing selected on the page.");
         }
-        await capture({ input: page.selection, workspaceId });
+        const item = await capture({ input: page.selection, workspaceId });
+        setSavedId(item.id);
       } else {
-        await capture({ input: page.url, workspaceId });
+        const item = await capture({ input: page.url, workspaceId });
+        setSavedId(item.id);
       }
       setStatus(`Saved to ${workspaceLabel(workspaceId, spaces)}`);
     } catch (err) {
@@ -287,29 +298,36 @@ export default function App() {
         <div className="truncate text-xs text-muted-foreground">{host}</div>
       </div>
 
-      <label className="mb-3 flex min-w-0 flex-col gap-1">
-        <span className="text-xs text-muted-foreground">Save to</span>
-        <select
-          value={workspaceId ?? ""}
-          disabled={busy}
-          onChange={(event) => void handleDestination(event.target.value)}
-          className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs font-normal outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-50"
-        >
-          <option value="">Inbox</option>
-          {spaces.length > 0 ? (
-            <optgroup label="Spaces">
-              {spaces.map((space) => (
-                <option key={space.id} value={space.id}>
-                  {space.name.trim() || "Untitled"}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-        </select>
-      </label>
+      {savedId ? (
+        <label className="mb-3 flex min-w-0 flex-col gap-1">
+          <span className="text-xs text-muted-foreground">
+            {status ?? "Saved"} — change
+          </span>
+          <select
+            value={workspaceId ?? ""}
+            disabled={busy}
+            onChange={(event) => void handleDestination(event.target.value)}
+            className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs font-normal outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-50"
+          >
+            <option value="">Inbox</option>
+            {spaces.length > 0 ? (
+              <optgroup label="Spaces">
+                {spaces.map((space) => (
+                  <option key={space.id} value={space.id}>
+                    {space.name.trim() || "Untitled"}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+          </select>
+        </label>
+      ) : (
+        <p className="mb-3 text-xs text-muted-foreground">
+          Saves to {workspaceLabel(workspaceId, spaces)}
+        </p>
+      )}
 
       {error ? <p className="mb-2 text-xs text-destructive">{error}</p> : null}
-      {status ? <p className="mb-2 text-xs">{status}</p> : null}
 
       <Button
         type="button"
@@ -321,19 +339,21 @@ export default function App() {
       </Button>
 
       <div className="mt-2 flex gap-2">
+        {page?.selection.trim() ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            disabled={busy}
+            onClick={() => void handleSave("selection")}
+          >
+            Save selection
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="outline"
-          className="flex-1"
-          disabled={busy || !page?.selection.trim()}
-          onClick={() => void handleSave("selection")}
-        >
-          Save selection
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1"
+          className={page?.selection.trim() ? "flex-1" : "w-full"}
           onClick={() => {
             void browser.tabs.create({ url: `${APP_URL}${openPath}` });
           }}

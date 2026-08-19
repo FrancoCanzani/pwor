@@ -17,6 +17,8 @@ import {
   normalizeNoteTitle,
   noteBodyPreview,
   noteHasBody,
+  noteIsNoted,
+  withNotedFlag,
 } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
 
@@ -42,16 +44,19 @@ export function useNoteDocumentSave({
 
   const latestBodyRef = useRef<string | null>(null);
   const savedBodyRef = useRef<string | null>(null);
+  const serverBodyRef = useRef<string | null>(null);
   const savedTitleRef = useRef<string | null>(null);
   const baseUpdatedAtRef = useRef<string | Date | number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
   const conflictRef = useRef(false);
+  const keepNotedRef = useRef(false);
   const noteIdRef = useRef(noteId);
   noteIdRef.current = noteId;
 
   function applySavedNote(updated: Note) {
     savedBodyRef.current = dropNotedFlag(updated.body);
+    serverBodyRef.current = updated.body;
     savedTitleRef.current = updated.title ?? null;
     baseUpdatedAtRef.current = updated.updatedAt;
     conflictRef.current = false;
@@ -69,7 +74,7 @@ export function useNoteDocumentSave({
                 updatedAt: updated.updatedAt,
                 createdAt: updated.createdAt,
                 hasBody: noteHasBody(updated.body),
-                noted: noteHasBody(updated.body),
+                noted: noteIsNoted(updated.body),
                 bodyPreview: noteBodyPreview(updated.body),
               }
             : item,
@@ -106,13 +111,17 @@ export function useNoteDocumentSave({
     if (conflictRef.current || savingRef.current) return;
     if (noteIdRef.current !== noteId) return;
 
-    const body = latestBodyRef.current;
+    const editorBody = latestBodyRef.current;
     const expectedUpdatedAt = baseUpdatedAtRef.current;
-    if (body === null || expectedUpdatedAt == null) return;
+    if (editorBody === null || expectedUpdatedAt == null) return;
 
+    const body =
+      keepNotedRef.current && !noteHasBody(editorBody)
+        ? withNotedFlag(editorBody)
+        : editorBody;
     const inferred = normalizeNoteTitle(inferTitleFromRaw(body).title);
     const nextTitle = inferred ?? savedTitleRef.current;
-    const bodyChanged = body !== savedBodyRef.current;
+    const bodyChanged = body !== (serverBodyRef.current ?? savedBodyRef.current);
     const titleChanged = inferred != null && inferred !== savedTitleRef.current;
     if (!bodyChanged && !titleChanged) return;
 
@@ -147,9 +156,11 @@ export function useNoteDocumentSave({
 
   useEffect(() => {
     savedBodyRef.current = null;
+    serverBodyRef.current = null;
     savedTitleRef.current = null;
     latestBodyRef.current = null;
     baseUpdatedAtRef.current = null;
+    keepNotedRef.current = false;
     conflictRef.current = false;
     setSaveState("idle");
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -160,12 +171,14 @@ export function useNoteDocumentSave({
     if (savedBodyRef.current === null) {
       const body = dropNotedFlag(note.body);
       savedBodyRef.current = body;
+      serverBodyRef.current = note.body;
       latestBodyRef.current = body;
       savedTitleRef.current = normalizeNoteTitle(note.title);
     }
     if (baseUpdatedAtRef.current === null) {
       baseUpdatedAtRef.current = note.updatedAt;
     }
+    keepNotedRef.current = note.itemId != null || note.feedItemId != null;
   }, [note]);
 
   useEffect(() => {
@@ -207,6 +220,7 @@ export function useNoteDocumentSave({
     conflictRef.current = false;
     const body = dropNotedFlag(note.body);
     savedBodyRef.current = body;
+    serverBodyRef.current = note.body;
     latestBodyRef.current = body;
     savedTitleRef.current = normalizeNoteTitle(note.title);
     baseUpdatedAtRef.current = note.updatedAt;

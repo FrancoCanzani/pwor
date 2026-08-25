@@ -14,33 +14,22 @@ export function LibraryHeader({
   toolbar?: ReactNode;
   edgeToEdge?: boolean;
 }) {
-  const inset = edgeToEdge ? "px-3" : "px-4";
-
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col md:h-12 md:flex-row md:items-center md:gap-2",
-        edgeToEdge ? "md:px-3" : "md:px-4",
+        "flex h-12 shrink-0 items-center gap-2",
+        edgeToEdge ? "px-3" : "px-4",
       )}
     >
-      <div className={cn("flex h-12 items-center gap-2 md:contents", inset)}>
-        <div className="flex min-w-0 flex-1 items-center gap-2">{leading}</div>
-        <SidebarTrigger className="md:hidden" />
-        {trailing ? (
-          <div className="flex shrink-0 items-center md:order-last">
-            {trailing}
-          </div>
-        ) : null}
-      </div>
+      <SidebarTrigger className="size-4 shrink-0 p-0 md:hidden [&_svg]:size-3" />
+      <div className="flex min-w-0 flex-1 items-center gap-2">{leading}</div>
       {toolbar ? (
-        <div
-          className={cn(
-            "flex items-center justify-end gap-2 pt-3 pb-4 md:shrink-0 md:px-0 md:py-0",
-            inset,
-          )}
-        >
+        <div className="flex min-w-0 shrink items-center justify-end gap-2">
           {toolbar}
         </div>
+      ) : null}
+      {trailing ? (
+        <div className="flex shrink-0 items-center">{trailing}</div>
       ) : null}
     </div>
   );

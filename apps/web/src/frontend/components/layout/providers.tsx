@@ -1,6 +1,7 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
+import { ThemeProvider } from "next-themes";
 import { useState, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -42,57 +43,59 @@ export function Providers({ children }: { children: ReactNode }) {
   useHotkey("Mod+U", () => setCreateOpen(true));
 
   return (
-    <TooltipProvider>
-      <CaptureComposerProvider
-        value={{
-          open: (next) => {
-            setCreateOpen(true);
-            if (next) setDraft({ ...next });
-          },
-          isOpen: createOpen,
-        }}
-      >
-        <CommandPaletteProvider value={{ open: () => setPaletteOpen(true) }}>
-          <FloatingNoteProvider
-            value={{
-              openNote,
-              activeNoteId: floatingOpen ? floatingNoteId : null,
-            }}
-          >
-            <SidebarProvider
-              className={cn(
-                "pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]",
-                isFlush && "h-dvh min-h-0 overflow-hidden",
-              )}
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TooltipProvider>
+        <CaptureComposerProvider
+          value={{
+            open: (next) => {
+              setCreateOpen(true);
+              if (next) setDraft({ ...next });
+            },
+            isOpen: createOpen,
+          }}
+        >
+          <CommandPaletteProvider value={{ open: () => setPaletteOpen(true) }}>
+            <FloatingNoteProvider
+              value={{
+                openNote,
+                activeNoteId: floatingOpen ? floatingNoteId : null,
+              }}
             >
-              <CommandPalette
-                open={paletteOpen}
-                onOpenChange={setPaletteOpen}
-              />
-              <PasteCapture />
-              <CaptureComposer
-                open={createOpen}
-                onOpenChange={(next) => {
-                  setCreateOpen(next);
-                  if (!next) setDraft(null);
-                }}
-                draft={draft}
-              />
-              {floatingOpen && floatingNoteId ? (
-                <FloatingNoteHost
-                  noteId={floatingNoteId}
-                  onClose={() => {
-                    setFloatingOpen(false);
-                    setFloatingNoteId(null);
-                  }}
+              <SidebarProvider
+                className={cn(
+                  "pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]",
+                  isFlush && "h-dvh min-h-0 overflow-hidden",
+                )}
+              >
+                <CommandPalette
+                  open={paletteOpen}
+                  onOpenChange={setPaletteOpen}
                 />
-              ) : null}
+                <PasteCapture />
+                <CaptureComposer
+                  open={createOpen}
+                  onOpenChange={(next) => {
+                    setCreateOpen(next);
+                    if (!next) setDraft(null);
+                  }}
+                  draft={draft}
+                />
+                {floatingOpen && floatingNoteId ? (
+                  <FloatingNoteHost
+                    noteId={floatingNoteId}
+                    onClose={() => {
+                      setFloatingOpen(false);
+                      setFloatingNoteId(null);
+                    }}
+                  />
+                ) : null}
 
-              {children}
-            </SidebarProvider>
-          </FloatingNoteProvider>
-        </CommandPaletteProvider>
-      </CaptureComposerProvider>
-    </TooltipProvider>
+                {children}
+              </SidebarProvider>
+            </FloatingNoteProvider>
+          </CommandPaletteProvider>
+        </CaptureComposerProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }

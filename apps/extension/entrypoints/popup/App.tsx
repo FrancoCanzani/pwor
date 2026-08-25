@@ -254,7 +254,7 @@ export default function App() {
   if (!email) {
     return (
       <div className="flex min-h-[280px] flex-col p-4">
-        <h1 className="font-pixel text-base font-normal tracking-tight">
+        <h1 className="text-base font-normal tracking-tight">
           Pwor
         </h1>
         <p className="mt-1.5 text-xs text-muted-foreground">
@@ -289,7 +289,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-[280px] flex-col p-4">
-      <h1 className="mb-3 font-pixel text-base font-normal tracking-tight">
+      <h1 className="mb-3 text-base font-normal tracking-tight">
         Pwor
       </h1>
 

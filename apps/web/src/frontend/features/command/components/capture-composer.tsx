@@ -322,7 +322,7 @@ function DestinationMenu({
   onChange,
 }: {
   dest: CaptureDestination;
-  spaces: { id: string; name: string; shader?: string | null }[];
+  spaces: { id: string; name: string }[];
   onChange: (dest: CaptureDestination) => void;
 }) {
   return (
@@ -339,7 +339,7 @@ function DestinationMenu({
       >
         {dest.kind === "space" ? (
           <SpacePic
-            shaderId={spaces.find((space) => space.id === dest.id)?.shader}
+            name={spaces.find((space) => space.id === dest.id)?.name}
             className="size-3.5"
           />
         ) : null}
@@ -371,7 +371,7 @@ function DestinationMenu({
               value={space.id}
               className="font-normal text-xs"
             >
-              <SpacePic shaderId={space.shader} className="size-3.5" />
+              <SpacePic name={space.name} className="size-3.5" />
               <span className="truncate">{space.name.trim() || "Untitled"}</span>
             </DropdownMenuRadioItem>
           ))}

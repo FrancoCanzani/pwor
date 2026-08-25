@@ -45,7 +45,6 @@ export async function createWorkspace(
   name: string,
   options?: {
     description?: string | null;
-    shader?: string;
   },
 ): Promise<Workspace> {
   return parseJson<Workspace>(
@@ -55,7 +54,6 @@ export async function createWorkspace(
       body: JSON.stringify({
         name,
         description: options?.description,
-        shader: options?.shader,
       }),
     }),
   );
@@ -66,7 +64,6 @@ export async function updateWorkspace(
   patch: {
     name?: string;
     description?: string | null;
-    shader?: string;
   },
 ): Promise<Workspace> {
   return parseJson<Workspace>(

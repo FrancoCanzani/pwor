@@ -77,7 +77,7 @@ export function LibrarySelectionBar({
                 className="font-normal text-xs"
                 onClick={() => onMove(space.id)}
               >
-                <SpacePic shaderId={space.shader} className="size-3.5" />
+                <SpacePic name={space.name} className="size-3.5" />
                 <span className="truncate">
                   {space.name.trim() || "Untitled"}
                 </span>
@@ -90,9 +90,9 @@ export function LibrarySelectionBar({
             render={
               <Button
                 type="button"
-                variant="ghost"
+                variant="destructive"
                 size="xs"
-                className="font-normal text-muted-foreground hover:text-destructive active:text-destructive"
+                className="font-normal"
                 disabled={busy}
               />
             }

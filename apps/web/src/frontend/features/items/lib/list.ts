@@ -22,14 +22,6 @@ export function formatItemDate(value: string | Date): string {
   return format(date, "MMM d, yyyy, h:mm a");
 }
 
-export function formatCardDate(value: string | Date): string {
-  const date = new Date(value);
-  if (!isValid(date)) return "";
-  const pattern =
-    date.getFullYear() === new Date().getFullYear() ? "MMM d" : "MMM d, yyyy";
-  return format(date, pattern);
-}
-
 export function filterAndSortItems(
   items: Item[],
   {

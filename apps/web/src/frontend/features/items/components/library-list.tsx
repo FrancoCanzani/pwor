@@ -1,21 +1,12 @@
 import type { RefObject, DragEvent } from "react";
 
-import { cn } from "@/lib/utils";
 import { noteDisplayTitle } from "@shared/note-frontmatter";
 import type { Item } from "@features/items/api";
-import {
-  ITEM_CARD_GRID_CLASS,
-  ItemCard,
-} from "@features/items/components/item-card";
 import { LibraryRow } from "@features/items/components/library-row";
 import { endPworItemDrag, setPworItemDrag } from "@features/items/lib/drag";
 import { kindLabel, itemTitle } from "@features/items/lib/list";
-import type { LibraryView } from "@features/items/lib/view";
 import type { NoteListItem } from "@features/notes/api";
-import {
-  NoteCard,
-  NoteRow,
-} from "@features/notes/components/note-card";
+import { NoteRow } from "@features/notes/components/note-row";
 
 export type LibraryEntry =
   | { kind: "item"; item: Item }
@@ -27,7 +18,6 @@ export function itemEntries(items: Item[]): LibraryEntry[] {
 
 export function LibraryList({
   entries,
-  view,
   openId,
   selected,
   draggingIds,
@@ -35,13 +25,13 @@ export function LibraryList({
   fromWorkspaceId,
   hasNextPage,
   sentinelRef,
+  edgeToEdge = false,
   onOpen,
   onToggle,
   onDelete,
   onDraggingIds,
 }: {
   entries: LibraryEntry[];
-  view: LibraryView;
   openId: string | null;
   selected: Set<string>;
   draggingIds: Set<string>;
@@ -49,6 +39,7 @@ export function LibraryList({
   fromWorkspaceId: string | null;
   hasNextPage: boolean;
   sentinelRef: RefObject<HTMLDivElement | null>;
+  edgeToEdge?: boolean;
   onOpen: (entry: LibraryEntry) => void;
   onToggle: (id: string, checked: boolean) => void;
   onDelete: (ids: string[]) => void;
@@ -123,44 +114,26 @@ export function LibraryList({
 
   return (
     <>
-      <ul
-        className={
-          view === "cards"
-            ? cn(ITEM_CARD_GRID_CLASS, "px-4 pt-3 pb-24")
-            : "flex flex-col divide-y divide-dashed divide-border pt-3 pb-24"
-        }
-      >
+      <ul className="flex flex-col divide-y divide-dashed divide-border pt-3 pb-24">
         {entries.map((entry) => {
           switch (entry.kind) {
             case "item":
-              return view === "cards" ? (
-                <ItemCard
-                  key={entry.item.id}
-                  item={entry.item}
-                  deleteDescription={deleteDescription}
-                  {...itemHandlers(entry.item)}
-                />
-              ) : (
+              return (
                 <LibraryRow
                   key={entry.item.id}
                   item={entry.item}
                   deleteDescription={deleteDescription}
+                  edgeToEdge={edgeToEdge}
                   {...itemHandlers(entry.item)}
                 />
               );
             case "note":
-              return view === "cards" ? (
-                <NoteCard
-                  key={entry.note.id}
-                  note={entry.note}
-                  deleteDescription={deleteDescription}
-                  {...noteHandlers(entry.note)}
-                />
-              ) : (
+              return (
                 <NoteRow
                   key={entry.note.id}
                   note={entry.note}
                   deleteDescription={deleteDescription}
+                  edgeToEdge={edgeToEdge}
                   {...noteHandlers(entry.note)}
                 />
               );

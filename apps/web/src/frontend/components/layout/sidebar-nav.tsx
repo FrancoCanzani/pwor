@@ -24,9 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { feedsQueryOptions } from "@features/feeds/api";
 import { AddFeedDialog } from "@features/feeds/components/add-feed-dialog";
-import { FeedFavicon } from "@features/feeds/components/feed-favicon";
 import { updateNoteWorkspace } from "@features/notes/api";
-import { SpacePic } from "@features/spaces/components/space-pic";
 import {
   inboxItemsInfiniteQueryOptions,
   updateItemWorkspace,
@@ -208,11 +206,6 @@ export function SidebarNav() {
                 }
                 className="font-normal"
               >
-                <FeedFavicon
-                  siteUrl={feed.siteUrl}
-                  imageUrl={feed.imageUrl}
-                  className="size-4"
-                />
                 <span className="min-w-0 truncate">
                   {feed.title?.trim() || feed.siteName || "Feed"}
                 </span>
@@ -341,7 +334,6 @@ function SpaceRow({
           />
         }
       >
-        <SpacePic shaderId={space.shader} className="size-4" />
         <span className="truncate">{label}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>

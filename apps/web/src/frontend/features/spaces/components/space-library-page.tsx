@@ -39,7 +39,6 @@ import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import { noteDisplayTitle } from "@shared/note-frontmatter";
 import { PageEmpty } from "@components/page-empty";
 import { SplitPreviewLayout } from "@components/split-preview-layout";
-import { SpacePic } from "@features/spaces/components/space-pic";
 import {
   deleteItem,
   updateItemWorkspace,
@@ -54,7 +53,6 @@ import {
 } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
-import { LibraryViewToggle } from "@features/items/components/library-view-toggle";
 import {
   TYPE_FACET_LABEL,
   TYPE_FACET_ORDER,
@@ -62,7 +60,6 @@ import {
   type ItemTypeFacet,
 } from "@features/items/lib/facet";
 import { sortBy, itemTitle, type ItemSort } from "@features/items/lib/list";
-import { useLibraryView } from "@features/items/lib/view";
 import {
   deleteNote,
   isStandaloneNote,
@@ -84,7 +81,6 @@ export function SpaceLibraryPage() {
   const [filters, setFilters] = useState<Set<ItemTypeFacet>>(() => new Set());
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [draggingIds, setDraggingIds] = useState<Set<string>>(() => new Set());
-  const [view, setView] = useLibraryView();
   const [sort, setSort] = useState<ItemSort>("newest");
 
   const { openNote, activeNoteId } = useFloatingNote();
@@ -289,18 +285,16 @@ export function SpaceLibraryPage() {
   const deleteDescription =
     "This permanently removes it from this space. This can’t be undone.";
 
+  const previewOpen = openItem != null;
+
   const listPane = (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <LibraryHeader
+        edgeToEdge={previewOpen}
         leading={
-          <>
-            <span className="flex size-4 shrink-0 items-center justify-center">
-              <SpacePic shaderId={space?.shader} className="size-4" />
-            </span>
-            <h1 className="min-w-0 truncate text-base leading-none font-normal">
-              {spaceTitle}
-            </h1>
-          </>
+          <h1 className="min-w-0 truncate text-base leading-none font-normal">
+            {spaceTitle}
+          </h1>
         }
         trailing={
           <AlertDialog>
@@ -382,7 +376,6 @@ export function SpaceLibraryPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
               <LibrarySortMenu value={sort} onChange={setSort} />
-              <LibraryViewToggle value={view} onChange={setView} />
             </>
           ) : null
         }
@@ -411,7 +404,7 @@ export function SpaceLibraryPage() {
         ) : (
           <LibraryList
             entries={entries}
-            view={view}
+            edgeToEdge={previewOpen}
             openId={activeNoteId ?? openItem?.id ?? null}
             selected={selected}
             draggingIds={draggingIds}
@@ -457,7 +450,7 @@ export function SpaceLibraryPage() {
     <SplitPreviewLayout
       list={listPane}
       preview={previewPane}
-      previewOpen={openItem != null}
+      previewOpen={previewOpen}
       overlay={selectionBar}
       listId="library-list"
       previewId="library-preview"

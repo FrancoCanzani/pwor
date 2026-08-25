@@ -10,11 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { SpaceShaderPicker } from "@features/spaces/components/space-shader-picker";
-import {
-  DEFAULT_SPACE_SHADER,
-  type SpaceShaderId,
-} from "@features/spaces/lib/space-shaders";
 import { createWorkspace, type Workspace } from "@features/workspaces/api";
 
 export function CreateWorkspaceDialog({
@@ -27,13 +22,11 @@ export function CreateWorkspaceDialog({
   onCreated: (workspace: Workspace) => void;
 }) {
   const [name, setName] = useState("");
-  const [shader, setShader] = useState<SpaceShaderId>(DEFAULT_SPACE_SHADER);
 
   const create = useMutation({
-    mutationFn: () => createWorkspace(name.trim(), { shader }),
+    mutationFn: () => createWorkspace(name.trim()),
     onSuccess: (workspace) => {
       setName("");
-      setShader(DEFAULT_SPACE_SHADER);
       onCreated(workspace);
       onOpenChange(false);
     },
@@ -49,10 +42,7 @@ export function CreateWorkspaceDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) {
-          setName("");
-          setShader(DEFAULT_SPACE_SHADER);
-        }
+        if (!next) setName("");
         onOpenChange(next);
       }}
     >
@@ -68,7 +58,6 @@ export function CreateWorkspaceDialog({
             placeholder="Work, Life, Freelance…"
             disabled={create.isPending}
           />
-          <SpaceShaderPicker value={shader} onChange={setShader} />
           {create.isError ? (
             <p className="text-xs text-destructive">
               Couldn’t create space.

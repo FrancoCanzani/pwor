@@ -50,7 +50,7 @@ The only legal comment is a short `//` that explains a non-obvious **why**: a pl
 
 ## UI
 
-- Font: Geist Sans everywhere. Geist Mono via `font-nums` for dates/numbers (mono + tabular-nums). Geist Pixel (`font-pixel`) for brand / display accents only.
+- Font: Geist Sans everywhere. Geist Mono via `font-nums` for dates/numbers (mono + tabular-nums).
 - Minimally rounded: `--radius: 0.25rem` (~4px). Prefer token classes (`rounded-sm` / `rounded-md` / `rounded-lg`) — do not hardcode `rounded-none`.
 - Style with **Tailwind utilities** in components. Keep `index.css` to theme tokens + base only — no hand-rolled layout/component CSS classes.
 - Prefer shadcn primitives (`Button`, `Input`, `Empty`, `DropdownMenu`, …) over custom markup.

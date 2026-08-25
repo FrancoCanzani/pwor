@@ -26,9 +26,7 @@ import { LibraryHeader } from "@features/items/components/library-header";
 import { LibraryList, itemEntries } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
-import { LibraryViewToggle } from "@features/items/components/library-view-toggle";
 import { sortItems, type ItemSort } from "@features/items/lib/list";
-import { useLibraryView } from "@features/items/lib/view";
 
 export const inboxSearchSchema = z.object({
   item: z.string().optional(),
@@ -51,7 +49,6 @@ export function InboxPage() {
   }, hasNextPage);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [draggingIds, setDraggingIds] = useState<Set<string>>(() => new Set());
-  const [view, setView] = useLibraryView();
   const [sort, setSort] = useState<ItemSort>("newest");
   const sorted = useMemo(() => sortItems(items, sort), [items, sort]);
 
@@ -123,9 +120,12 @@ export function InboxPage() {
   const deleteDescription =
     "This permanently removes it from Inbox. This can’t be undone.";
 
+  const previewOpen = openItem != null;
+
   const listPane = (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <LibraryHeader
+        edgeToEdge={previewOpen}
         leading={
           <h1 className="min-w-0 truncate text-base leading-none font-normal">
             Inbox
@@ -135,7 +135,6 @@ export function InboxPage() {
           items.length > 0 ? (
             <>
               <LibrarySortMenu value={sort} onChange={setSort} />
-              <LibraryViewToggle value={view} onChange={setView} />
             </>
           ) : null
         }
@@ -171,7 +170,7 @@ export function InboxPage() {
         ) : (
           <LibraryList
             entries={itemEntries(sorted)}
-            view={view}
+            edgeToEdge={previewOpen}
             openId={openItem?.id ?? null}
             selected={selected}
             draggingIds={draggingIds}
@@ -218,7 +217,7 @@ export function InboxPage() {
     <SplitPreviewLayout
       list={listPane}
       preview={previewPane}
-      previewOpen={openItem != null}
+      previewOpen={previewOpen}
       overlay={selectionBar}
       listId="inbox-list"
       previewId="inbox-preview"

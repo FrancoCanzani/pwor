@@ -1,8 +1,3 @@
-import {
-  EyeOpenIcon,
-  OpenInNewWindowIcon,
-  TrashIcon,
-} from "@radix-ui/react-icons";
 import { useRef, type DragEvent } from "react";
 
 import {
@@ -16,7 +11,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ContextMenu,
@@ -26,12 +20,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipIconButton,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Item } from "@features/items/api";
 import { ItemHoverCard, ItemMention } from "@features/items/components/item-mention";
@@ -55,6 +43,7 @@ export function LibraryRow({
   dragging,
   active,
   deleteDescription,
+  edgeToEdge = false,
   onOpen,
   onToggle,
   onDelete,
@@ -63,6 +52,7 @@ export function LibraryRow({
 }: {
   item: Item;
   deleteDescription: string;
+  edgeToEdge?: boolean;
 } & LibraryItemHandlers) {
   const title = itemTitle(item);
   const didDrag = useRef(false);
@@ -106,7 +96,8 @@ export function LibraryRow({
                 handleOpen();
               }}
               className={cn(
-                "group flex w-full cursor-grab items-center gap-2 px-4 py-2 select-none hover:bg-muted/40 active:cursor-grabbing",
+                "group flex w-full cursor-grab items-center gap-2 py-2 select-none hover:bg-muted/40 active:cursor-grabbing",
+                edgeToEdge ? "px-3" : "px-4",
                 active && "bg-muted/50",
                 pending && "animate-pulse",
                 dragging && "opacity-40",
@@ -128,46 +119,6 @@ export function LibraryRow({
           <ItemHoverCard item={item}>
             <ItemMention item={item} className="min-w-0 flex-1" />
           </ItemHoverCard>
-          <span
-            data-no-drag
-            className="flex shrink-0 items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-          >
-            <TooltipIconButton
-              label="Preview"
-              className="text-muted-foreground"
-              onClick={onOpen}
-            >
-              <EyeOpenIcon />
-            </TooltipIconButton>
-            <TooltipIconButton
-              label="Open in new window"
-              className="text-muted-foreground"
-              disabled={!externalHref}
-              onClick={openExternal}
-            >
-              <OpenInNewWindowIcon />
-            </TooltipIconButton>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <AlertDialogTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Delete"
-                        className="text-muted-foreground hover:text-destructive active:text-destructive"
-                      />
-                    }
-                  />
-                }
-              >
-                <TrashIcon />
-              </TooltipTrigger>
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
-          </span>
           <span className="shrink-0 text-xs font-nums text-muted-foreground">
             {formatItemDate(item.createdAt)}
           </span>

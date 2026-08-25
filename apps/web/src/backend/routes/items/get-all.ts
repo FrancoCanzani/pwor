@@ -5,6 +5,7 @@ import type { Hono } from "hono";
 import { createDb } from "../../db";
 import { item } from "../../db/schema";
 import type { AppEnv } from "../../types";
+import { scheduleMissingScreenshots } from "./lib/enrichment";
 import { itemListColumns, serializeItem } from "./lib/serialize";
 import { listQuerySchema } from "./schemas";
 
@@ -60,6 +61,8 @@ export function registerGetAllItems(app: Hono<AppEnv>) {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const last = page[page.length - 1];
+
+    scheduleMissingScreenshots(c.executionCtx, c.env, page);
 
     return c.json({
       items: page.map(serializeItem),

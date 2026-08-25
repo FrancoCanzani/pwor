@@ -7,13 +7,11 @@ import { createDb } from "../../../db";
 import { item } from "../../../db/schema";
 import { embedItem } from "../../../lib/embed";
 import { assertPublicHttpUrl } from "../../../lib/safe-url";
-import { isPlaceholderAudioTitle } from "@shared/audio";
 import { tweetIdFromUrl } from "@shared/tweet";
 import { titleFromText } from "./capture";
 import { extractArticleHtml } from "./extract";
 import { shouldCaptureScreenshot, storeSiteScreenshot } from "./screenshot";
 import { extractItemMarkdown } from "./to-markdown";
-import { isAudioMime } from "./transcribe";
 import { fetchTweet, tweetToHtml } from "./tweet";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -237,32 +235,16 @@ export async function enrichItem(env: Env, itemId: string): Promise<void> {
       .limit(1);
     if (!refreshed) return;
     row = refreshed;
-    if (isAudioMime(row.mimeType, row.title) && row.parseStatus === "failed") {
-      return;
-    }
   }
 
-  const audio = isAudioMime(row.mimeType, row.title);
-  const autoTitle = row.extractedMarkdown
-    ? titleFromText(row.extractedMarkdown)
-    : null;
-  const keepAudioTitle =
-    audio &&
-    Boolean(row.title) &&
-    !isPlaceholderAudioTitle(row.title) &&
-    row.title !== autoTitle;
-
   const bodyParts = [
-    audio
-      ? 'This is a voice memo. Title it from what was said (under 60 characters). Do not use a filename or the words "voice memo".'
-      : null,
-    row.title && (!audio || keepAudioTitle) ? `Title: ${row.title}` : null,
+    row.title ? `Title: ${row.title}` : null,
     row.url ? `URL: ${row.url}` : null,
     row.siteName ? `Site: ${row.siteName}` : null,
     row.kind ? `Kind: ${row.kind}` : null,
     row.content ? `Content:\n${row.content.slice(0, BODY_CHARS)}` : null,
     row.extractedMarkdown
-      ? `${audio ? "Transcript" : "Extracted"}:\n${row.extractedMarkdown.slice(0, BODY_CHARS)}`
+      ? `Extracted:\n${row.extractedMarkdown.slice(0, BODY_CHARS)}`
       : null,
     row.summary ? `Existing summary: ${row.summary}` : null,
   ].filter(Boolean);
@@ -294,11 +276,8 @@ export async function enrichItem(env: Env, itemId: string): Promise<void> {
     ]);
 
     const aiTitle = object.title.trim() || row.title;
-    const title = audio
-      ? keepAudioTitle
-        ? row.title
-        : aiTitle || row.title
-      : kind === "file"
+    const title =
+      kind === "file"
         ? row.title || filenameFromR2Key(row.r2Key) || aiTitle
         : aiTitle;
 
@@ -365,6 +344,39 @@ async function enrichItemScreenshot(env: Env, itemId: string): Promise<void> {
   if (!previewR2Key) return;
 
   await db.update(item).set({ previewR2Key }).where(eq(item.id, itemId));
+}
+
+const MAX_SCREENSHOT_BACKFILL = 4;
+
+export function scheduleMissingScreenshots(
+  ctx: { waitUntil(promise: Promise<unknown>): void },
+  env: Env,
+  rows: Array<{
+    id: string;
+    kind: "file" | "link" | "text";
+    url: string | null;
+    previewR2Key: string | null;
+  }>,
+): void {
+  const missing = rows.filter(
+    (row) =>
+      row.kind === "link" &&
+      row.url &&
+      !row.previewR2Key &&
+      shouldCaptureScreenshot(row.url),
+  );
+  if (missing.length === 0) return;
+  ctx.waitUntil(
+    (async () => {
+      for (const row of missing.slice(0, MAX_SCREENSHOT_BACKFILL)) {
+        try {
+          await enrichItemScreenshot(env, row.id);
+        } catch (err) {
+          console.error("item screenshot failed", row.id, err);
+        }
+      }
+    })(),
+  );
 }
 
 export function scheduleItemEnrichment(

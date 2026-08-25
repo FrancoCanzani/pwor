@@ -33,7 +33,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast !px-2.5 !py-1.5 text-xs !gap-1.5",
+          toast: "cn-toast !px-3 !py-2.5 text-xs !gap-2",
           title: "text-xs font-normal",
           description: "text-xs",
           icon: "size-3.5",

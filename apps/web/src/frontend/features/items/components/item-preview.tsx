@@ -14,12 +14,11 @@ import {
   type Item,
 } from "@features/items/api";
 import { KindBadge } from "@features/items/components/kind-badge";
-import { AudioPlayer } from "@features/items/components/audio-player";
 import { PdfViewer } from "@features/items/components/pdf-viewer";
 import { SheetViewer } from "@features/items/components/sheet-viewer";
 import { TweetEmbed } from "@features/items/components/tweet-embed";
-import { isAudioFile, isVideoFile, itemHost, itemPreviewUrl } from "@features/items/lib/media";
-import { itemTitle, isAudioTitlePending } from "@features/items/lib/list";
+import { isVideoFile, itemHost, itemPreviewUrl } from "@features/items/lib/media";
+import { itemTitle } from "@features/items/lib/list";
 import { isTextPreviewable } from "@features/items/lib/preview";
 import { isSheetPreviewable } from "@features/items/lib/sheet";
 import { targetNotesQueryOptions } from "@features/notes/api";
@@ -244,7 +243,6 @@ export function ItemPreview({
   const fileUrl = `/api/items/${item.id}/file`;
   const isImage = item.mimeType?.startsWith("image/") ?? false;
   const isVideo = isVideoFile(item);
-  const isAudio = isAudioFile(item);
   const isPdf = item.mimeType === "application/pdf";
   const isSheet =
     item.kind === "file" && isSheetPreviewable(item.mimeType, item.title);
@@ -259,7 +257,7 @@ export function ItemPreview({
 
   const { data: detail } = useQuery({
     ...itemQueryOptions(item.id),
-    enabled: active && (isTextItem || isLinkLike || isAudio),
+    enabled: active && (isTextItem || isLinkLike),
     refetchInterval: (query) =>
       query.state.data?.parseStatus === "pending" ? 2500 : false,
   });
@@ -280,10 +278,6 @@ export function ItemPreview({
 
   const linkContentHtml = isLinkLike
     ? (detail?.contentHtml?.trim() || null)
-    : null;
-
-  const transcript = isAudio
-    ? detail?.extractedMarkdown?.trim() || null
     : null;
 
   const displayItem = detail
@@ -340,25 +334,6 @@ export function ItemPreview({
         className="max-h-full max-w-full object-contain"
       />
     </div>
-  ) : isAudio ? (
-    <div className="flex h-full min-h-0 flex-col gap-5 pt-1">
-      <AudioPlayer src={fileUrl} />
-      <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
-        {transcript ? (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
-            {transcript}
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            {displayItem.parseStatus === "pending"
-              ? "Transcribing…"
-              : displayItem.parseStatus === "failed"
-                ? "Couldn't transcribe this recording."
-                : "No transcript."}
-          </p>
-        )}
-      </div>
-    </div>
   ) : isVideo ? (
     <div className="flex h-full min-h-0 items-center justify-center">
       <video
@@ -397,15 +372,10 @@ export function ItemPreview({
 
   const title = (
     <div className="flex min-w-0 max-w-full items-center gap-2">
-      <span
-        className={cn(
-          "min-w-0 truncate text-sm leading-none font-normal",
-          isAudioTitlePending(displayItem) && "text-muted-foreground",
-        )}
-      >
+      <span className="min-w-0 truncate text-sm leading-none font-normal">
         {itemTitle(displayItem)}
       </span>
-      {isLinkLike || isAudio ? null : <KindBadge item={displayItem} />}
+      {isLinkLike ? null : <KindBadge item={displayItem} />}
     </div>
   );
 

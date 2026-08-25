@@ -38,6 +38,7 @@
     {
       "binding": "VECTORIZE",
       "index_name": "pwor",
+      "remote": true,
     },
   ],
   "browser": {

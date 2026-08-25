@@ -27,7 +27,7 @@ export function registerGetItemFile(app: Hono<AppEnv>) {
 
     // Uploaded markup must never render on the app origin (stored XSS).
     const inlineSafe =
-      /^(image|video|audio)\//.test(row.mimeType) ||
+      /^(image|video)\//.test(row.mimeType) ||
       row.mimeType === "application/pdf" ||
       row.mimeType === "text/plain";
     const filename = row.r2Key.slice(row.r2Key.lastIndexOf("/") + 1);

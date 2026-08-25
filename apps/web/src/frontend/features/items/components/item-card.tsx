@@ -34,12 +34,10 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Item } from "@features/items/api";
-import { AudioPlayer } from "@features/items/components/audio-player";
-import { ItemGlyph, SiteFavicon } from "@features/items/components/item-mention";
+import { SiteFavicon } from "@features/items/components/item-mention";
 import { ItemVideo } from "@features/items/components/item-video";
 import { PdfThumb } from "@features/items/components/pdf-thumb";
 import {
-  isAudioFile,
   isPdfFile,
   isVideoFile,
   itemFileUrl,
@@ -47,11 +45,7 @@ import {
   itemOpenHref,
   itemPreviewUrl,
 } from "@features/items/lib/media";
-import {
-  formatCardDate,
-  itemTitle,
-  isAudioTitlePending,
-} from "@features/items/lib/list";
+import { formatCardDate, itemTitle } from "@features/items/lib/list";
 
 export const ITEM_CARD_GRID_CLASS =
   "grid grid-cols-[repeat(auto-fill,minmax(15.5rem,1fr))] gap-3";
@@ -66,25 +60,11 @@ function CardMedia({ item }: { item: Item }) {
     : isSite
       ? itemPreviewUrl(item.id)
       : null;
-  const pendingLink =
-    item.kind === "link" && item.parseStatus === "pending" && !item.hasPreview;
   const excerpt = item.summary?.trim() || null;
   const host = itemHost(item.url) || item.siteName?.trim() || null;
 
   if (isVideoFile(item)) {
     return <ItemVideo item={item} play="hover" />;
-  }
-
-  if (isAudioFile(item)) {
-    return (
-      <div
-        data-no-drag
-        className="flex size-full items-center px-3"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <AudioPlayer src={itemFileUrl(item.id)} className="w-full" />
-      </div>
-    );
   }
 
   if (isPdfFile(item)) {
@@ -103,14 +83,6 @@ function CardMedia({ item }: { item: Item }) {
           isSite ? "object-top" : "object-center",
         )}
       />
-    );
-  }
-
-  if (pendingLink) {
-    return (
-      <div className="flex size-full items-center justify-center px-3">
-        <p className="text-xs text-muted-foreground">Capturing page…</p>
-      </div>
     );
   }
 
@@ -152,7 +124,6 @@ export function ItemCard({
   onDelete: () => void;
 }) {
   const title = itemTitle(item);
-  const titlePending = isAudioTitlePending(item);
   const source =
     item.kind === "link"
       ? item.siteName?.trim() || itemHost(item.url)
@@ -281,19 +252,8 @@ export function ItemCard({
                 {formatCardDate(item.createdAt)}
               </span>
             </div>
-            <span className="flex min-w-0 items-center gap-1.5">
-              {isAudioFile(item) ? (
-                <ItemGlyph item={item} className="size-3.5" />
-              ) : null}
-              <span
-                className={cn(
-                  "min-w-0 truncate text-sm underline decoration-foreground/40 underline-offset-2",
-                  titlePending &&
-                    "text-muted-foreground no-underline decoration-transparent",
-                )}
-              >
-                {title}
-              </span>
+            <span className="min-w-0 truncate text-sm underline decoration-foreground/40 underline-offset-2">
+              {title}
             </span>
           </div>
         </ContextMenuTrigger>

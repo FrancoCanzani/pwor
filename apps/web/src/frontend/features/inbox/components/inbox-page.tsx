@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Kbd } from "@/components/ui/kbd";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { PageEmpty } from "@components/page-empty";
 import { SplitPreviewLayout } from "@components/split-preview-layout";
 import { userInboxQueryOptions } from "@features/inbox/api";
@@ -23,6 +22,7 @@ import {
   type Item,
 } from "@features/items/api";
 import { ItemPreview } from "@features/items/components/item-preview";
+import { LibraryHeader } from "@features/items/components/library-header";
 import { LibraryList, itemEntries } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
@@ -125,20 +125,21 @@ export function InboxPage() {
 
   const listPane = (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0">
-        <div className="flex h-12 w-full items-center gap-2 px-4">
-          <h1 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
+      <LibraryHeader
+        leading={
+          <h1 className="min-w-0 truncate text-base leading-none font-normal">
             Inbox
           </h1>
-          <SidebarTrigger className="md:hidden" />
-        </div>
-        {items.length > 0 ? (
-          <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-4">
-            <LibrarySortMenu value={sort} onChange={setSort} />
-            <LibraryViewToggle value={view} onChange={setView} />
-          </div>
-        ) : null}
-      </div>
+        }
+        toolbar={
+          items.length > 0 ? (
+            <>
+              <LibrarySortMenu value={sort} onChange={setSort} />
+              <LibraryViewToggle value={view} onChange={setView} />
+            </>
+          ) : null
+        }
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {items.length === 0 ? (

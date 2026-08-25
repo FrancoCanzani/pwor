@@ -1,6 +1,7 @@
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Superscript from "@tiptap/extension-superscript";
+import { TextSelection } from "@tiptap/pm/state";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
@@ -60,7 +61,25 @@ function revealNote(editor: Editor, note: NoteListItem) {
     ?.scrollIntoView({ block: "center" });
 }
 
-function paintHighlights(editor: Editor, notes: NoteListItem[]) {
+type PendingMark = { from: number; to: number; noted: boolean };
+
+function listedTargetNotes(
+  queryClient: QueryClient,
+  target: HighlightTarget,
+): NoteListItem[] {
+  return (
+    queryClient.getQueryData<NoteListItem[]>(
+      targetNotesQueryOptions(target).queryKey,
+    ) ?? []
+  );
+}
+
+function paintHighlights(
+  editor: Editor,
+  notes: NoteListItem[],
+  pending: PendingMark | null = null,
+  cursor?: number,
+) {
   if (editor.isDestroyed || !editor.schema) return;
   const markType = editor.schema.marks.readingHighlight;
   if (!markType) return;
@@ -81,10 +100,33 @@ function paintHighlights(editor: Editor, notes: NoteListItem[]) {
       }),
     );
   }
-  if (tr.steps.length === 0) return;
+  if (pending) {
+    tr = tr.addMark(
+      pending.from,
+      pending.to,
+      markType.create({ noteId: "", noted: pending.noted }),
+    );
+  }
+  if (cursor != null) {
+    const pos = Math.min(Math.max(cursor, 0), tr.doc.content.size);
+    const next = TextSelection.create(tr.doc, pos);
+    if (!tr.selection.eq(next)) tr = tr.setSelection(next);
+  }
+  if (tr.steps.length === 0 && tr.selection.eq(state.selection)) return;
   tr.setMeta("addToHistory", false);
   tr.setMeta(PAINT_HIGHLIGHTS_META, true);
   editor.view.dispatch(tr);
+}
+
+function dropListedNote(queryClient: QueryClient, noteId: string) {
+  queryClient.setQueriesData<NoteListItem[]>(
+    { queryKey: ["notes", "list"] },
+    (current) => current?.filter((item) => item.id !== noteId),
+  );
+}
+
+function clearNativeSelection() {
+  window.getSelection()?.removeAllRanges();
 }
 
 function upsertListedNote(queryClient: QueryClient, note: NoteListItem) {
@@ -187,6 +229,7 @@ export function ContentReader({
     enabled: content.length > 0,
   });
   const notes = useMemo(() => notesQuery.data ?? [], [notesQuery.data]);
+  const pendingMarkRef = useRef<PendingMark | null>(null);
   const onFocusHandledRef = useRef(onFocusHandled);
   onFocusHandledRef.current = onFocusHandled;
 
@@ -194,7 +237,7 @@ export function ContentReader({
     if (!editor) return;
     const paint = () => {
       if (editor.isDestroyed || !editor.state.selection.empty) return;
-      paintHighlights(editor, notes);
+      paintHighlights(editor, notes, pendingMarkRef.current);
     };
     paint();
     editor.on("selectionUpdate", paint);
@@ -213,42 +256,55 @@ export function ContentReader({
   const saveMark = useMutation({
     mutationFn: async (mode: "highlight" | "note") => {
       if (!editor || editor.isDestroyed) throw new Error("Editor not ready");
-      const { from, to } = editor.state.selection;
-      const markType = editor.schema.marks.readingHighlight;
-      if (markType) {
-        const tr = editor.state.tr
-          .addMark(
-            from,
-            to,
-            markType.create({ noteId: "", noted: mode === "note" }),
-          )
-          .setMeta("addToHistory", false)
-          .setMeta(PAINT_HIGHLIGHTS_META, true);
-        editor.view.dispatch(tr);
-      }
+      const pending = pendingMarkRef.current;
+      if (!pending) throw new Error("Editor not ready");
       const created = await createNote({
         target,
-        anchor: createAnchor(editor.state.doc, from, to),
+        anchor: createAnchor(editor.state.doc, pending.from, pending.to),
         body: mode === "note" ? withNotedFlag("") : undefined,
       });
-      return { created, mode, to };
+      return { created, mode };
     },
-    onSuccess: ({ created, mode, to }) => {
+    onMutate: (mode) => {
+      if (!editor || editor.isDestroyed) return;
+      const { from, to } = editor.state.selection;
+      pendingMarkRef.current = { from, to, noted: mode === "note" };
+      paintHighlights(editor, notes, pendingMarkRef.current, from);
+      clearNativeSelection();
+    },
+    onSuccess: ({ created, mode }) => {
+      pendingMarkRef.current = null;
       upsertListedNote(queryClient, {
         ...created,
         hasBody: noteHasBody(created.body),
         noted: noteIsNoted(created.body),
         bodyPreview: null,
       });
-      editor.chain().setTextSelection(to).run();
       void queryClient.invalidateQueries({ queryKey: ["notes"] });
       if (mode === "note") openNote(created.id);
+    },
+    onError: () => {
+      pendingMarkRef.current = null;
+      if (!editor || editor.isDestroyed) return;
+      paintHighlights(editor, listedTargetNotes(queryClient, target));
     },
   });
 
   const removeHighlight = useMutation({
     mutationFn: (noteId: string) => deleteNote(noteId),
-    onSuccess: () => {
+    onMutate: (noteId) => {
+      if (!editor || editor.isDestroyed) return;
+      const cursor = editor.state.selection.to;
+      dropListedNote(queryClient, noteId);
+      paintHighlights(
+        editor,
+        listedTargetNotes(queryClient, target),
+        null,
+        cursor,
+      );
+      clearNativeSelection();
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
   });

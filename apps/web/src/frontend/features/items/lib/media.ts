@@ -1,3 +1,5 @@
+import { shouldCaptureScreenshot } from "@shared/preview";
+
 export function itemFileUrl(id: string) {
   return `/api/items/${id}/file`;
 }
@@ -24,18 +26,25 @@ export function itemHost(url: string | null | undefined): string | null {
   }
 }
 
+export function itemAwaitingScreenshot(item: {
+  kind: "file" | "link" | "text";
+  url: string | null;
+  parseStatus: string | null;
+  hasPreview?: boolean;
+}): boolean {
+  if (item.hasPreview) return false;
+  if (item.kind !== "link" || !item.url) return false;
+  if (item.parseStatus === "failed" || item.parseStatus === "skipped") {
+    return false;
+  }
+  return shouldCaptureScreenshot(item.url);
+}
+
 export function isVideoFile(item: {
   kind: "file" | "link" | "text";
   mimeType: string | null;
 }): boolean {
   return item.kind === "file" && Boolean(item.mimeType?.startsWith("video/"));
-}
-
-export function isAudioFile(item: {
-  kind: "file" | "link" | "text";
-  mimeType: string | null;
-}): boolean {
-  return item.kind === "file" && Boolean(item.mimeType?.startsWith("audio/"));
 }
 
 export function isPdfFile(item: { mimeType: string | null }): boolean {

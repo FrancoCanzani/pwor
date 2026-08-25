@@ -1,4 +1,4 @@
-import { tweetIdFromUrl } from "@shared/tweet";
+import { shouldCaptureScreenshot } from "@shared/preview";
 
 import { assertPublicHttpUrl } from "../../../lib/safe-url";
 import { putItemObject } from "./storage";
@@ -61,24 +61,12 @@ html, body {
 }
 `;
 
+export { shouldCaptureScreenshot };
+
 export type SiteScreenshotResult = {
   bytes: ArrayBuffer;
   contentType: string;
 };
-
-export function shouldCaptureScreenshot(url: string): boolean {
-  if (tweetIdFromUrl(url)) return false;
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-    if (host === "raindrop.io" || host === "app.raindrop.io") return false;
-    if (host.endsWith(".raindrop.io") || host.endsWith(".raindrop.page")) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export async function captureSiteScreenshot(
   env: Env,

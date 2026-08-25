@@ -6,7 +6,6 @@ import { createDb } from "../../db";
 import { assertOwnedWorkspace } from "../../db/helpers";
 import { item } from "../../db/schema";
 import type { AppEnv } from "../../types";
-import { isGeneratedAudioFilename } from "@shared/audio";
 import { resolveAutoSpace } from "./lib/auto-space";
 import {
   normalizeSeedTags,
@@ -89,11 +88,7 @@ async function createFromFile(c: Context<AppEnv>) {
       id,
       userId: user.id,
       kind: "file",
-      title:
-        titleOverride ??
-        (contentType.startsWith("audio/") && isGeneratedAudioFilename(file.name)
-          ? null
-          : file.name),
+      title: titleOverride ?? file.name,
       r2Key,
       sizeBytes,
       mimeType: contentType,

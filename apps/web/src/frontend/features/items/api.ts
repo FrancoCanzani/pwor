@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 
 import { parseJson } from "@lib/api";
-import { captureVideoPoster } from "@features/items/lib/media";
+import { captureVideoPoster, itemAwaitingScreenshot } from "@features/items/lib/media";
 
 export type ItemKind = "file" | "link" | "text";
 
@@ -50,13 +50,33 @@ async function fetchItemsPage(options: {
 }
 
 const PENDING_POLL_MS = 2500;
+const SCREENSHOT_POLL_MAX = 36;
 
-function hasPendingItems(data: InfiniteData<ItemListPage> | undefined) {
+function hasPendingParse(data: InfiniteData<ItemListPage> | undefined) {
   return (
     data?.pages.some((page) =>
       page.items.some((item) => item.parseStatus === "pending"),
     ) ?? false
   );
+}
+
+function hasAwaitingScreenshot(data: InfiniteData<ItemListPage> | undefined) {
+  return (
+    data?.pages.some((page) => page.items.some(itemAwaitingScreenshot)) ?? false
+  );
+}
+
+function listRefetchInterval(query: {
+  state: { data: InfiniteData<ItemListPage> | undefined; dataUpdateCount: number };
+}) {
+  if (hasPendingParse(query.state.data)) return PENDING_POLL_MS;
+  if (
+    hasAwaitingScreenshot(query.state.data) &&
+    query.state.dataUpdateCount < SCREENSHOT_POLL_MAX
+  ) {
+    return PENDING_POLL_MS;
+  }
+  return false;
 }
 
 export function itemsInfiniteQueryOptions(workspaceId?: string) {
@@ -66,8 +86,7 @@ export function itemsInfiniteQueryOptions(workspaceId?: string) {
       fetchItemsPage({ workspaceId, cursor: pageParam }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
-    refetchInterval: (query) =>
-      hasPendingItems(query.state.data) ? PENDING_POLL_MS : false,
+    refetchInterval: listRefetchInterval,
   });
 }
 
@@ -78,8 +97,7 @@ export function inboxItemsInfiniteQueryOptions() {
       fetchItemsPage({ inbox: true, cursor: pageParam }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
-    refetchInterval: (query) =>
-      hasPendingItems(query.state.data) ? PENDING_POLL_MS : false,
+    refetchInterval: listRefetchInterval,
   });
 }
 

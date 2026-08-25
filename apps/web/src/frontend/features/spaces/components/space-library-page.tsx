@@ -35,7 +35,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import { noteDisplayTitle } from "@shared/note-frontmatter";
 import { PageEmpty } from "@components/page-empty";
@@ -48,6 +47,7 @@ import {
   type Item,
 } from "@features/items/api";
 import { ItemPreview } from "@features/items/components/item-preview";
+import { LibraryHeader } from "@features/items/components/library-header";
 import {
   LibraryList,
   type LibraryEntry,
@@ -291,15 +291,18 @@ export function SpaceLibraryPage() {
 
   const listPane = (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="shrink-0">
-        <div className="flex h-12 w-full items-center gap-2 px-4">
-          <span className="flex size-4 shrink-0 items-center justify-center">
-            <SpacePic shaderId={space?.shader} className="size-4" />
-          </span>
-          <h1 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
-            {spaceTitle}
-          </h1>
-          <SidebarTrigger className="md:hidden" />
+      <LibraryHeader
+        leading={
+          <>
+            <span className="flex size-4 shrink-0 items-center justify-center">
+              <SpacePic shaderId={space?.shader} className="size-4" />
+            </span>
+            <h1 className="min-w-0 truncate text-base leading-none font-normal">
+              {spaceTitle}
+            </h1>
+          </>
+        }
+        trailing={
           <AlertDialog>
             <Tooltip>
               <TooltipTrigger
@@ -341,47 +344,49 @@ export function SpaceLibraryPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-        {hasCaptured ? (
-          <div className="flex items-center justify-end gap-2 px-4 pt-3 pb-4">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search…"
-              className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="max-w-[8rem] shrink-0 font-normal text-muted-foreground"
-                  />
-                }
-              >
-                <span className="truncate">{filterLabel}</span>
-                <CaretDownIcon data-icon="inline-end" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-32">
-                {TYPE_FACET_ORDER.map((id) => (
-                  <DropdownMenuCheckboxItem
-                    key={id}
-                    className="font-normal text-xs"
-                    checked={filters.has(id)}
-                    onCheckedChange={() => toggleFilter(id)}
-                  >
-                    {TYPE_FACET_LABEL[id]}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <LibrarySortMenu value={sort} onChange={setSort} />
-            <LibraryViewToggle value={view} onChange={setView} />
-          </div>
-        ) : null}
-      </div>
+        }
+        toolbar={
+          hasCaptured ? (
+            <>
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search…"
+                className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="max-w-[8rem] shrink-0 font-normal text-muted-foreground"
+                    />
+                  }
+                >
+                  <span className="truncate">{filterLabel}</span>
+                  <CaretDownIcon data-icon="inline-end" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-32">
+                  {TYPE_FACET_ORDER.map((id) => (
+                    <DropdownMenuCheckboxItem
+                      key={id}
+                      className="font-normal text-xs"
+                      checked={filters.has(id)}
+                      onCheckedChange={() => toggleFilter(id)}
+                    >
+                      {TYPE_FACET_LABEL[id]}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <LibrarySortMenu value={sort} onChange={setSort} />
+              <LibraryViewToggle value={view} onChange={setView} />
+            </>
+          ) : null
+        }
+      />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!hasCaptured ? (

@@ -2,9 +2,7 @@ import { format, isValid } from "date-fns";
 
 import type { Item } from "@features/items/api";
 import { typeFacetOf, type ItemTypeFacet } from "@features/items/lib/facet";
-import { isAudioFile } from "@features/items/lib/media";
 import { isSheetPreviewable } from "@features/items/lib/sheet";
-import { isPlaceholderAudioTitle } from "@shared/audio";
 
 export type ItemSort = "newest" | "oldest" | "name";
 
@@ -116,14 +114,7 @@ export function sortItems(items: Item[], sort: ItemSort): Item[] {
 }
 
 export function itemTitle(item: Item): string {
-  if (isAudioFile(item) && isPlaceholderAudioTitle(item.title)) {
-    return "Voice memo";
-  }
   return item.title?.trim() || "Untitled";
-}
-
-export function isAudioTitlePending(item: Item): boolean {
-  return isAudioFile(item) && isPlaceholderAudioTitle(item.title);
 }
 
 export function kindLabel(item: Item): string {

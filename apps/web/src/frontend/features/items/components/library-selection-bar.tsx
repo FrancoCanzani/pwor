@@ -19,7 +19,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SpacePic } from "@features/spaces/components/space-pic";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 
 export function LibrarySelectionBar({
@@ -77,7 +76,6 @@ export function LibrarySelectionBar({
                 className="font-normal text-xs"
                 onClick={() => onMove(space.id)}
               >
-                <SpacePic name={space.name} className="size-3.5" />
                 <span className="truncate">
                   {space.name.trim() || "Untitled"}
                 </span>

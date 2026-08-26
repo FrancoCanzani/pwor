@@ -24,7 +24,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { authClient } from "@lib/auth-client";
-import { cue } from "@lib/sound";
 
 export type ShellUser = {
   name: string;
@@ -119,7 +118,6 @@ export function NavUser() {
                 variant="destructive"
                 className="font-normal text-xs"
                 onClick={() => {
-                  cue("whisper");
                   void authClient.signOut();
                 }}
               >

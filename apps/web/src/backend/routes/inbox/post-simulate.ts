@@ -1,9 +1,8 @@
 import type { Hono } from "hono";
 
 import { ensureUserInbox, handleInboundEmail } from "../../email";
+import { inboxAddress } from "../../lib/inbox-address";
 import type { AppEnv } from "../../types";
-
-const INBOUND_EMAIL_DOMAIN = "inbound.pwor.app";
 
 export function registerPostInboxSimulate(app: Hono<AppEnv>) {
   return app.post("/simulate", async (c) => {
@@ -16,8 +15,9 @@ export function registerPostInboxSimulate(app: Hono<AppEnv>) {
 
     const user = c.get("user")!;
     const inbox = await ensureUserInbox(c.env, user.id);
+    const address = inboxAddress(inbox.token);
     const raw = `From: Alex <alex@example.com>
-To: ${inbox.token}@${INBOUND_EMAIL_DOMAIN}
+To: ${address}
 Subject: Contract renewal needed by Friday
 Content-Type: multipart/mixed; boundary="sim"
 MIME-Version: 1.0
@@ -41,7 +41,7 @@ Renewal terms attached.
 
     await handleInboundEmail(
       {
-        to: `${inbox.token}@${INBOUND_EMAIL_DOMAIN}`,
+        to: address,
         from: "alex@example.com",
         raw: new Blob([raw]).stream(),
         setReject: () => {},

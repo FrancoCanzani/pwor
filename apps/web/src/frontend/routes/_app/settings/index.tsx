@@ -112,7 +112,7 @@ function SettingsPage() {
           <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
-              className="min-w-0 truncate text-left text-xs font-nums hover:underline"
+              className="min-w-0 truncate text-left text-xs hover:underline"
               disabled={!inbox.data?.address}
               onClick={() => {
                 if (!inbox.data?.address) return;

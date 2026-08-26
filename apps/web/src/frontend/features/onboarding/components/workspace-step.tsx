@@ -10,7 +10,6 @@ import {
   workspacesQueryOptions,
 } from "@features/workspaces/api";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
-import { cue } from "@lib/sound";
 
 export function WorkspaceStep() {
   const navigate = useNavigate();
@@ -34,7 +33,6 @@ export function WorkspaceStep() {
         queryKey: workspacesQueryOptions.queryKey,
         exact: true,
       });
-      cue("success");
       await navigate({ to: "/" });
     } catch {
       setError("Something went wrong.");
@@ -68,7 +66,6 @@ export function WorkspaceStep() {
         type="submit"
         className="w-full font-normal"
         disabled={!name.trim() || isSubmitting}
-        data-cuelume-press
       >
         {isSubmitting ? "Creating…" : "Continue"}
       </Button>

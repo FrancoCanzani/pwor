@@ -1,0 +1,13 @@
+export { ArchiveIcon } from "@/components/icons/archive";
+export { AudioIcon } from "@/components/icons/audio";
+export { FileIcon } from "@/components/icons/file";
+export { FileTypeIcon, fileIconKindOf } from "@/components/icons/file-type-icon";
+export type { FileIconKind } from "@/components/icons/file-type-icon";
+export type { FileIconProps } from "@/components/icons/file-sheet";
+export { ImageIcon } from "@/components/icons/image";
+export { PdfIcon } from "@/components/icons/pdf";
+export { SheetIcon } from "@/components/icons/sheet";
+export { SlidesIcon } from "@/components/icons/slides";
+export { TextIcon } from "@/components/icons/text";
+export { VideoIcon } from "@/components/icons/video";
+export { WordIcon } from "@/components/icons/word";

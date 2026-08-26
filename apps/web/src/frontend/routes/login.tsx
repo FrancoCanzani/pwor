@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@lib/auth-client";
-import { cue } from "@lib/sound";
 
 const loginSearchSchema = z.object({
   callbackURL: z.string().optional(),
@@ -66,7 +65,6 @@ function LoginPage() {
           return;
         }
 
-        cue("success");
         setSentTo(value.email);
       } catch {
         setSubmitError("Something went wrong.");
@@ -142,11 +140,7 @@ function LoginPage() {
 
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  data-cuelume-press
-                >
+                <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? "Sending…" : "Continue"}
                 </Button>
               )}

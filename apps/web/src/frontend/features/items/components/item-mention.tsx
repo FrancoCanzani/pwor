@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 
+import { FileTypeIcon } from "@/components/icons";
 import {
   HoverCard,
   HoverCardContent,
@@ -50,7 +51,7 @@ export function ItemGlyph({
   if (item.kind === "link" && item.url) {
     return <SiteFavicon url={item.url} className={className} />;
   }
-  return null;
+  return <FileTypeIcon item={item} className={className} />;
 }
 
 export function Mention({

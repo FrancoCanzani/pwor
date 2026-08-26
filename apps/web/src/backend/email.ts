@@ -3,7 +3,11 @@ import PostalMime, { type Attachment } from "postal-mime";
 
 import { createDb } from "./db";
 import { userInbox, item } from "./db/schema";
-import { randomToken } from "./lib/token";
+import {
+  allocateInboxToken,
+  inboundTokenFromTo,
+  isLegacyHexToken,
+} from "./lib/inbox-address";
 import { titleFromText } from "./routes/items/lib/capture";
 import { scheduleItemEnrichment } from "./routes/items/lib/enrichment";
 import { putItemObject } from "./routes/items/lib/storage";
@@ -23,10 +27,6 @@ function attachmentBytes(
   return attachment.content;
 }
 
-function newInboxToken(): string {
-  return randomToken(6);
-}
-
 export async function ensureUserInbox(
   env: Env,
   userId: string,
@@ -38,10 +38,18 @@ export async function ensureUserInbox(
     .where(eq(userInbox.userId, userId))
     .limit(1);
 
-  if (existing) return existing;
+  if (existing) {
+    if (!isLegacyHexToken(existing.token)) return existing;
+    const token = await allocateInboxToken(db, userId);
+    await db
+      .update(userInbox)
+      .set({ token })
+      .where(eq(userInbox.id, existing.id));
+    return { id: existing.id, token };
+  }
 
   const id = crypto.randomUUID();
-  const token = newInboxToken();
+  const token = await allocateInboxToken(db, userId);
   await db.insert(userInbox).values({ id, userId, token });
   return { id, token };
 }
@@ -51,7 +59,7 @@ export async function regenerateUserInbox(
   userId: string,
 ): Promise<{ id: string; token: string }> {
   const db = createDb(env.DB);
-  const token = newInboxToken();
+  const token = await allocateInboxToken(db, userId, { rotate: true });
   const [existing] = await db
     .select({ id: userInbox.id })
     .from(userInbox)
@@ -83,7 +91,7 @@ export async function handleInboundEmail(
   env: Env,
   ctx: { waitUntil(promise: Promise<unknown>): void },
 ): Promise<void> {
-  const token = message.to.split("@")[0] ?? "";
+  const token = inboundTokenFromTo(message.to);
   const db = createDb(env.DB);
 
   const [inbox] = await db

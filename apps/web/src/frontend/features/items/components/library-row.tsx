@@ -70,7 +70,9 @@ export function LibraryRow({
   }
 
   function openExternal() {
-    if (externalHref) window.open(externalHref, "_blank", "noopener,noreferrer");
+    if (!externalHref) return;
+    const tab = window.open(externalHref, "_blank");
+    if (tab) tab.opener = null;
   }
 
   return (
@@ -133,7 +135,7 @@ export function LibraryRow({
               disabled={!externalHref}
               onClick={openExternal}
             >
-              Open in new window
+              Open in new tab
             </ContextMenuItem>
             {downloadHref ? (
               <ContextMenuItem

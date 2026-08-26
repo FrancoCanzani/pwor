@@ -11,6 +11,11 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Kbd } from "@/components/ui/kbd";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PageEmpty } from "@components/page-empty";
 import { SplitPreviewLayout } from "@components/split-preview-layout";
 import { userInboxQueryOptions } from "@features/inbox/api";
@@ -127,9 +132,12 @@ export function InboxPage() {
       <LibraryHeader
         edgeToEdge={previewOpen}
         leading={
-          <h1 className="min-w-0 truncate text-base leading-none font-normal">
-            Inbox
-          </h1>
+          <>
+            <h1 className="shrink-0 text-base leading-none font-normal">
+              Inbox
+            </h1>
+            {address ? <InboxForwardAddress address={address} /> : null}
+          </>
         }
         toolbar={
           items.length > 0 ? (
@@ -146,23 +154,9 @@ export function InboxPage() {
             <PageEmpty
               title="Nothing yet"
               description={
-                <span className="flex flex-col items-center gap-1.5">
-                  <span className="flex items-center justify-center gap-1">
-                    <Kbd>⌘U</Kbd>
-                    to capture. Paste a link anywhere.
-                  </span>
-                  {address ? (
-                    <button
-                      type="button"
-                      className="font-nums text-muted-foreground hover:text-foreground hover:underline"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(address);
-                        toast.success("Copied");
-                      }}
-                    >
-                      {address}
-                    </button>
-                  ) : null}
+                <span className="flex items-center justify-center gap-1">
+                  <Kbd>⌘U</Kbd>
+                  to capture. Paste a link anywhere.
                 </span>
               }
             />
@@ -222,5 +216,29 @@ export function InboxPage() {
       listId="inbox-list"
       previewId="inbox-preview"
     />
+  );
+}
+
+function InboxForwardAddress({ address }: { address: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            className="min-w-0 truncate text-left text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              void navigator.clipboard.writeText(address);
+              toast.success("Copied");
+            }}
+          />
+        }
+      >
+        {address}
+      </TooltipTrigger>
+      <TooltipContent>
+        Forward email here to add it to Inbox
+      </TooltipContent>
+    </Tooltip>
   );
 }

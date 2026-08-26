@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { authClient } from "@lib/auth-client";
 import { fileToAvatarDataUrl } from "@lib/avatar";
 import { refreshSession, sessionQueryOptions } from "@lib/session";
-import { cue } from "@lib/sound";
 
 const onboardingSchema = z.object({
   name: z
@@ -79,7 +78,6 @@ export function ProfileStep({
           };
         });
 
-        cue("success");
         onDone();
       } catch {
         setSubmitError("Something went wrong.");
@@ -222,7 +220,6 @@ export function ProfileStep({
             type="submit"
             className="w-full font-normal"
             disabled={isSubmitting}
-            data-cuelume-press
           >
             {isSubmitting ? "Saving…" : "Continue"}
           </Button>

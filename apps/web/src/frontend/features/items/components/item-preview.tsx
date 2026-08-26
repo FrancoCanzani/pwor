@@ -4,6 +4,7 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { FileTypeIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,6 @@ import {
   itemSheetQueryOptions,
   type Item,
 } from "@features/items/api";
-import { KindBadge } from "@features/items/components/kind-badge";
 import { PdfViewer } from "@features/items/components/pdf-viewer";
 import { SheetViewer } from "@features/items/components/sheet-viewer";
 import { TweetEmbed } from "@features/items/components/tweet-embed";
@@ -372,10 +372,10 @@ export function ItemPreview({
 
   const title = (
     <div className="flex min-w-0 max-w-full items-center gap-2">
+      {isLinkLike ? null : <FileTypeIcon item={displayItem} />}
       <span className="min-w-0 truncate text-sm leading-none font-normal">
         {itemTitle(displayItem)}
       </span>
-      {isLinkLike ? null : <KindBadge item={displayItem} />}
     </div>
   );
 

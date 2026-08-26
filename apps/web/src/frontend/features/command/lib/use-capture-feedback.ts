@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { toast } from "sonner";
 
+import { AUTO_DESTINATION_LABEL } from "@features/command/lib/capture";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 
 type Captured = {
@@ -29,7 +30,9 @@ export function useCaptureFeedback() {
       spaces: { id: string; name: string }[],
     ) => {
       const workspaceId = items.find((item) => item.workspaceId)?.workspaceId;
-      if (!workspaceId) return fallback === "File for me" ? "Inbox" : fallback;
+      if (!workspaceId) {
+        return fallback === AUTO_DESTINATION_LABEL ? "Inbox" : fallback;
+      }
       return (
         spaces.find((space) => space.id === workspaceId)?.name.trim() ||
         "Untitled"

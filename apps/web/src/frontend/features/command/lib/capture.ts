@@ -7,6 +7,8 @@ export type CaptureDestination =
   | { kind: "auto" }
   | { kind: "space"; id: string };
 
+export const AUTO_DESTINATION_LABEL = "Auto";
+
 export function isCaptureUrl(input: string): boolean {
   const trimmed = input.trim();
   if (!trimmed) return false;
@@ -71,7 +73,7 @@ export function destinationLabel(
     case "inbox":
       return "Inbox";
     case "auto":
-      return "File for me";
+      return AUTO_DESTINATION_LABEL;
     case "space": {
       const name = spaces.find((space) => space.id === dest.id)?.name.trim();
       return name || "Untitled";

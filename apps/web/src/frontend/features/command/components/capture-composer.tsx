@@ -25,6 +25,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 import type { CaptureDraft } from "@features/command/capture-composer-context";
 import {
+  AUTO_DESTINATION_LABEL,
   captureHost,
   captureRequest,
   cycleDestination,
@@ -36,7 +37,6 @@ import {
 } from "@features/command/lib/capture";
 import { useCaptureFeedback } from "@features/command/lib/use-capture-feedback";
 import { captureItemInput, uploadItem, type Item } from "@features/items/api";
-import { SpacePic } from "@features/spaces/components/space-pic";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 
 export function CaptureComposer({
@@ -337,12 +337,6 @@ function DestinationMenu({
           />
         }
       >
-        {dest.kind === "space" ? (
-          <SpacePic
-            name={spaces.find((space) => space.id === dest.id)?.name}
-            className="size-3.5"
-          />
-        ) : null}
         <span className="min-w-0 truncate">
           {destinationLabel(dest, spaces)}
         </span>
@@ -361,7 +355,7 @@ function DestinationMenu({
           </DropdownMenuRadioItem>
           {spaces.length > 0 ? (
             <DropdownMenuRadioItem value="auto" className="font-normal text-xs">
-              File for me
+              {AUTO_DESTINATION_LABEL}
             </DropdownMenuRadioItem>
           ) : null}
           {spaces.length > 0 ? <DropdownMenuSeparator /> : null}
@@ -371,7 +365,6 @@ function DestinationMenu({
               value={space.id}
               className="font-normal text-xs"
             >
-              <SpacePic name={space.name} className="size-3.5" />
               <span className="truncate">{space.name.trim() || "Untitled"}</span>
             </DropdownMenuRadioItem>
           ))}

@@ -5,8 +5,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { FileTypeIcon } from "@/components/icons";
+import { LayoutSidebarTrigger } from "@/components/layout/layout-sidebar-trigger";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
@@ -384,7 +384,7 @@ export function ItemPreview({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
         {onClose ? (
-          <SidebarTrigger className="size-4 shrink-0 p-0 md:hidden [&_svg]:size-3" />
+          <LayoutSidebarTrigger className="size-4 shrink-0 p-0 [&_svg]:size-3" />
         ) : null}
         <div className="min-w-0 flex-1">{title}</div>
         {chrome}

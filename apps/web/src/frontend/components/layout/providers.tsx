@@ -1,11 +1,9 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { CommandPalette } from "@features/command/components/command-palette";
 import { CaptureComposer } from "@features/command/components/capture-composer";
 import { CommandPaletteProvider } from "@features/command/command-palette-context";
@@ -20,10 +18,6 @@ import { FloatingNoteProvider } from "@features/notes/floating-note-context";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const isFlush = pathname.split("/").filter(Boolean)[0] !== "settings";
   const { id: workspaceId } = useCurrentWorkspace();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
@@ -59,12 +53,7 @@ export function Providers({ children }: { children: ReactNode }) {
               activeNoteId: floatingOpen ? floatingNoteId : null,
             }}
           >
-            <SidebarProvider
-              className={cn(
-                "pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]",
-                isFlush && "h-dvh min-h-0 overflow-hidden",
-              )}
-            >
+            <SidebarProvider className="h-dvh min-h-0 overflow-hidden pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
               <CommandPalette
                 open={paletteOpen}
                 onOpenChange={setPaletteOpen}

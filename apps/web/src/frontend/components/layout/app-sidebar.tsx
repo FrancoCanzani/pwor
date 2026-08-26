@@ -11,6 +11,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
   Tooltip,
@@ -24,15 +25,18 @@ export function AppSidebar() {
   const { open: openPalette } = useCommandPalette();
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="h-12 flex-row items-center justify-between gap-1 px-4 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-2">
-        <Link
-          to="/"
-          className="text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline group-data-[collapsible=icon]:hidden"
-        >
-          Pwor
-        </Link>
-        <div className="flex items-center group-data-[collapsible=icon]:flex-col">
+    <Sidebar variant="inset" collapsible="offcanvas">
+      <SidebarHeader className="h-12 flex-row items-center justify-between gap-1 px-4 py-0">
+        <div className="flex min-w-0 items-center gap-1">
+          <Link
+            to="/"
+            className="text-base leading-none font-normal tracking-tight text-sidebar-foreground no-underline"
+          >
+            Pwor
+          </Link>
+          <SidebarTrigger className="text-muted-foreground" />
+        </div>
+        <div className="flex items-center">
           <CaptureButton />
           <Tooltip>
             <TooltipTrigger

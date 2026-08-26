@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { LayoutSidebarTrigger } from "@/components/layout/layout-sidebar-trigger";
 import { cn } from "@/lib/utils";
 
 export function LibraryHeader({
@@ -21,7 +21,7 @@ export function LibraryHeader({
         edgeToEdge ? "px-3" : "px-4",
       )}
     >
-      <SidebarTrigger className="size-4 shrink-0 p-0 md:hidden [&_svg]:size-3" />
+      <LayoutSidebarTrigger className="size-4 shrink-0 p-0 [&_svg]:size-3" />
       <div className="flex min-w-0 flex-1 items-center gap-2">{leading}</div>
       {toolbar ? (
         <div className="flex min-w-0 shrink items-center justify-end gap-2">

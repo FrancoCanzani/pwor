@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { LayoutSidebarTrigger } from "@/components/layout/layout-sidebar-trigger";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -244,7 +244,7 @@ export function FeedsPage() {
   const listPane = (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
-        <SidebarTrigger className="md:hidden" />
+        <LayoutSidebarTrigger />
         <h1 className="min-w-0 flex-1 truncate text-base leading-none font-normal">
           {feedId ? title : "Feeds"}
         </h1>
@@ -375,7 +375,7 @@ export function FeedsPage() {
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="flex h-12 shrink-0 items-center">
         <div className="mx-auto flex h-full w-full max-w-2xl items-center gap-2 px-4">
-          <SidebarTrigger className="md:hidden" />
+          <LayoutSidebarTrigger />
           {openItem ? (
             <Button
               type="button"

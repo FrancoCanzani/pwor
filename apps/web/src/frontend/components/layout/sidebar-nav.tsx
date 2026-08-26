@@ -1,4 +1,4 @@
-import { PlusIcon } from "@radix-ui/react-icons";
+import { CaretRightIcon, PlusIcon } from "@radix-ui/react-icons";
 import {
   useInfiniteQuery,
   useMutation,
@@ -10,6 +10,11 @@ import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -33,26 +38,38 @@ import { CreateWorkspaceDialog } from "@features/workspaces/components/create-wo
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 
 function NavSection({
+  name,
   addLabel,
   onAdd,
   children,
 }: {
+  name: string;
   addLabel: string;
   onAdd: () => void;
   children: ReactNode;
 }) {
   return (
-    <SidebarGroup className="group/section relative pt-1 group-data-[collapsible=icon]:hidden">
-      <button
-        type="button"
-        aria-label={addLabel}
-        className="absolute top-1.5 right-2 z-10 flex size-5 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/section:opacity-100 group-focus-within/section:opacity-100 hover:text-foreground [&>svg]:size-3.5"
-        onClick={onAdd}
-      >
-        <PlusIcon />
-      </button>
-      <SidebarGroupContent>{children}</SidebarGroupContent>
-    </SidebarGroup>
+    <Collapsible defaultOpen className="group/section">
+      <SidebarGroup className="pt-1">
+        <div className="group/header flex h-8 items-center rounded-md px-2 hover:bg-sidebar-accent">
+          <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-normal text-muted-foreground hover:text-foreground">
+            <span className="truncate">{name}</span>
+            <CaretRightIcon className="size-2.5 shrink-0 text-muted-foreground transition-transform in-data-open:rotate-90" />
+          </CollapsibleTrigger>
+          <button
+            type="button"
+            aria-label={addLabel}
+            className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 hover:text-foreground [&>svg]:size-3.5"
+            onClick={onAdd}
+          >
+            <PlusIcon />
+          </button>
+        </div>
+        <CollapsibleContent>
+          <SidebarGroupContent>{children}</SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
   );
 }
 
@@ -140,6 +157,7 @@ export function SidebarNav() {
       </SidebarGroup>
 
       <NavSection
+        name="Spaces"
         addLabel="New space"
         onAdd={() => setCreateSpaceOpen(true)}
       >
@@ -155,6 +173,7 @@ export function SidebarNav() {
       </NavSection>
 
       <NavSection
+        name="Feeds"
         addLabel="Add feed"
         onAdd={() => setAddFeedOpen(true)}
       >

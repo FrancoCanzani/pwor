@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { LayoutSidebarTrigger } from "@/components/layout/layout-sidebar-trigger";
 
 export function PageHeader({
   title,
@@ -15,7 +15,7 @@ export function PageHeader({
     <div className="mb-8 flex flex-col gap-1">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
-          <SidebarTrigger className="md:hidden" />
+          <LayoutSidebarTrigger />
           <h1 className="text-base font-normal tracking-tight">{title}</h1>
         </div>
         {meta ? (

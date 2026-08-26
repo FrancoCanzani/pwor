@@ -1,4 +1,5 @@
-import type { RefObject, DragEvent } from "react";
+import { useParams, useSearch } from "@tanstack/react-router";
+import type { DragEvent, RefObject } from "react";
 
 import { noteDisplayTitle } from "@shared/note-frontmatter";
 import type { Item } from "@features/items/api";
@@ -7,6 +8,7 @@ import { endPworItemDrag, setPworItemDrag } from "@features/items/lib/drag";
 import { kindLabel, itemTitle } from "@features/items/lib/list";
 import type { NoteListItem } from "@features/notes/api";
 import { NoteRow } from "@features/notes/components/note-row";
+import { useFloatingNote } from "@features/notes/floating-note-context";
 
 export type LibraryEntry =
   | { kind: "item"; item: Item }
@@ -16,9 +18,12 @@ export function itemEntries(items: Item[]): LibraryEntry[] {
   return items.map((item) => ({ kind: "item" as const, item }));
 }
 
+export function noteEntries(notes: NoteListItem[]): LibraryEntry[] {
+  return notes.map((note) => ({ kind: "note" as const, note }));
+}
+
 export function LibraryList({
   entries,
-  openId,
   selected,
   draggingIds,
   deleteDescription,
@@ -28,11 +33,11 @@ export function LibraryList({
   edgeToEdge = false,
   onOpen,
   onToggle,
+  onPin,
   onDelete,
   onDraggingIds,
 }: {
   entries: LibraryEntry[];
-  openId: string | null;
   selected: Set<string>;
   draggingIds: Set<string>;
   deleteDescription: string;
@@ -42,9 +47,18 @@ export function LibraryList({
   edgeToEdge?: boolean;
   onOpen: (entry: LibraryEntry) => void;
   onToggle: (id: string, checked: boolean) => void;
+  onPin: (entry: LibraryEntry) => void;
   onDelete: (ids: string[]) => void;
   onDraggingIds: (ids: string[]) => void;
 }) {
+  const search = useSearch({ strict: false });
+  const params = useParams({ strict: false });
+  const { activeNoteId } = useFloatingNote();
+  const openId =
+    (typeof params.noteId === "string" ? params.noteId : null) ??
+    (typeof search.item === "string" ? search.item : null) ??
+    activeNoteId;
+
   const selectedOfKind = (kind: LibraryEntry["kind"]) =>
     entries
       .filter((entry) => entry.kind === kind)
@@ -66,6 +80,7 @@ export function LibraryList({
       active: openId === item.id,
       onOpen: () => onOpen(entry),
       onToggle: (checked: boolean) => onToggle(item.id, checked),
+      onPin: () => onPin(entry),
       onDelete: () => onDelete([item.id]),
       onDragStart: (event: DragEvent<HTMLLIElement>) => {
         const ids = dragIdsFor(entry);
@@ -93,6 +108,7 @@ export function LibraryList({
       active: openId === note.id,
       onOpen: () => onOpen(entry),
       onToggle: (checked: boolean) => onToggle(note.id, checked),
+      onPin: () => onPin(entry),
       onDelete: () => onDelete([note.id]),
       onDragStart: (event: DragEvent<HTMLLIElement>) => {
         const ids = dragIdsFor(entry);

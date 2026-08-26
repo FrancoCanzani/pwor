@@ -8,9 +8,10 @@ import { useCaptureComposer } from "@features/command/capture-composer-context";
 import { useCaptureFeedback } from "@features/command/lib/use-capture-feedback";
 import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
+import { bodyToDocument } from "@features/notes/lib/legacy-document";
 import { uploadItem, type Item } from "@features/items/api";
 import { workspacesQueryOptions } from "@features/workspaces/api";
-import { inferTitleFromRaw } from "@shared/note-frontmatter";
+import { inferTitleFromRaw, serializeTiptapBody } from "@shared/note-frontmatter";
 
 const SWEEP_DURATION_MS = 800;
 
@@ -32,12 +33,12 @@ export function ItemDropZone() {
   const [isSweeping, setIsSweeping] = useState(false);
   const dragDepth = useRef(0);
   const queryClient = useQueryClient();
-  const { workspaceId } = useParams({ strict: false });
+  const { spaceId } = useParams({ strict: false });
   const { open, isOpen } = useCaptureComposer();
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
   const { notifySaved, invalidateItems } = useCaptureFeedback();
-  const label = workspaceId
-    ? spaces.find((space) => space.id === workspaceId)?.name.trim() || "Untitled"
+  const label = spaceId
+    ? spaces.find((space) => space.id === spaceId)?.name.trim() || "Untitled"
     : "Inbox";
 
   const handleFiles = useCallback(
@@ -50,22 +51,26 @@ export function ItemDropZone() {
 
       let notesChanged = false;
       const captured: Item[] = [];
-      const spaceId = workspaceId ?? null;
+      const destSpaceId = spaceId ?? null;
 
       for (const file of list) {
         try {
-          if (isMarkdownFile(file) && spaceId) {
+          if (isMarkdownFile(file) && destSpaceId) {
             const raw = await file.text();
             const inferred = inferTitleFromRaw(raw).title;
             const fallbackTitle = file.name.replace(/\.md$/i, "");
             const title = inferred || fallbackTitle;
-            await createNote({ body: raw, title, workspaceId: spaceId });
+            await createNote({
+              body: serializeTiptapBody(bodyToDocument(raw)),
+              title,
+              workspaceId: destSpaceId,
+            });
             notesChanged = true;
             toast.success(`${file.name} added as note`);
             continue;
           }
 
-          captured.push(await uploadItem(file, spaceId));
+          captured.push(await uploadItem(file, destSpaceId));
         } catch {
           toast.error(`Failed to add ${file.name}`);
         }
@@ -80,7 +85,7 @@ export function ItemDropZone() {
         notifySaved(label, captured);
       }
     },
-    [invalidateItems, label, notifySaved, queryClient, workspaceId],
+    [invalidateItems, label, notifySaved, queryClient, spaceId],
   );
 
   useEffect(() => {
@@ -140,7 +145,7 @@ export function ItemDropZone() {
       {isDraggingOver ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center border border-dashed border-foreground/20 bg-background/80">
           <p className="text-sm text-muted-foreground">
-            {workspaceId ? "Drop to add to this space" : "Drop to save to Inbox"}
+            {spaceId ? "Drop to add to this space" : "Drop to save to Inbox"}
           </p>
         </div>
       ) : null}

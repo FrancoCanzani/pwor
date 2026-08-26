@@ -73,28 +73,31 @@ export function sortBy<T>(
   accessors: {
     date: (row: T) => string;
     name: (row: T) => string;
+    pinned?: (row: T) => boolean;
   },
 ): T[] {
   const sorted = [...rows];
-  switch (sort) {
-    case "newest":
-      sorted.sort((a, b) => accessors.date(b).localeCompare(accessors.date(a)));
-      break;
-    case "oldest":
-      sorted.sort((a, b) => accessors.date(a).localeCompare(accessors.date(b)));
-      break;
-    case "name":
-      sorted.sort((a, b) =>
-        accessors.name(a).localeCompare(accessors.name(b), undefined, {
-          sensitivity: "base",
-        }),
-      );
-      break;
-    default: {
-      const _exhaustive: never = sort;
-      return _exhaustive;
+  sorted.sort((a, b) => {
+    if (accessors.pinned) {
+      const ap = accessors.pinned(a) ? 1 : 0;
+      const bp = accessors.pinned(b) ? 1 : 0;
+      if (ap !== bp) return bp - ap;
     }
-  }
+    switch (sort) {
+      case "newest":
+        return accessors.date(b).localeCompare(accessors.date(a));
+      case "oldest":
+        return accessors.date(a).localeCompare(accessors.date(b));
+      case "name":
+        return accessors.name(a).localeCompare(accessors.name(b), undefined, {
+          sensitivity: "base",
+        });
+      default: {
+        const _exhaustive: never = sort;
+        return _exhaustive;
+      }
+    }
+  });
   return sorted;
 }
 
@@ -102,6 +105,7 @@ export function sortItems(items: Item[], sort: ItemSort): Item[] {
   return sortBy(items, sort, {
     date: (item) => item.createdAt,
     name: (item) => itemTitle(item),
+    pinned: (item) => Boolean(item.pinned),
   });
 }
 

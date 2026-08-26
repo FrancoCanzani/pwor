@@ -1,20 +1,15 @@
-import { CaretRightIcon, PlusIcon } from "@radix-ui/react-icons";
+import { PlusIcon } from "@radix-ui/react-icons";
 import {
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -38,41 +33,26 @@ import { CreateWorkspaceDialog } from "@features/workspaces/components/create-wo
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 
 function NavSection({
-  name,
   addLabel,
   onAdd,
   children,
 }: {
-  name: ReactNode;
   addLabel: string;
   onAdd: () => void;
   children: ReactNode;
 }) {
   return (
-    <Collapsible
-      defaultOpen
-      className="group/section group-data-[collapsible=icon]:hidden"
-    >
-      <SidebarGroup className="pt-1">
-        <div className="group/header flex h-8 items-center rounded-md px-2 hover:bg-sidebar-accent">
-          <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-normal text-muted-foreground hover:text-foreground">
-            <span className="truncate">{name}</span>
-            <CaretRightIcon className="size-2.5 shrink-0 text-muted-foreground transition-transform in-data-open:rotate-90" />
-          </CollapsibleTrigger>
-          <button
-            type="button"
-            aria-label={addLabel}
-            className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 hover:text-foreground [&>svg]:size-3.5"
-            onClick={onAdd}
-          >
-            <PlusIcon />
-          </button>
-        </div>
-        <CollapsibleContent>
-          <SidebarGroupContent>{children}</SidebarGroupContent>
-        </CollapsibleContent>
-      </SidebarGroup>
-    </Collapsible>
+    <SidebarGroup className="group/section relative pt-1 group-data-[collapsible=icon]:hidden">
+      <button
+        type="button"
+        aria-label={addLabel}
+        className="absolute top-1.5 right-2 z-10 flex size-5 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/section:opacity-100 group-focus-within/section:opacity-100 hover:text-foreground [&>svg]:size-3.5"
+        onClick={onAdd}
+      >
+        <PlusIcon />
+      </button>
+      <SidebarGroupContent>{children}</SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
@@ -120,18 +100,12 @@ export function SidebarNav() {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const segments = pathname.split("/").filter(Boolean);
-  const isInbox = segments[0] === "inbox";
-  const isFeeds = segments[0] === "feeds";
-  const routeSpaceId =
-    segments[0] &&
-    segments[0] !== "inbox" &&
-    segments[0] !== "feeds" &&
-    segments[0] !== "settings" &&
-    segments[0] !== "onboarding"
-      ? segments[0]
-      : null;
-  const activeFeedId = isFeeds ? segments[1] : null;
+  const { spaceId: routeSpaceId, feedId: activeFeedId } = useParams({
+    strict: false,
+  });
+  const isInbox = pathname === "/inbox" || pathname.startsWith("/inbox/");
+  const isNotes = pathname === "/notes" || pathname.startsWith("/notes/");
+  const isFeeds = pathname === "/feeds" || pathname.startsWith("/feeds/");
 
   async function handleCreated(space: { id: string }) {
     setStoredWorkspaceId(space.id);
@@ -141,8 +115,8 @@ export function SidebarNav() {
       exact: true,
     });
     await navigate({
-      to: "/$workspaceId",
-      params: { workspaceId: space.id },
+      to: "/spaces/$spaceId",
+      params: { spaceId: space.id },
       search: { item: undefined },
     });
   }
@@ -157,8 +131,15 @@ export function SidebarNav() {
         </SidebarGroupContent>
       </SidebarGroup>
 
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <NotesRow isActive={isNotes} />
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
       <NavSection
-        name="Spaces"
         addLabel="New space"
         onAdd={() => setCreateSpaceOpen(true)}
       >
@@ -174,7 +155,6 @@ export function SidebarNav() {
       </NavSection>
 
       <NavSection
-        name="Feeds"
         addLabel="Add feed"
         onAdd={() => setAddFeedOpen(true)}
       >
@@ -289,6 +269,20 @@ function InboxRow({
   );
 }
 
+function NotesRow({ isActive }: { isActive: boolean }) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={isActive}
+        render={<Link to="/notes" />}
+        className="font-normal"
+      >
+        <span className="min-w-0 truncate">Notes</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
 function SpaceRow({
   space,
   isActive,
@@ -328,8 +322,8 @@ function SpaceRow({
         tooltip={label}
         render={
           <Link
-            to="/$workspaceId"
-            params={{ workspaceId: space.id }}
+            to="/spaces/$spaceId"
+            params={{ spaceId: space.id }}
             search={{ item: undefined }}
           />
         }

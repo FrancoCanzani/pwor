@@ -1,20 +1,12 @@
 import { CaretSortIcon } from "@radix-ui/react-icons";
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -36,13 +28,7 @@ const routeApi = getRouteApi("/_app");
 export function NavUser() {
   const { user } = routeApi.useRouteContext();
   const { isMobile } = useSidebar();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const label = user.name.trim() || user.email;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   return (
     <SidebarMenu>
@@ -77,42 +63,6 @@ export function NavUser() {
               >
                 Settings
               </DropdownMenuItem>
-              {mounted ? (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="font-normal text-xs">
-                    Theme
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuRadioGroup
-                        value={theme ?? "system"}
-                        onValueChange={(value) => {
-                          if (typeof value === "string") setTheme(value);
-                        }}
-                      >
-                        <DropdownMenuRadioItem
-                          value="system"
-                          className="font-normal text-xs"
-                        >
-                          System
-                        </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem
-                          value="light"
-                          className="font-normal text-xs"
-                        >
-                          Light
-                        </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem
-                          value="dark"
-                          className="font-normal text-xs"
-                        >
-                          Dark
-                        </DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"

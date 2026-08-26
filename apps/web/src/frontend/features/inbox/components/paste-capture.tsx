@@ -19,8 +19,8 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function PasteCapture() {
-  const { workspaceId } = useParams({ strict: false });
-  const spaceId = workspaceId ?? null;
+  const { spaceId: routeSpaceId } = useParams({ strict: false });
+  const spaceId = routeSpaceId ?? null;
   const busyRef = useRef(false);
   const { open, isOpen } = useCaptureComposer();
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);

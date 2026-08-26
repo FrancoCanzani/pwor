@@ -41,6 +41,7 @@ export const item = sqliteTable(
       .notNull()
       .default("pending"),
     embeddedAt: integer("embedded_at", { mode: "timestamp_ms" }),
+    pinnedAt: integer("pinned_at", { mode: "timestamp_ms" }),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),

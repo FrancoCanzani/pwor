@@ -14,7 +14,7 @@ export function registerPutItem(app: Hono<AppEnv>) {
   return app.patch("/:id", zValidator("json", updateItemSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { workspaceId, title } = c.req.valid("json");
+    const { workspaceId, title, pinned } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
     if (workspaceId !== undefined) {
@@ -26,6 +26,9 @@ export function registerPutItem(app: Hono<AppEnv>) {
       .set({
         ...(workspaceId !== undefined ? { workspaceId } : {}),
         ...(title !== undefined ? { title } : {}),
+        ...(pinned !== undefined
+          ? { pinnedAt: pinned ? new Date() : null }
+          : {}),
       })
       .where(ownedBy(item.id, id, item.userId, user.id))
       .returning();

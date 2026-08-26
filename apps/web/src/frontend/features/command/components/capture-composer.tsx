@@ -56,7 +56,7 @@ export function CaptureComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const busyRef = useRef(false);
   const consumedDraft = useRef<CaptureDraft | null>(null);
-  const { workspaceId: routeWorkspaceId } = useParams({ strict: false });
+  const { spaceId: routeSpaceId } = useParams({ strict: false });
   const { data: spaces = [] } = useQuery(workspacesQueryOptions);
   const { notifySaved, invalidateItems, savedLabel } = useCaptureFeedback();
 
@@ -74,11 +74,11 @@ export function CaptureComposer({
     }
 
     setDest(
-      routeWorkspaceId
-        ? { kind: "space", id: routeWorkspaceId }
+      routeSpaceId
+        ? { kind: "space", id: routeSpaceId }
         : { kind: "inbox" },
     );
-  }, [open, routeWorkspaceId]);
+  }, [open, routeSpaceId]);
 
   useEffect(() => {
     if (!open || !draft || consumedDraft.current === draft) return;

@@ -6,7 +6,7 @@ import { getStoredWorkspaceId } from "@features/workspaces/lib/current-workspace
 
 export function useCurrentWorkspace() {
   const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
-  const { workspaceId: routeId } = useParams({ strict: false });
+  const { spaceId: routeId } = useParams({ strict: false });
   const storedId = getStoredWorkspaceId();
 
   const id =

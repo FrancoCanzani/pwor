@@ -60,8 +60,8 @@ function AppLayout() {
   return (
     <AppShell>
       <ItemDropZone />
-      <Toaster />
       <Outlet />
+      <Toaster />
     </AppShell>
   );
 }

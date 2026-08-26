@@ -44,14 +44,16 @@ export const updateNoteSchema = z
     body: z.string().optional(),
     title: z.string().nullable().optional(),
     workspaceId: z.string().nullable().optional(),
+    pinned: z.boolean().optional(),
     expectedUpdatedAt: z.union([z.string(), z.number()]).optional(),
   })
   .refine(
     (value) =>
       value.body !== undefined ||
       value.title !== undefined ||
-      value.workspaceId !== undefined,
-    { message: "body, title, or workspaceId is required" },
+      value.workspaceId !== undefined ||
+      value.pinned !== undefined,
+    { message: "body, title, workspaceId, or pinned is required" },
   )
   .refine(
     (value) => {

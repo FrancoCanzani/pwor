@@ -19,15 +19,9 @@ import { fuzzyScore } from "@features/command/lib/score";
 import { workspacesQueryOptions } from "@features/workspaces/api";
 import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
 import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
-import { useFloatingNote } from "@features/notes/floating-note-context";
-
-const GLOBAL_NAV_ITEMS = [
-  { to: "/inbox", label: "Inbox" },
-  { to: "/feeds", label: "Feeds" },
-] as const;
 
 const SPACE_NAV_ITEMS = [
-  { to: "/$workspaceId", label: "Library" },
+  { to: "/spaces/$spaceId", label: "Library" },
 ] as const;
 
 const KIND_META = {
@@ -64,7 +58,6 @@ export function CommandPalette({
   const listRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { id: currentWorkspaceId } = useCurrentWorkspace();
-  const { openNote } = useFloatingNote();
   const { open: openCreate } = useCaptureComposer();
   const { data: workspaces = NO_WORKSPACES } = useQuery(workspacesQueryOptions);
 
@@ -85,15 +78,33 @@ export function CommandPalette({
     }
 
     const jumps: Omit<PaletteItem, "index">[] = [
-      ...GLOBAL_NAV_ITEMS.map((item) => ({
-        id: `nav:${item.to}`,
-        label: item.label,
+      {
+        id: "nav:/inbox",
+        label: "Inbox",
         run: () => {
           onOpenChange(false);
           setQuery("");
-          void navigate({ to: item.to });
+          void navigate({ to: "/inbox" });
         },
-      })),
+      },
+      {
+        id: "nav:/notes",
+        label: "Notes",
+        run: () => {
+          onOpenChange(false);
+          setQuery("");
+          void navigate({ to: "/notes" });
+        },
+      },
+      {
+        id: "nav:/feeds",
+        label: "Feeds",
+        run: () => {
+          onOpenChange(false);
+          setQuery("");
+          void navigate({ to: "/feeds", search: { item: undefined } });
+        },
+      },
       ...(currentWorkspaceId
         ? SPACE_NAV_ITEMS.map((item) => ({
             id: `nav:${item.to}`,
@@ -102,7 +113,7 @@ export function CommandPalette({
               select(currentWorkspaceId, () =>
                 navigate({
                   to: item.to,
-                  params: { workspaceId: currentWorkspaceId },
+                  params: { spaceId: currentWorkspaceId },
                 }),
               ),
           }))
@@ -116,8 +127,8 @@ export function CommandPalette({
           run: () =>
             select(workspace.id, () =>
               navigate({
-                to: "/$workspaceId",
-                params: { workspaceId: workspace.id },
+                to: "/spaces/$spaceId",
+                params: { spaceId: workspace.id },
               }),
             ),
         })),
@@ -196,8 +207,8 @@ export function CommandPalette({
                 const workspaceId = hit.workspaceId;
                 select(workspaceId, () =>
                   navigate({
-                    to: "/$workspaceId",
-                    params: { workspaceId },
+                    to: "/spaces/$spaceId",
+                    params: { spaceId: workspaceId },
                     search: { item: hit.id },
                   }),
                 );
@@ -206,7 +217,12 @@ export function CommandPalette({
               case "note": {
                 const workspaceId = hit.workspaceId ?? currentWorkspaceId;
                 if (!workspaceId) return;
-                select(workspaceId, () => openNote(hit.id));
+                select(workspaceId, () =>
+                  navigate({
+                    to: "/notes/$noteId",
+                    params: { noteId: hit.id },
+                  }),
+                );
                 return;
               }
               default: {
@@ -232,7 +248,6 @@ export function CommandPalette({
     workspaces,
     currentWorkspaceId,
     navigate,
-    openNote,
     openCreate,
     onOpenChange,
   ]);

@@ -22,6 +22,7 @@ export type NoteListItem = {
   hasBody?: boolean;
   noted?: boolean;
   bodyPreview?: string | null;
+  pinned?: boolean;
 };
 
 export type Note = NoteListItem & {
@@ -150,6 +151,7 @@ export async function updateNote(
     body?: string;
     title?: string | null;
     workspaceId?: string | null;
+    pinned?: boolean;
     expectedUpdatedAt?: string | Date | number;
   },
 ): Promise<Note> {

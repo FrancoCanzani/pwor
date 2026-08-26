@@ -16,6 +16,7 @@ import {
 import { note } from "../../db/schema";
 import { scheduleNoteEmbed } from "../../lib/embed";
 import type { AppEnv } from "../../types";
+import { serializeNote } from "./lib/serialize";
 import { createNoteSchema, titleFromQuote } from "./schemas";
 
 export function registerPostNote(app: Hono<AppEnv>) {
@@ -69,6 +70,6 @@ export function registerPostNote(app: Hono<AppEnv>) {
       scheduleNoteEmbed(c.executionCtx, c.env, created.id);
     }
 
-    return c.json(created, 201);
+    return c.json(created ? serializeNote(created) : created, 201);
   });
 }

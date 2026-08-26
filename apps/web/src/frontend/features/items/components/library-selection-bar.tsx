@@ -46,7 +46,7 @@ export function LibrarySelectionBar({
   );
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex justify-center px-4 pb-3">
+    <div className="pointer-events-none absolute inset-x-0 bottom-10 z-1 flex justify-center px-4 pb-3">
       <div className="pointer-events-auto flex items-center gap-0.5 rounded-md border border-border bg-background px-1 py-0.5">
         <span className="px-1.5 font-nums text-xs text-muted-foreground">
           {count}

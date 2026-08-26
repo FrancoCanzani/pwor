@@ -9,7 +9,9 @@
       "@lib/*": ["./src/frontend/lib/*"],
       "@routes/*": ["./src/frontend/routes/*"],
       "@components/*": ["./src/frontend/components/*"],
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@pwor/editor": ["../../packages/editor/src/index.ts"],
+      "@pwor/editor/document": ["../../packages/editor/src/document.ts"]
     }
   },
   "include": ["src/frontend", "src/shared"]

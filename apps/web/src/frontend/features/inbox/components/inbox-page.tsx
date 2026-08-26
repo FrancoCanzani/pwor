@@ -16,19 +16,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import { PageEmpty } from "@components/page-empty";
 import { SplitPreviewLayout } from "@components/split-preview-layout";
 import { userInboxQueryOptions } from "@features/inbox/api";
-import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import {
   deleteItem,
   inboxItemsInfiniteQueryOptions,
+  updateItemPinned,
   updateItemWorkspace,
   type Item,
 } from "@features/items/api";
 import { ItemPreview } from "@features/items/components/item-preview";
 import { LibraryHeader } from "@features/items/components/library-header";
-import { LibraryList, itemEntries } from "@features/items/components/library-list";
+import {
+  LibraryList,
+  itemEntries,
+} from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
 import { sortItems, type ItemSort } from "@features/items/lib/list";
@@ -104,6 +108,14 @@ export function InboxPage() {
     onError: () => toast.error("Couldn’t move item"),
   });
 
+  const pinMutation = useMutation({
+    mutationFn: (item: Item) => updateItemPinned(item.id, !item.pinned),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
+    },
+    onError: () => toast.error("Couldn’t pin"),
+  });
+
   const busy = deleteMutation.isPending || moveMutation.isPending;
 
   function toggleSelected(id: string, checked: boolean) {
@@ -121,9 +133,6 @@ export function InboxPage() {
       replace: true,
     });
   }
-
-  const deleteDescription =
-    "This permanently removes it from Inbox. This can’t be undone.";
 
   const previewOpen = openItem != null;
 
@@ -165,10 +174,9 @@ export function InboxPage() {
           <LibraryList
             entries={itemEntries(sorted)}
             edgeToEdge={previewOpen}
-            openId={openItem?.id ?? null}
             selected={selected}
             draggingIds={draggingIds}
-            deleteDescription={deleteDescription}
+            deleteDescription="This permanently removes it from Inbox. This can’t be undone."
             fromWorkspaceId={null}
             hasNextPage={Boolean(hasNextPage)}
             sentinelRef={sentinelRef}
@@ -176,6 +184,9 @@ export function InboxPage() {
               if (entry.kind === "item") setOpenItem(entry.item);
             }}
             onToggle={toggleSelected}
+            onPin={(entry) => {
+              if (entry.kind === "item") pinMutation.mutate(entry.item);
+            }}
             onDelete={(ids) => deleteMutation.mutate(ids)}
             onDraggingIds={(ids) => setDraggingIds(new Set(ids))}
           />
@@ -198,7 +209,9 @@ export function InboxPage() {
         count={selectedCount}
         busy={busy}
         deleteTitle={
-          selectedCount === 1 ? "Delete capture?" : `Delete ${selectedCount} captures?`
+          selectedCount === 1
+            ? "Delete capture?"
+            : `Delete ${selectedCount} captures?`
         }
         deleteDescription={`This permanently removes ${selectedCount === 1 ? "it" : "them"} from Inbox. This can’t be undone.`}
         onClear={() => setSelected(new Set())}
@@ -236,9 +249,7 @@ function InboxForwardAddress({ address }: { address: string }) {
       >
         {address}
       </TooltipTrigger>
-      <TooltipContent>
-        Forward email here to add it to Inbox
-      </TooltipContent>
+      <TooltipContent>Forward email here to add it to Inbox</TooltipContent>
     </Tooltip>
   );
 }

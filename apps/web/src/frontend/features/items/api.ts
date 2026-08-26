@@ -25,6 +25,7 @@ export type Item = {
   hasPreview?: boolean;
   sizeBytes?: number | null;
   createdAt: string;
+  pinned?: boolean;
   duplicate?: boolean;
 };
 
@@ -190,6 +191,19 @@ export async function updateItemWorkspace(
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId }),
+    }),
+  );
+}
+
+export async function updateItemPinned(
+  id: string,
+  pinned: boolean,
+): Promise<Item> {
+  return parseJson<Item>(
+    await fetch(`/api/items/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned }),
     }),
   );
 }

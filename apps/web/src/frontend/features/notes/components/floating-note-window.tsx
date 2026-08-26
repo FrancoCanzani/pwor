@@ -1,5 +1,4 @@
 import { Cross2Icon } from "@radix-ui/react-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   useLayoutEffect,
@@ -13,16 +12,8 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import {
-  noteQueryOptions,
-  notesQueryOptions,
-  uploadNoteImage,
-  type Note,
-} from "@features/notes/api";
-import { NoteEditor } from "@features/notes/components/note-editor";
+import { NoteDocument } from "@features/notes/components/note-document";
 import { useFloatingNote } from "@features/notes/floating-note-context";
-import { useNoteDocumentSave } from "@features/notes/lib/use-note-document-save";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
 
 const DEFAULT_WIDTH = 420;
 const DEFAULT_HEIGHT = 520;
@@ -163,16 +154,10 @@ function FloatingNoteShell({
 }
 
 function NoteChrome({
-  saveLabel,
-  conflict,
   onClose,
-  onReload,
   children,
 }: {
-  saveLabel: string | null;
-  conflict: boolean;
   onClose: () => void;
-  onReload?: () => void;
   children: ReactNode;
 }) {
   const isMobile = useIsMobile();
@@ -199,21 +184,6 @@ function NoteChrome({
           </Button>
         ) : null}
         <span className="min-w-0 flex-1" />
-        {saveLabel ? (
-          <span className="shrink-0 text-[10px] text-muted-foreground">
-            {saveLabel}
-          </span>
-        ) : null}
-        {conflict ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-auto shrink-0 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"
-            onClick={onReload}
-          >
-            Reload
-          </Button>
-        ) : null}
         {!isMobile ? (
           <Button
             type="button"
@@ -242,74 +212,10 @@ function FloatingNoteContent({
   onClose: () => void;
 }) {
   const { openNote } = useFloatingNote();
-  const { id: workspaceId } = useCurrentWorkspace();
-  const queryClient = useQueryClient();
-  const cached = queryClient.getQueryData<Note>(
-    noteQueryOptions(noteId).queryKey,
-  );
-  const { data: note, error } = useQuery({
-    ...noteQueryOptions(noteId),
-    initialData: cached,
-    initialDataUpdatedAt: queryClient.getQueryState(
-      noteQueryOptions(noteId).queryKey,
-    )?.dataUpdatedAt,
-  });
-  const { data: notes = [] } = useQuery({
-    ...notesQueryOptions(workspaceId ?? undefined),
-    enabled: Boolean(workspaceId),
-  });
-
-  const {
-    saveState,
-    editorNonce,
-    handleBodyChange,
-    reloadFromServer,
-    initialDoc,
-  } = useNoteDocumentSave({
-    noteId,
-    note,
-  });
-
-  const saveLabel =
-    saveState === "saving"
-      ? "Saving…"
-      : saveState === "saved"
-        ? "Saved"
-        : saveState === "error"
-          ? "Save failed"
-          : saveState === "conflict"
-            ? "Edited elsewhere"
-            : null;
 
   return (
-    <NoteChrome
-      saveLabel={saveLabel}
-      conflict={saveState === "conflict"}
-      onClose={onClose}
-      onReload={reloadFromServer}
-    >
-      {note ? (
-        <NoteEditor
-          key={`${note.id}:${editorNonce}`}
-          initialDoc={initialDoc()}
-          onChange={handleBodyChange}
-          uploadImage={(file) => uploadNoteImage(noteId, file)}
-          className="min-h-full [&_.cm-editor]:min-h-[12rem]"
-          wikiLinks={
-            workspaceId
-              ? {
-                  currentNoteId: noteId,
-                  getNotes: () => notes,
-                  onOpenNote: (targetId) => {
-                    openNote(targetId);
-                  },
-                }
-              : undefined
-          }
-        />
-      ) : error ? (
-        <p className="text-xs text-destructive">Note not found.</p>
-      ) : null}
+    <NoteChrome onClose={onClose}>
+      <NoteDocument noteId={noteId} onOpenNote={openNote} />
     </NoteChrome>
   );
 }

@@ -1,3 +1,4 @@
+import { documentsEqual, type DocumentJSON } from "@pwor/editor";
 import {
   useMutation,
   useQueryClient,
@@ -11,6 +12,7 @@ import {
   type Note,
   type NoteListItem,
 } from "@features/notes/api";
+import { bodyToDocument } from "@features/notes/lib/legacy-document";
 import {
   dropNotedFlag,
   inferTitleFromRaw,
@@ -18,6 +20,7 @@ import {
   noteBodyPreview,
   noteHasBody,
   noteIsNoted,
+  serializeTiptapBody,
   withNotedFlag,
 } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
@@ -41,10 +44,12 @@ export function useNoteDocumentSave({
   const queryClient = useQueryClient();
   const [saveState, setSaveState] = useState<NoteSaveState>("idle");
   const [editorNonce, setEditorNonce] = useState(0);
+  const [title, setTitle] = useState("");
 
   const latestBodyRef = useRef<string | null>(null);
   const savedBodyRef = useRef<string | null>(null);
   const serverBodyRef = useRef<string | null>(null);
+  const latestTitleRef = useRef<string | null>(null);
   const savedTitleRef = useRef<string | null>(null);
   const baseUpdatedAtRef = useRef<string | Date | number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,7 +62,10 @@ export function useNoteDocumentSave({
   function applySavedNote(updated: Note) {
     savedBodyRef.current = dropNotedFlag(updated.body);
     serverBodyRef.current = updated.body;
-    savedTitleRef.current = updated.title ?? null;
+    latestBodyRef.current = dropNotedFlag(updated.body);
+    savedTitleRef.current = normalizeNoteTitle(updated.title);
+    latestTitleRef.current = savedTitleRef.current;
+    setTitle(savedTitleRef.current ?? "");
     baseUpdatedAtRef.current = updated.updatedAt;
     conflictRef.current = false;
     queryClient.setQueryData(noteQueryOptions(noteId).queryKey, updated);
@@ -119,10 +127,14 @@ export function useNoteDocumentSave({
       keepNotedRef.current && !noteHasBody(editorBody)
         ? withNotedFlag(editorBody)
         : editorBody;
+    const typedTitle = normalizeNoteTitle(latestTitleRef.current);
     const inferred = normalizeNoteTitle(inferTitleFromRaw(body).title);
-    const nextTitle = inferred ?? savedTitleRef.current;
-    const bodyChanged = body !== (serverBodyRef.current ?? savedBodyRef.current);
-    const titleChanged = inferred != null && inferred !== savedTitleRef.current;
+    const nextTitle = typedTitle ?? inferred ?? savedTitleRef.current;
+    const stored = serverBodyRef.current ?? savedBodyRef.current ?? "";
+    const bodyChanged =
+      body !== stored &&
+      !documentsEqual(bodyToDocument(body), bodyToDocument(stored));
+    const titleChanged = nextTitle !== savedTitleRef.current;
     if (!bodyChanged && !titleChanged) return;
 
     savingRef.current = true;
@@ -140,8 +152,7 @@ export function useNoteDocumentSave({
         noteIdRef.current === noteId &&
         latestBodyRef.current !== null &&
         (latestBodyRef.current !== savedBodyRef.current ||
-          (normalizeNoteTitle(inferTitleFromRaw(latestBodyRef.current).title) ??
-            savedTitleRef.current) !== savedTitleRef.current)
+          normalizeNoteTitle(latestTitleRef.current) !== savedTitleRef.current)
       ) {
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
@@ -159,9 +170,11 @@ export function useNoteDocumentSave({
     serverBodyRef.current = null;
     savedTitleRef.current = null;
     latestBodyRef.current = null;
+    latestTitleRef.current = null;
     baseUpdatedAtRef.current = null;
     keepNotedRef.current = false;
     conflictRef.current = false;
+    setTitle("");
     setSaveState("idle");
     if (timerRef.current) clearTimeout(timerRef.current);
   }, [noteId]);
@@ -174,6 +187,8 @@ export function useNoteDocumentSave({
       serverBodyRef.current = note.body;
       latestBodyRef.current = body;
       savedTitleRef.current = normalizeNoteTitle(note.title);
+      latestTitleRef.current = savedTitleRef.current;
+      setTitle(savedTitleRef.current ?? "");
     }
     if (baseUpdatedAtRef.current === null) {
       baseUpdatedAtRef.current = note.updatedAt;
@@ -209,8 +224,16 @@ export function useNoteDocumentSave({
     }, SAVE_DEBOUNCE_MS);
   }
 
-  function handleBodyChange(value: string) {
-    latestBodyRef.current = value;
+  function handleDocumentChange(doc: DocumentJSON) {
+    const saved = savedBodyRef.current ?? "";
+    if (documentsEqual(doc, bodyToDocument(saved))) return;
+    latestBodyRef.current = serializeTiptapBody(doc);
+    scheduleSave();
+  }
+
+  function handleTitleChange(value: string) {
+    setTitle(value);
+    latestTitleRef.current = value;
     scheduleSave();
   }
 
@@ -223,20 +246,43 @@ export function useNoteDocumentSave({
     serverBodyRef.current = note.body;
     latestBodyRef.current = body;
     savedTitleRef.current = normalizeNoteTitle(note.title);
+    latestTitleRef.current = savedTitleRef.current;
+    setTitle(savedTitleRef.current ?? "");
     baseUpdatedAtRef.current = note.updatedAt;
     setSaveState("idle");
     setEditorNonce((n) => n + 1);
   }
 
-  function initialDoc() {
-    return dropNotedFlag(latestBodyRef.current ?? note?.body ?? "");
+  function initialDocument() {
+    return bodyToDocument(latestBodyRef.current ?? note?.body ?? "");
   }
 
   return {
     saveState,
     editorNonce,
-    handleBodyChange,
+    title,
+    handleTitleChange,
+    handleDocumentChange,
     reloadFromServer,
-    initialDoc,
+    initialDocument,
   };
+}
+
+export function noteSaveLabel(state: NoteSaveState): string | null {
+  switch (state) {
+    case "idle":
+      return null;
+    case "saving":
+      return "Saving…";
+    case "saved":
+      return "Saved";
+    case "error":
+      return "Save failed";
+    case "conflict":
+      return "Edited elsewhere";
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
 }

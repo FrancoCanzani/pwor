@@ -19,9 +19,13 @@ export const updateItemSchema = z
   .object({
     workspaceId: z.string().nullable().optional(),
     title: z.string().trim().min(1).max(200).nullable().optional(),
+    pinned: z.boolean().optional(),
   })
   .refine(
-    (value) => value.workspaceId !== undefined || value.title !== undefined,
+    (value) =>
+      value.workspaceId !== undefined ||
+      value.title !== undefined ||
+      value.pinned !== undefined,
     { message: "At least one field is required" },
   );
 

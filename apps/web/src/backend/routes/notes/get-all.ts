@@ -37,6 +37,7 @@ export function registerGetAllNotes(app: Hono<AppEnv>) {
         anchorQuote: note.anchorQuote,
         anchorPrefix: note.anchorPrefix,
         anchorSuffix: note.anchorSuffix,
+        pinnedAt: note.pinnedAt,
         body: note.body,
       })
       .from(note)
@@ -44,8 +45,9 @@ export function registerGetAllNotes(app: Hono<AppEnv>) {
       .orderBy(desc(note.updatedAt));
 
     return c.json({
-      items: items.map(({ body, ...item }) => ({
+      items: items.map(({ body, pinnedAt, ...item }) => ({
         ...item,
+        pinned: pinnedAt != null,
         hasBody: noteHasBody(body),
         noted: noteIsNoted(body),
         bodyPreview: noteBodyPreview(body),

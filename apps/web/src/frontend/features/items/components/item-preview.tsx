@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { FileTypeIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import {
@@ -383,15 +384,7 @@ export function ItemPreview({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
         {onClose ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            className="font-normal md:hidden"
-            onClick={onClose}
-          >
-            Back
-          </Button>
+          <SidebarTrigger className="size-4 shrink-0 p-0 md:hidden [&_svg]:size-3" />
         ) : null}
         <div className="min-w-0 flex-1">{title}</div>
         {chrome}

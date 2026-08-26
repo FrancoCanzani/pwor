@@ -4,7 +4,8 @@
     "lib": ["ESNext"],
     "types": ["@cloudflare/workers-types", "./worker-configuration.d.ts"],
     "paths": {
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@pwor/editor/document": ["../../packages/editor/src/document.ts"]
     }
   },
   "include": ["src/backend", "src/shared", "worker-configuration.d.ts"]

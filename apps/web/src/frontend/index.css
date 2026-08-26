@@ -4,6 +4,9 @@
 @import "@fontsource-variable/geist-mono";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@pwor/editor/styles.css";
+
+@source "../../../../packages/editor/src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -50,34 +53,6 @@
   --sidebar-ring: #94a3b8;
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
-}
-
-.dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #09090b;
-  --card-foreground: #fafafa;
-  --popover: #0c0c0e;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #09090b;
-  --secondary: #18181b;
-  --secondary-foreground: #fafafa;
-  --muted: #18181b;
-  --muted-foreground: #a1a1aa;
-  --accent: #18181b;
-  --accent-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #52525b;
-  --sidebar: #0f1115;
-  --sidebar-foreground: #fafafa;
-  --sidebar-primary: #fafafa;
-  --sidebar-primary-foreground: #09090b;
-  --sidebar-accent: #1a1d24;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #232730;
-  --sidebar-ring: #64748b;
 }
 
 @theme inline {
@@ -154,6 +129,7 @@
 
   html {
     @apply font-sans;
+    color-scheme: light;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }

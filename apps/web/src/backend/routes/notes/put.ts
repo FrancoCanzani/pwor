@@ -13,13 +13,15 @@ import { ownedBy, assertOwnedWorkspace } from "../../db/helpers";
 import { note } from "../../db/schema";
 import { scheduleNoteEmbed } from "../../lib/embed";
 import type { AppEnv } from "../../types";
+import { serializeNote } from "./lib/serialize";
 import { updateNoteSchema } from "./schemas";
 
 export function registerPutNote(app: Hono<AppEnv>) {
   return app.patch("/:id", zValidator("json", updateNoteSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { body, title, workspaceId, expectedUpdatedAt } = c.req.valid("json");
+    const { body, title, workspaceId, pinned, expectedUpdatedAt } =
+      c.req.valid("json");
     const db = createDb(c.env.DB);
 
     await assertOwnedWorkspace(db, workspaceId, user.id);
@@ -37,6 +39,9 @@ export function registerPutNote(app: Hono<AppEnv>) {
       ...(body !== undefined ? { body } : {}),
       ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
       ...(workspaceId !== undefined ? { workspaceId } : {}),
+      ...(pinned !== undefined
+        ? { pinnedAt: pinned ? new Date() : null }
+        : {}),
       ...(touchesContent ? { embedStatus: "pending" as const } : {}),
       updatedAt: new Date(),
     };
@@ -59,7 +64,7 @@ export function registerPutNote(app: Hono<AppEnv>) {
 
       if (updated) {
         scheduleNoteEmbed(c.executionCtx, c.env, updated.id);
-        return c.json(updated);
+        return c.json(serializeNote(updated));
       }
 
       const [existing] = await db
@@ -68,7 +73,7 @@ export function registerPutNote(app: Hono<AppEnv>) {
         .where(ownedBy(note.id, id, note.userId, user.id))
         .limit(1);
       if (!existing) throw new HTTPException(404, { message: "Not found" });
-      return c.json({ error: "conflict", note: existing }, 409);
+      return c.json({ error: "conflict", note: serializeNote(existing) }, 409);
     }
 
     const [updated] = await db
@@ -79,6 +84,6 @@ export function registerPutNote(app: Hono<AppEnv>) {
 
     if (!updated) throw new HTTPException(404, { message: "Not found" });
 
-    return c.json(updated);
+    return c.json(serializeNote(updated));
   });
 }

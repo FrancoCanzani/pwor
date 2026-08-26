@@ -36,20 +36,20 @@ import {
 } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
-import { noteDisplayTitle } from "@shared/note-frontmatter";
 import { PageEmpty } from "@components/page-empty";
 import { SplitPreviewLayout } from "@components/split-preview-layout";
 import {
   deleteItem,
-  updateItemWorkspace,
   itemsInfiniteQueryOptions,
+  updateItemPinned,
+  updateItemWorkspace,
   type Item,
 } from "@features/items/api";
 import { ItemPreview } from "@features/items/components/item-preview";
 import { LibraryHeader } from "@features/items/components/library-header";
 import {
   LibraryList,
-  type LibraryEntry,
+  itemEntries,
 } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
@@ -61,21 +61,14 @@ import {
 } from "@features/items/lib/facet";
 import { sortBy, itemTitle, type ItemSort } from "@features/items/lib/list";
 import {
-  deleteNote,
-  isStandaloneNote,
-  notesQueryOptions,
-  updateNoteWorkspace,
-} from "@features/notes/api";
-import { useFloatingNote } from "@features/notes/floating-note-context";
-import {
   deleteWorkspace,
   workspacesQueryOptions,
 } from "@features/workspaces/api";
 
 export function SpaceLibraryPage() {
-  const { workspaceId } = useParams({ from: "/_app/$workspaceId" });
-  const search = useSearch({ from: "/_app/$workspaceId/" });
-  const navigate = useNavigate({ from: "/$workspaceId/" });
+  const { spaceId } = useParams({ from: "/_app/spaces/$spaceId" });
+  const search = useSearch({ from: "/_app/spaces/$spaceId/" });
+  const navigate = useNavigate({ from: "/spaces/$spaceId/" });
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Set<ItemTypeFacet>>(() => new Set());
@@ -83,9 +76,8 @@ export function SpaceLibraryPage() {
   const [draggingIds, setDraggingIds] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<ItemSort>("newest");
 
-  const { openNote, activeNoteId } = useFloatingNote();
   const { data: workspaces = [] } = useQuery(workspacesQueryOptions);
-  const space = workspaces.find((item) => item.id === workspaceId);
+  const space = workspaces.find((item) => item.id === spaceId);
   const spaceTitle = space?.name.trim() || "Untitled";
 
   const {
@@ -93,17 +85,12 @@ export function SpaceLibraryPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery(itemsInfiniteQueryOptions(workspaceId));
+  } = useInfiniteQuery(itemsInfiniteQueryOptions(spaceId));
   const items = useMemo(
     () => itemList?.pages.flatMap((page) => page.items) ?? [],
     [itemList],
   );
-  const { data: notes = [] } = useQuery(notesQueryOptions(workspaceId));
-  const standaloneNotes = useMemo(
-    () => notes.filter(isStandaloneNote),
-    [notes],
-  );
-  const hasCaptured = items.length > 0 || standaloneNotes.length > 0;
+  const hasCaptured = items.length > 0;
   const sentinelRef = useInfiniteScrollSentinel(() => {
     if (!isFetchingNextPage) void fetchNextPage();
   }, hasNextPage);
@@ -115,14 +102,9 @@ export function SpaceLibraryPage() {
           .map((id) => TYPE_FACET_LABEL[id])
           .join(", ");
 
-  const noteIds = useMemo(
-    () => new Set(standaloneNotes.map((note) => note.id)),
-    [standaloneNotes],
-  );
-
   const entries = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const mixed: LibraryEntry[] = [];
+    const filtered: Item[] = [];
     for (const item of items) {
       if (filters.size > 0 && !filters.has(typeFacetOf(item))) continue;
       if (q) {
@@ -137,31 +119,16 @@ export function SpaceLibraryPage() {
           .toLowerCase();
         if (!haystack.includes(q)) continue;
       }
-      mixed.push({ kind: "item", item });
+      filtered.push(item);
     }
-    if (filters.size === 0) {
-      for (const note of standaloneNotes) {
-        if (q) {
-          const haystack = [noteDisplayTitle(note.title), note.bodyPreview]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-          if (!haystack.includes(q)) continue;
-        }
-        mixed.push({ kind: "note", note });
-      }
-    }
-    return sortBy(mixed, sort, {
-      date: (entry) =>
-        entry.kind === "item"
-          ? entry.item.createdAt
-          : new Date(entry.note.updatedAt).toISOString(),
-      name: (entry) =>
-        entry.kind === "item"
-          ? itemTitle(entry.item)
-          : noteDisplayTitle(entry.note.title),
-    });
-  }, [items, standaloneNotes, filters, query, sort]);
+    return itemEntries(
+      sortBy(filtered, sort, {
+        date: (item) => item.createdAt,
+        name: (item) => itemTitle(item),
+        pinned: (item) => Boolean(item.pinned),
+      }),
+    );
+  }, [items, filters, query, sort]);
 
   const selectedIds = entries
     .map((entry) => (entry.kind === "item" ? entry.item.id : entry.note.id))
@@ -174,7 +141,7 @@ export function SpaceLibraryPage() {
   });
 
   const deleteSpaceMutation = useMutation({
-    mutationFn: () => deleteWorkspace(workspaceId),
+    mutationFn: () => deleteWorkspace(spaceId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: workspacesQueryOptions.queryKey,
@@ -187,17 +154,11 @@ export function SpaceLibraryPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        if (noteIds.has(id)) await deleteNote(id);
-        else await deleteItem(id);
-      }
+      for (const id of ids) await deleteItem(id);
     },
     onSuccess: async (_result, ids) => {
       setSelected(new Set());
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
-        queryClient.invalidateQueries({ queryKey: ["notes"] }),
-      ]);
+      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
       if (search.item && ids.includes(search.item)) {
         void navigate({ search: {}, replace: true });
       }
@@ -208,8 +169,7 @@ export function SpaceLibraryPage() {
   const moveMutation = useMutation({
     mutationFn: async (nextWorkspaceId: string) => {
       for (const id of selectedIds) {
-        if (noteIds.has(id)) await updateNoteWorkspace(id, nextWorkspaceId);
-        else await updateItemWorkspace(id, nextWorkspaceId);
+        await updateItemWorkspace(id, nextWorkspaceId);
       }
     },
     onSuccess: async (_result, nextWorkspaceId) => {
@@ -217,7 +177,6 @@ export function SpaceLibraryPage() {
       setSelected(new Set());
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
-        queryClient.invalidateQueries({ queryKey: ["notes"] }),
         queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
       ]);
       if (search.item && selectedIds.includes(search.item)) {
@@ -233,6 +192,14 @@ export function SpaceLibraryPage() {
       );
     },
     onError: () => toast.error("Couldn’t move item"),
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: (item: Item) => updateItemPinned(item.id, !item.pinned),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
+    },
+    onError: () => toast.error("Couldn’t pin"),
   });
 
   const busy = deleteMutation.isPending || moveMutation.isPending;
@@ -262,28 +229,10 @@ export function SpaceLibraryPage() {
     });
   }
 
-  function openEntry(entry: LibraryEntry) {
-    switch (entry.kind) {
-      case "item":
-        setOpenItem(entry.item);
-        return;
-      case "note":
-        openNote(entry.note.id);
-        return;
-      default: {
-        const _exhaustive: never = entry;
-        return _exhaustive;
-      }
-    }
-  }
-
   const openItem =
     search.item != null
       ? (items.find((item) => item.id === search.item) ?? null)
       : null;
-
-  const deleteDescription =
-    "This permanently removes it from this space. This can’t be undone.";
 
   const previewOpen = openItem != null;
 
@@ -389,7 +338,7 @@ export function SpaceLibraryPage() {
               description={
                 <span className="flex items-center justify-center gap-1">
                   <Kbd>⌘U</Kbd>
-                  to capture, or write a note.
+                  to capture.
                 </span>
               }
             />
@@ -405,15 +354,19 @@ export function SpaceLibraryPage() {
           <LibraryList
             entries={entries}
             edgeToEdge={previewOpen}
-            openId={activeNoteId ?? openItem?.id ?? null}
             selected={selected}
             draggingIds={draggingIds}
-            deleteDescription={deleteDescription}
-            fromWorkspaceId={workspaceId}
+            deleteDescription="This permanently removes it from this space. This can’t be undone."
+            fromWorkspaceId={spaceId}
             hasNextPage={Boolean(hasNextPage)}
             sentinelRef={sentinelRef}
-            onOpen={openEntry}
+            onOpen={(entry) => {
+              if (entry.kind === "item") setOpenItem(entry.item);
+            }}
             onToggle={toggleSelected}
+            onPin={(entry) => {
+              if (entry.kind === "item") pinMutation.mutate(entry.item);
+            }}
             onDelete={(ids) => deleteMutation.mutate(ids)}
             onDraggingIds={(ids) => setDraggingIds(new Set(ids))}
           />
@@ -435,7 +388,7 @@ export function SpaceLibraryPage() {
       <LibrarySelectionBar
         count={selectedCount}
         busy={busy}
-        excludeWorkspaceId={workspaceId}
+        excludeWorkspaceId={spaceId}
         deleteTitle={
           selectedCount === 1 ? "Delete item?" : `Delete ${selectedCount} items?`
         }

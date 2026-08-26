@@ -1,3 +1,4 @@
+import { DrawingPinFilledIcon } from "@radix-ui/react-icons";
 import { useRef, type ReactNode } from "react";
 
 import {
@@ -28,16 +29,20 @@ import type { NoteListItem } from "@features/notes/api";
 
 function NoteMenus({
   title,
+  pinned,
   deleteDescription,
   onOpen,
   onToggle,
+  onPin,
   onDelete,
   children,
 }: {
   title: string;
+  pinned: boolean;
   deleteDescription: string;
   onOpen: () => void;
   onToggle: (checked: boolean) => void;
+  onPin: () => void;
   onDelete: () => void;
   children: ReactNode;
 }) {
@@ -55,6 +60,9 @@ function NoteMenus({
               onClick={() => onToggle(true)}
             >
               Select
+            </ContextMenuItem>
+            <ContextMenuItem className="font-normal text-xs" onClick={onPin}>
+              {pinned ? "Unpin" : "Pin"}
             </ContextMenuItem>
           </ContextMenuGroup>
           <ContextMenuSeparator />
@@ -116,6 +124,7 @@ export function NoteRow({
   edgeToEdge = false,
   onOpen,
   onToggle,
+  onPin,
   onDelete,
   onDragStart,
   onDragEnd,
@@ -131,9 +140,11 @@ export function NoteRow({
   return (
     <NoteMenus
       title={title}
+      pinned={Boolean(note.pinned)}
       deleteDescription={deleteDescription}
       onOpen={onOpen}
       onToggle={onToggle}
+      onPin={onPin}
       onDelete={onDelete}
     >
       <ContextMenuTrigger
@@ -175,11 +186,16 @@ export function NoteRow({
             onCheckedChange={(checked) => onToggle(checked === true)}
           />
         </span>
-        <span className="min-w-0 flex-1 truncate text-sm">{title}</span>
-        {preview ? (
-          <span className="hidden min-w-0 max-w-[40%] truncate text-xs text-muted-foreground sm:block">
-            {preview}
-          </span>
+        <span className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden">
+          <span className="max-w-[40%] shrink-0 truncate text-sm">{title}</span>
+          {preview ? (
+            <span className="min-w-0 truncate text-xs text-muted-foreground">
+              {preview}
+            </span>
+          ) : null}
+        </span>
+        {note.pinned ? (
+          <DrawingPinFilledIcon className="size-3 shrink-0 text-muted-foreground" />
         ) : null}
         <span className="shrink-0 text-xs font-nums text-muted-foreground">
           {formatItemDate(note.updatedAt)}

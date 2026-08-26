@@ -6,12 +6,12 @@ import {
   setStoredWorkspaceId,
 } from "@features/workspaces/lib/current-workspace";
 
-export const Route = createFileRoute("/_app/$workspaceId")({
+export const Route = createFileRoute("/_app/spaces/$spaceId")({
   beforeLoad: async ({ context, params }) => {
     const workspaces = await context.queryClient.ensureQueryData(
       workspacesQueryOptions,
     );
-    const valid = workspaces.some((w) => w.id === params.workspaceId);
+    const valid = workspaces.some((w) => w.id === params.spaceId);
 
     if (!valid) {
       const storedId = getStoredWorkspaceId();
@@ -19,13 +19,13 @@ export const Route = createFileRoute("/_app/$workspaceId")({
         ? storedId!
         : workspaces[0]!.id;
       throw redirect({
-        to: ".",
-        params: (prev) => ({ ...prev, workspaceId: fallbackId }),
+        to: "/spaces/$spaceId",
+        params: { spaceId: fallbackId },
         replace: true,
       });
     }
 
-    setStoredWorkspaceId(params.workspaceId);
+    setStoredWorkspaceId(params.spaceId);
   },
   component: () => <Outlet />,
 });

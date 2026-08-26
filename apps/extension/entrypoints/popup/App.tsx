@@ -285,7 +285,7 @@ export default function App() {
     }
   })();
 
-  const openPath = workspaceId ? `/${workspaceId}` : "/inbox";
+  const openPath = workspaceId ? `/spaces/${workspaceId}` : "/inbox";
 
   return (
     <div className="flex min-h-[280px] flex-col p-4">

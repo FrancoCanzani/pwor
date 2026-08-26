@@ -5,6 +5,7 @@ import { createDb } from "../../db";
 import { ownedBy } from "../../db/helpers";
 import { note } from "../../db/schema";
 import type { AppEnv } from "../../types";
+import { serializeNote } from "./lib/serialize";
 
 export function registerGetNote(app: Hono<AppEnv>) {
   return app.get("/:id", async (c) => {
@@ -20,6 +21,6 @@ export function registerGetNote(app: Hono<AppEnv>) {
 
     if (!row) throw new HTTPException(404, { message: "Not found" });
 
-    return c.json(row);
+    return c.json(serializeNote(row));
   });
 }

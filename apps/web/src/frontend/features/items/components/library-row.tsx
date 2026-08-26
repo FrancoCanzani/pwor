@@ -1,3 +1,4 @@
+import { DrawingPinFilledIcon } from "@radix-ui/react-icons";
 import { useRef, type DragEvent } from "react";
 
 import {
@@ -32,6 +33,7 @@ export type LibraryItemHandlers = {
   active: boolean;
   onOpen: () => void;
   onToggle: (checked: boolean) => void;
+  onPin: () => void;
   onDelete: () => void;
   onDragStart: (event: DragEvent<HTMLLIElement>) => void;
   onDragEnd: () => void;
@@ -46,6 +48,7 @@ export function LibraryRow({
   edgeToEdge = false,
   onOpen,
   onToggle,
+  onPin,
   onDelete,
   onDragStart,
   onDragEnd,
@@ -121,6 +124,9 @@ export function LibraryRow({
           <ItemHoverCard item={item}>
             <ItemMention item={item} className="min-w-0 flex-1" />
           </ItemHoverCard>
+          {item.pinned ? (
+            <DrawingPinFilledIcon className="size-3 shrink-0 text-muted-foreground" />
+          ) : null}
           <span className="shrink-0 text-xs font-nums text-muted-foreground">
             {formatItemDate(item.createdAt)}
           </span>
@@ -155,6 +161,9 @@ export function LibraryRow({
               onClick={() => onToggle(true)}
             >
               Select
+            </ContextMenuItem>
+            <ContextMenuItem className="font-normal text-xs" onClick={onPin}>
+              {item.pinned ? "Unpin" : "Pin"}
             </ContextMenuItem>
           </ContextMenuGroup>
           <ContextMenuSeparator />

@@ -18,6 +18,7 @@ export const itemListColumns = {
     Number,
   ),
   createdAt: item.createdAt,
+  pinnedAt: item.pinnedAt,
 };
 
 export type ItemRow = {
@@ -34,6 +35,7 @@ export type ItemRow = {
   previewR2Key: string | null;
   sizeBytes: number | null;
   createdAt: Date;
+  pinnedAt: Date | null;
   content?: string | null;
 };
 
@@ -61,6 +63,7 @@ export function serializeItem(row: ItemRow) {
     hasPreview: Boolean(row.previewR2Key),
     sizeBytes: itemSizeBytes(row),
     createdAt: row.createdAt,
+    pinned: row.pinnedAt != null,
   };
 }
 

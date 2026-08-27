@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ExtensionLinkRouteImport } from './routes/extension/link'
 import { Route as AppFeedsIndexRouteImport } from './routes/_app/feeds/index'
 import { Route as AppInboxIndexRouteImport } from './routes/_app/inbox/index'
@@ -35,6 +37,16 @@ const AppRoute = AppRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExtensionLinkRoute = ExtensionLinkRouteImport.update({
@@ -91,6 +103,8 @@ const AppSpacesSpaceIdIndexRoute = AppSpacesSpaceIdIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/extension/link': typeof ExtensionLinkRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/spaces/$spaceId': typeof AppSpacesSpaceIdRouteWithChildren
@@ -105,6 +119,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/extension/link': typeof ExtensionLinkRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/feeds': typeof AppFeedsIndexRoute
@@ -120,6 +136,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/extension/link': typeof ExtensionLinkRoute
   '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
   '/_app/spaces/$spaceId': typeof AppSpacesSpaceIdRouteWithChildren
@@ -136,6 +154,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/privacy'
+    | '/terms'
     | '/extension/link'
     | '/notes/$noteId'
     | '/spaces/$spaceId'
@@ -150,6 +170,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/privacy'
+    | '/terms'
     | '/extension/link'
     | '/notes/$noteId'
     | '/feeds'
@@ -164,6 +186,8 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/privacy'
+    | '/terms'
     | '/extension/link'
     | '/_app/notes/$noteId'
     | '/_app/spaces/$spaceId'
@@ -180,6 +204,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
   ExtensionLinkRoute: typeof ExtensionLinkRoute
 }
 
@@ -204,6 +230,20 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/extension/link': {
@@ -318,6 +358,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   ExtensionLinkRoute: ExtensionLinkRoute,
 }
 export const routeTree = rootRouteImport

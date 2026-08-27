@@ -7,7 +7,7 @@ import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 
 type Captured = {
   id: string;
-  workspaceId: string | null;
+  spaceId: string | null;
   duplicate?: boolean;
 };
 
@@ -29,12 +29,12 @@ export function useCaptureFeedback() {
       fallback: string,
       spaces: { id: string; name: string }[],
     ) => {
-      const workspaceId = items.find((item) => item.workspaceId)?.workspaceId;
-      if (!workspaceId) {
+      const spaceId = items.find((item) => item.spaceId)?.spaceId;
+      if (!spaceId) {
         return fallback === AUTO_DESTINATION_LABEL ? "Inbox" : fallback;
       }
       return (
-        spaces.find((space) => space.id === workspaceId)?.name.trim() ||
+        spaces.find((space) => space.id === spaceId)?.name.trim() ||
         "Untitled"
       );
     },

@@ -5,7 +5,7 @@ export type SearchHit = {
   id: string;
   title: string;
   snippet: string | null;
-  workspaceId: string | null;
+  spaceId: string | null;
   feedId: string | null;
   updatedAt: number;
 };
@@ -19,7 +19,7 @@ type Source = {
   id: string;
   title: string;
   userId: string;
-  workspace: string | null;
+  spaceColumn: string | null;
   timestamp: string;
   body: string | null;
   snippet: string;
@@ -33,7 +33,7 @@ const SOURCES: Source[] = [
     id: "id",
     title: "title",
     userId: "user_id",
-    workspace: "workspace_id",
+    spaceColumn: "space_id",
     timestamp: "updated_at",
     body: "body",
     snippet: `substr(trim(body), 1, ${SNIPPET_CHARS})`,
@@ -45,7 +45,7 @@ const SOURCES: Source[] = [
     id: "id",
     title: "title",
     userId: "user_id",
-    workspace: "workspace_id",
+    spaceColumn: "space_id",
     timestamp: "updated_at",
     body: "coalesce(summary, content, extracted_markdown, tags)",
     snippet: `substr(trim(coalesce(summary, content, extracted_markdown, tags)), 1, ${SNIPPET_CHARS})`,
@@ -57,7 +57,7 @@ const SOURCES: Source[] = [
     id: "feed_item.id",
     title: "feed_item.title",
     userId: "feed_item.user_id",
-    workspace: null,
+    spaceColumn: null,
     timestamp: "coalesce(feed_item.published_at, feed_item.created_at)",
     body: "coalesce(feed_item.summary, feed_item.author, feed.title)",
     snippet: "feed.title",
@@ -73,12 +73,12 @@ function escapeLike(term: string) {
 export function buildSearchQuery({
   userId,
   q,
-  workspaceId,
+  spaceId,
   limit,
 }: {
   userId: string;
   q: string;
-  workspaceId?: string;
+  spaceId?: string;
   limit: number;
 }): { sql: string; params: unknown[] } {
   const term = escapeLike(q);
@@ -87,14 +87,14 @@ export function buildSearchQuery({
   const params: unknown[] = [];
 
   const arms = SOURCES.filter(
-    (source) => !workspaceId || source.workspace != null,
+    (source) => !spaceId || source.spaceColumn != null,
   ).map((source) => {
     params.push(prefix, infix, userId);
     let where = `${source.userId} = ?`;
 
-    if (workspaceId && source.workspace) {
-      where += ` and ${source.workspace} = ?`;
-      params.push(workspaceId);
+    if (spaceId && source.spaceColumn) {
+      where += ` and ${source.spaceColumn} = ?`;
+      params.push(spaceId);
     }
 
     params.push(infix);
@@ -106,7 +106,7 @@ export function buildSearchQuery({
     }
     where += `)`;
 
-    const workspaceSelect = source.workspace ?? "null";
+    const spaceSelect = source.spaceColumn ?? "null";
 
     return `select * from (
       select
@@ -114,7 +114,7 @@ export function buildSearchQuery({
         ${source.id} as id,
         coalesce(nullif(trim(${source.title}), ''), 'Untitled') as title,
         ${source.snippet} as snippet,
-        ${workspaceSelect} as workspaceId,
+        ${spaceSelect} as spaceId,
         ${source.feedId} as feedId,
         ${source.timestamp} as updatedAt,
         case

@@ -16,3 +16,8 @@ export async function refreshSession(queryClient: QueryClient) {
   queryClient.removeQueries({ queryKey: sessionQueryOptions.queryKey });
   return queryClient.fetchQuery(sessionQueryOptions);
 }
+
+export async function clearSession(queryClient: QueryClient) {
+  await queryClient.cancelQueries();
+  queryClient.clear();
+}

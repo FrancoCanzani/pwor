@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import {
-  InboxPage,
-  inboxSearchSchema,
-} from "@features/inbox/components/inbox-page";
 import { inboxItemsInfiniteQueryOptions } from "@features/items/api";
+import {
+  LibraryPage,
+  librarySearchSchema,
+} from "@features/items/components/library-page";
 
 export const Route = createFileRoute("/_app/inbox/")({
-  validateSearch: inboxSearchSchema,
+  validateSearch: librarySearchSchema,
   loader: ({ context }) =>
     context.queryClient.ensureInfiniteQueryData(
       inboxItemsInfiniteQueryOptions(),
     ),
-  component: InboxPage,
+  component: LibraryPage,
 });

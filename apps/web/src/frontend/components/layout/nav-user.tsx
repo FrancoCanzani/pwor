@@ -1,5 +1,6 @@
 import { CaretSortIcon } from "@radix-ui/react-icons";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { authClient } from "@lib/auth-client";
+import { clearSession } from "@lib/session";
 
 export type ShellUser = {
   name: string;
@@ -28,6 +30,8 @@ const routeApi = getRouteApi("/_app");
 export function NavUser() {
   const { user } = routeApi.useRouteContext();
   const { isMobile } = useSidebar();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const label = user.name.trim() || user.email;
 
   return (
@@ -68,7 +72,12 @@ export function NavUser() {
                 variant="destructive"
                 className="font-normal text-xs"
                 onClick={() => {
-                  void authClient.signOut();
+                  void (async () => {
+                    const { error } = await authClient.signOut();
+                    if (error) return;
+                    await clearSession(queryClient);
+                    await navigate({ to: "/" });
+                  })();
                 }}
               >
                 Sign out

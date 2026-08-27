@@ -1,6 +1,5 @@
 import { tweetIdFromUrl } from "@shared/tweet";
-
-const URL_RE = /^https?:\/\/\S+$/i;
+import { HTTP_URL_RE } from "@shared/url";
 
 export type CaptureDestination =
   | { kind: "inbox" }
@@ -13,7 +12,7 @@ export function isCaptureUrl(input: string): boolean {
   const trimmed = input.trim();
   if (!trimmed) return false;
   if (tweetIdFromUrl(trimmed)) return true;
-  return URL_RE.test(trimmed);
+  return HTTP_URL_RE.test(trimmed);
 }
 
 export function captureHost(input: string): string | null {
@@ -86,16 +85,16 @@ export function destinationLabel(
 }
 
 export function captureRequest(dest: CaptureDestination): {
-  workspaceId: string | null;
+  spaceId: string | null;
   autoSpace: boolean;
 } {
   switch (dest.kind) {
     case "inbox":
-      return { workspaceId: null, autoSpace: false };
+      return { spaceId: null, autoSpace: false };
     case "auto":
-      return { workspaceId: null, autoSpace: true };
+      return { spaceId: null, autoSpace: true };
     case "space":
-      return { workspaceId: dest.id, autoSpace: false };
+      return { spaceId: dest.id, autoSpace: false };
     default: {
       const _exhaustive: never = dest;
       return _exhaustive;

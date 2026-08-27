@@ -15,10 +15,10 @@ import { PasteCapture } from "@features/inbox/components/paste-capture";
 import { noteQueryOptions } from "@features/notes/api";
 import { FloatingNoteHost } from "@features/notes/components/floating-note-window";
 import { FloatingNoteProvider } from "@features/notes/floating-note-context";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { useCurrentSpace } from "@features/spaces/lib/use-current-space";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const { id: workspaceId } = useCurrentWorkspace();
+  const { id: spaceId } = useCurrentSpace();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [draft, setDraft] = useState<CaptureDraft | null>(null);
@@ -27,7 +27,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const [floatingNoteId, setFloatingNoteId] = useState<string | null>(null);
 
   function openNote(noteId: string) {
-    if (!workspaceId) return;
+    if (!spaceId) return;
     void queryClient.prefetchQuery(noteQueryOptions(noteId));
     setFloatingNoteId(noteId);
     setFloatingOpen(true);

@@ -10,14 +10,14 @@ import { listQuerySchema } from "./schemas";
 export function registerGetItemUsage(app: Hono<AppEnv>) {
   return app.get("/usage", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { workspaceId, inbox } = c.req.valid("query");
+    const { spaceId, inbox } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(item.userId, user.id)];
     if (inbox) {
-      conditions.push(isNull(item.workspaceId));
-    } else if (workspaceId) {
-      conditions.push(eq(item.workspaceId, workspaceId));
+      conditions.push(isNull(item.spaceId));
+    } else if (spaceId) {
+      conditions.push(eq(item.spaceId, spaceId));
     }
 
     const [totals] = await db

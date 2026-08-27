@@ -79,7 +79,7 @@ function LoginPage() {
           Pwor
         </h1>
         <p className="mb-5 text-xs leading-normal text-muted-foreground">
-          Your life, organized itself.
+          Dump anything in. Find it later.
         </p>
 
         {sentTo ? (

@@ -3,28 +3,41 @@ import { HTTPException } from "hono/http-exception";
 import type { Hono } from "hono";
 
 import { createDb } from "../../db";
-import { ownedBy, assertOwnedWorkspace } from "../../db/helpers";
+import { ownedBy, assertOwnedSpace } from "../../db/helpers";
 import { item } from "../../db/schema";
 import { scheduleItemEmbed } from "../../lib/embed";
 import type { AppEnv } from "../../types";
+import { patchOwnedItems } from "./lib/mutate";
 import { serializeItemDetail } from "./lib/serialize";
-import { updateItemSchema } from "./schemas";
+import { batchUpdateItemSchema, updateItemSchema } from "./schemas";
+
+export function registerPatchItems(app: Hono<AppEnv>) {
+  return app.patch("/", zValidator("json", batchUpdateItemSchema), async (c) => {
+    const user = c.get("user")!;
+    const { ids, spaceId, pinned } = c.req.valid("json");
+    const items = await patchOwnedItems(c.env, user.id, ids, {
+      spaceId,
+      pinned,
+    });
+    return c.json({ items });
+  });
+}
 
 export function registerPutItem(app: Hono<AppEnv>) {
   return app.patch("/:id", zValidator("json", updateItemSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { workspaceId, title, pinned } = c.req.valid("json");
+    const { spaceId, title, pinned } = c.req.valid("json");
     const db = createDb(c.env.DB);
 
-    if (workspaceId !== undefined) {
-      await assertOwnedWorkspace(db, workspaceId, user.id);
+    if (spaceId !== undefined) {
+      await assertOwnedSpace(db, spaceId, user.id);
     }
 
     const [updated] = await db
       .update(item)
       .set({
-        ...(workspaceId !== undefined ? { workspaceId } : {}),
+        ...(spaceId !== undefined ? { spaceId } : {}),
         ...(title !== undefined ? { title } : {}),
         ...(pinned !== undefined
           ? { pinnedAt: pinned ? new Date() : null }

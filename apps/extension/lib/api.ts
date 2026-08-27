@@ -4,7 +4,7 @@ import {
   type ExtensionUser,
   type Item,
   type LinkingState,
-  type Workspace,
+  type Space,
 } from "./config";
 
 async function getApiKey(): Promise<string | null> {
@@ -17,35 +17,35 @@ export async function getStoredUser(): Promise<ExtensionUser | null> {
   return (stored[STORAGE_KEYS.user] as ExtensionUser | undefined) ?? null;
 }
 
-export async function getStoredWorkspaceId(): Promise<string | null> {
-  const stored = await browser.storage.local.get(STORAGE_KEYS.workspaceId);
-  return (stored[STORAGE_KEYS.workspaceId] as string | undefined) ?? null;
+export async function getStoredSpaceId(): Promise<string | null> {
+  const stored = await browser.storage.local.get(STORAGE_KEYS.spaceId);
+  return (stored[STORAGE_KEYS.spaceId] as string | undefined) ?? null;
 }
 
-export async function setStoredWorkspaceId(id: string | null) {
+export async function setStoredSpaceId(id: string | null) {
   if (id) {
-    await browser.storage.local.set({ [STORAGE_KEYS.workspaceId]: id });
+    await browser.storage.local.set({ [STORAGE_KEYS.spaceId]: id });
     return;
   }
-  await browser.storage.local.remove(STORAGE_KEYS.workspaceId);
+  await browser.storage.local.remove(STORAGE_KEYS.spaceId);
 }
 
-export async function resolveStoredWorkspaceId(): Promise<string | null> {
-  const id = await getStoredWorkspaceId();
+export async function resolveStoredSpaceId(): Promise<string | null> {
+  const id = await getStoredSpaceId();
   if (!id) return null;
-  const spaces = await listWorkspaces().catch(() => null);
+  const spaces = await listSpaces().catch(() => null);
   if (!spaces) return id;
   if (spaces.some((space) => space.id === id)) return id;
-  await setStoredWorkspaceId(null);
+  await setStoredSpaceId(null);
   return null;
 }
 
-export function workspaceLabel(
-  workspaceId: string | null,
-  spaces: Workspace[],
+export function spaceLabel(
+  spaceId: string | null,
+  spaces: Space[],
 ): string {
-  if (!workspaceId) return "Inbox";
-  const name = spaces.find((space) => space.id === workspaceId)?.name.trim();
+  if (!spaceId) return "Inbox";
+  const name = spaces.find((space) => space.id === spaceId)?.name.trim();
   return name || "Untitled";
 }
 
@@ -123,38 +123,38 @@ export async function fetchMe(): Promise<ExtensionUser> {
   return api<ExtensionUser>("/api/me");
 }
 
-export async function listWorkspaces(): Promise<Workspace[]> {
-  const body = await api<{ items: Workspace[] }>("/api/workspaces");
+export async function listSpaces(): Promise<Space[]> {
+  const body = await api<{ items: Space[] }>("/api/spaces");
   return body.items;
 }
 
 export type CaptureInput = {
   input: string;
-  workspaceId?: string | null;
+  spaceId?: string | null;
   autoSpace?: boolean;
   hint?: string | null;
   tags?: string[];
-  preferredWorkspaceId?: string | null;
+  preferredSpaceId?: string | null;
 };
 
 export async function capture(input: CaptureInput): Promise<Item> {
-  const workspaceId =
-    input.workspaceId !== undefined
-      ? input.workspaceId
-      : await resolveStoredWorkspaceId();
+  const spaceId =
+    input.spaceId !== undefined
+      ? input.spaceId
+      : await resolveStoredSpaceId();
   return api<Item>("/api/items", {
     method: "POST",
-    body: JSON.stringify({ ...input, workspaceId }),
+    body: JSON.stringify({ ...input, spaceId }),
   });
 }
 
-export async function updateItemWorkspace(
+export async function updateItemSpace(
   id: string,
-  workspaceId: string | null,
+  spaceId: string | null,
 ): Promise<Item> {
   return api<Item>(`/api/items/${id}`, {
     method: "PATCH",
-    body: JSON.stringify({ workspaceId }),
+    body: JSON.stringify({ spaceId }),
   });
 }
 

@@ -37,7 +37,7 @@ import {
 } from "@features/command/lib/capture";
 import { useCaptureFeedback } from "@features/command/lib/use-capture-feedback";
 import { captureItemInput, uploadItem, type Item } from "@features/items/api";
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import { spacesQueryOptions } from "@features/spaces/api";
 
 export function CaptureComposer({
   open,
@@ -57,7 +57,7 @@ export function CaptureComposer({
   const busyRef = useRef(false);
   const consumedDraft = useRef<CaptureDraft | null>(null);
   const { spaceId: routeSpaceId } = useParams({ strict: false });
-  const { data: spaces = [] } = useQuery(workspacesQueryOptions);
+  const { data: spaces = [] } = useQuery(spacesQueryOptions);
   const { notifySaved, invalidateItems, savedLabel } = useCaptureFeedback();
 
   const spaceIds = spaces.map((space) => space.id);
@@ -123,18 +123,22 @@ export function CaptureComposer({
     busyRef.current = true;
     onOpenChange(false);
     const request = captureRequest(dest);
-    const fileWorkspace = request.autoSpace ? null : request.workspaceId;
+    const fileSpace = request.autoSpace ? null : request.spaceId;
     const created: Item[] = [];
     try {
       if (text) {
         created.push(
-          await captureItemInput(text, request.workspaceId, {
+          await captureItemInput(text, request.spaceId, {
             autoSpace: request.autoSpace,
           }),
         );
       }
-      for (const file of queued) {
-        created.push(await uploadItem(file, fileWorkspace));
+      if (queued.length > 0) {
+        created.push(
+          ...(await Promise.all(
+            queued.map((file) => uploadItem(file, fileSpace)),
+          )),
+        );
       }
       await invalidateItems();
       notifySaved(savedLabel(created, destinationLabel(dest, spaces), spaces), created);
@@ -206,7 +210,7 @@ export function CaptureComposer({
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs" />
         <Dialog.Popup
           className={cn(
-            "fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg bg-popover text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-lg",
+            "fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-popover text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-lg",
             dragging && "ring-foreground/30",
           )}
           onKeyDown={onKeyDown}
@@ -291,7 +295,7 @@ export function CaptureComposer({
             ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 border-t border-border px-2 py-1.5">
+          <div className="flex shrink-0 items-center gap-2 border-t bg-muted/50 px-2 py-1.5">
             <DestinationMenu
               dest={dest}
               spaces={spaces}

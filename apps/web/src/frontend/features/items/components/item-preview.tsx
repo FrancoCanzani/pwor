@@ -4,7 +4,6 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { FileTypeIcon } from "@/components/icons";
 import { LayoutSidebarTrigger } from "@/components/layout/layout-sidebar-trigger";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -14,6 +13,7 @@ import {
   itemQueryOptions,
   itemSheetQueryOptions,
   type Item,
+  type ItemDetail,
 } from "@features/items/api";
 import { PdfViewer } from "@features/items/components/pdf-viewer";
 import { SheetViewer } from "@features/items/components/sheet-viewer";
@@ -91,6 +91,36 @@ function isSourceTag(
   if (t === h) return true;
   if (t === h.split(".")[0]) return true;
   return TWEET_HOSTS.has(h) && (t === "twitter" || t === "bookmark");
+}
+
+function overlayDetail(item: Item, detail: ItemDetail): Item {
+  const next = {
+    title: detail.title ?? item.title,
+    summary: detail.summary ?? item.summary,
+    tags: detail.tags ?? item.tags,
+    parseStatus: detail.parseStatus ?? item.parseStatus,
+  };
+  switch (item.kind) {
+    case "link":
+      return {
+        ...item,
+        ...next,
+        url: (detail.kind === "link" ? detail.url : item.url) || item.url,
+        hasPreview: detail.hasPreview,
+      };
+    case "file":
+      return {
+        ...item,
+        ...next,
+        hasPreview: detail.hasPreview,
+      };
+    case "text":
+      return { ...item, ...next };
+    default: {
+      const _exhaustive: never = item;
+      return _exhaustive;
+    }
+  }
 }
 
 function LinkArticle({
@@ -281,17 +311,7 @@ export function ItemPreview({
     ? (detail?.contentHtml?.trim() || null)
     : null;
 
-  const displayItem = detail
-    ? {
-        ...item,
-        title: detail.title ?? item.title,
-        summary: detail.summary ?? item.summary,
-        tags: detail.tags ?? item.tags,
-        url: detail.url ?? item.url,
-        hasPreview: detail.hasPreview ?? item.hasPreview,
-        parseStatus: detail.parseStatus ?? item.parseStatus,
-      }
-    : item;
+  const displayItem = detail ? overlayDetail(item, detail) : item;
 
   const body = isLinkLike ? (
     <LinkArticle
@@ -372,12 +392,9 @@ export function ItemPreview({
   ) : null;
 
   const title = (
-    <div className="flex min-w-0 max-w-full items-center gap-2">
-      {isLinkLike ? null : <FileTypeIcon item={displayItem} />}
-      <span className="min-w-0 truncate text-sm leading-none font-normal">
-        {itemTitle(displayItem)}
-      </span>
-    </div>
+    <span className="min-w-0 truncate text-sm leading-none font-normal">
+      {itemTitle(displayItem)}
+    </span>
   );
 
   return (

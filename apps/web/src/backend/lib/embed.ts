@@ -5,6 +5,7 @@ import { toEpochMs } from "@shared/time";
 
 import { createDb } from "../db";
 import { item, note } from "../db/schema";
+import type { WaitUntilCtx } from "../types";
 
 export const EMBED_MODEL = "@cf/qwen/qwen3-embedding-0.6b" as const;
 export const EMBED_TOP_K = 20;
@@ -254,7 +255,7 @@ export async function embedNote(env: Env, noteId: string): Promise<void> {
 }
 
 export function scheduleItemEmbed(
-  ctx: { waitUntil(promise: Promise<unknown>): void },
+  ctx: WaitUntilCtx,
   env: Env,
   itemId: string,
 ): void {
@@ -262,7 +263,7 @@ export function scheduleItemEmbed(
 }
 
 export function scheduleNoteEmbed(
-  ctx: { waitUntil(promise: Promise<unknown>): void },
+  ctx: WaitUntilCtx,
   env: Env,
   noteId: string,
 ): void {

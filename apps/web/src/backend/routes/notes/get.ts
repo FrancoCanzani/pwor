@@ -1,26 +1,14 @@
-import { HTTPException } from "hono/http-exception";
 import type { Hono } from "hono";
 
 import { createDb } from "../../db";
-import { ownedBy } from "../../db/helpers";
-import { note } from "../../db/schema";
 import type { AppEnv } from "../../types";
+import { loadOwnedNote } from "./lib/load";
 import { serializeNote } from "./lib/serialize";
 
 export function registerGetNote(app: Hono<AppEnv>) {
   return app.get("/:id", async (c) => {
     const user = c.get("user")!;
-    const id = c.req.param("id");
-    const db = createDb(c.env.DB);
-
-    const [row] = await db
-      .select()
-      .from(note)
-      .where(ownedBy(note.id, id, note.userId, user.id))
-      .limit(1);
-
-    if (!row) throw new HTTPException(404, { message: "Not found" });
-
+    const row = await loadOwnedNote(createDb(c.env.DB), c.req.param("id"), user.id);
     return c.json(serializeNote(row));
   });
 }

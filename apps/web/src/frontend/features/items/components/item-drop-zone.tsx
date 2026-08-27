@@ -10,7 +10,7 @@ import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
 import { createNote } from "@features/notes/api";
 import { bodyToDocument } from "@features/notes/lib/legacy-document";
 import { uploadItem, type Item } from "@features/items/api";
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import { spacesQueryOptions } from "@features/spaces/api";
 import { inferTitleFromRaw, serializeTiptapBody } from "@shared/note-frontmatter";
 
 const SWEEP_DURATION_MS = 800;
@@ -35,7 +35,7 @@ export function ItemDropZone() {
   const queryClient = useQueryClient();
   const { spaceId } = useParams({ strict: false });
   const { open, isOpen } = useCaptureComposer();
-  const { data: spaces = [] } = useQuery(workspacesQueryOptions);
+  const { data: spaces = [] } = useQuery(spacesQueryOptions);
   const { notifySaved, invalidateItems } = useCaptureFeedback();
   const label = spaceId
     ? spaces.find((space) => space.id === spaceId)?.name.trim() || "Untitled"
@@ -63,7 +63,7 @@ export function ItemDropZone() {
             await createNote({
               body: serializeTiptapBody(bodyToDocument(raw)),
               title,
-              workspaceId: destSpaceId,
+              spaceId: destSpaceId,
             });
             notesChanged = true;
             toast.success(`${file.name} added as note`);

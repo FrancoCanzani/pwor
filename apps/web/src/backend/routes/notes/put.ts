@@ -9,22 +9,35 @@ import {
 } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
 import { createDb } from "../../db";
-import { ownedBy, assertOwnedWorkspace } from "../../db/helpers";
+import { ownedBy, assertOwnedSpace } from "../../db/helpers";
 import { note } from "../../db/schema";
 import { scheduleNoteEmbed } from "../../lib/embed";
 import type { AppEnv } from "../../types";
+import { patchOwnedNotes } from "./lib/mutate";
 import { serializeNote } from "./lib/serialize";
-import { updateNoteSchema } from "./schemas";
+import { batchUpdateNoteSchema, updateNoteSchema } from "./schemas";
+
+export function registerPatchNotes(app: Hono<AppEnv>) {
+  return app.patch("/", zValidator("json", batchUpdateNoteSchema), async (c) => {
+    const user = c.get("user")!;
+    const { ids, spaceId, pinned } = c.req.valid("json");
+    const items = await patchOwnedNotes(c.env, user.id, ids, {
+      spaceId,
+      pinned,
+    });
+    return c.json({ items });
+  });
+}
 
 export function registerPutNote(app: Hono<AppEnv>) {
   return app.patch("/:id", zValidator("json", updateNoteSchema), async (c) => {
     const user = c.get("user")!;
     const id = c.req.param("id");
-    const { body, title, workspaceId, pinned, expectedUpdatedAt } =
+    const { body, title, spaceId, pinned, expectedUpdatedAt } =
       c.req.valid("json");
     const db = createDb(c.env.DB);
 
-    await assertOwnedWorkspace(db, workspaceId, user.id);
+    await assertOwnedSpace(db, spaceId, user.id);
 
     let normalizedTitle: string | null | undefined;
     if (title !== undefined) {
@@ -38,7 +51,7 @@ export function registerPutNote(app: Hono<AppEnv>) {
     const patch = {
       ...(body !== undefined ? { body } : {}),
       ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
-      ...(workspaceId !== undefined ? { workspaceId } : {}),
+      ...(spaceId !== undefined ? { spaceId } : {}),
       ...(pinned !== undefined
         ? { pinnedAt: pinned ? new Date() : null }
         : {}),

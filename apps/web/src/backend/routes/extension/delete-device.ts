@@ -2,6 +2,7 @@ import { HTTPException } from "hono/http-exception";
 import type { Hono } from "hono";
 
 import { createAuth } from "../../lib/auth";
+import { findUserApiKey, isExtensionDeviceKey } from "../../lib/api-keys";
 import type { AppEnv } from "../../types";
 
 export function registerDeleteDevice(app: Hono<AppEnv>) {
@@ -11,9 +12,14 @@ export function registerDeleteDevice(app: Hono<AppEnv>) {
       throw new HTTPException(401, { message: "Unauthorized" });
     }
 
+    const key = await findUserApiKey(c.env, c.req.raw.headers, c.req.param("id"));
+    if (!key || !isExtensionDeviceKey(key)) {
+      throw new HTTPException(404, { message: "Device not found" });
+    }
+
     try {
       await createAuth(c.env).api.deleteApiKey({
-        body: { keyId: c.req.param("id") },
+        body: { keyId: key.id },
         headers: c.req.raw.headers,
       });
     } catch {

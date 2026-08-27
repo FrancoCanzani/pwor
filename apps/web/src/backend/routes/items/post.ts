@@ -1,19 +1,10 @@
-import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import type { Context, Hono } from "hono";
 
 import { createDb } from "../../db";
-import { assertOwnedWorkspace } from "../../db/helpers";
-import { item } from "../../db/schema";
+import { assertOwnedSpace } from "../../db/helpers";
 import type { AppEnv } from "../../types";
-import { resolveAutoSpace } from "./lib/auto-space";
-import {
-  normalizeSeedTags,
-  normalizeUrl,
-  parseCaptureInput,
-  titleFromText,
-} from "./lib/capture";
-import { scheduleItemEnrichment } from "./lib/enrichment";
+import { createCapturedItem, insertPendingItem } from "./lib/create";
 import { serializeItem } from "./lib/serialize";
 import { putItemObject } from "./lib/storage";
 import { captureSchema } from "./schemas";
@@ -32,8 +23,8 @@ async function createFromFile(c: Context<AppEnv>) {
   const user = c.get("user")!;
   const body = await c.req.parseBody();
   const file = body.file;
-  const workspaceId =
-    typeof body.workspaceId === "string" ? body.workspaceId : null;
+  const spaceId =
+    typeof body.spaceId === "string" ? body.spaceId : null;
   const titleOverride =
     typeof body.title === "string" && body.title.trim().length > 0
       ? body.title.trim().slice(0, 200)
@@ -50,7 +41,7 @@ async function createFromFile(c: Context<AppEnv>) {
   }
 
   const db = createDb(c.env.DB);
-  await assertOwnedWorkspace(db, workspaceId, user.id);
+  await assertOwnedSpace(db, spaceId, user.id);
 
   const id = crypto.randomUUID();
   const contentType = file.type || "application/octet-stream";
@@ -82,143 +73,34 @@ async function createFromFile(c: Context<AppEnv>) {
     }
   }
 
-  const [created] = await db
-    .insert(item)
-    .values({
-      id,
-      userId: user.id,
-      kind: "file",
-      title: titleOverride ?? file.name,
-      r2Key,
-      sizeBytes,
-      mimeType: contentType,
-      workspaceId,
-      parseStatus: "pending",
-      ...(previewR2Key ? { previewR2Key } : {}),
-    })
-    .returning();
-
-  if (!created) {
-    throw new HTTPException(500, { message: "Failed to create item" });
-  }
-
-  scheduleItemEnrichment(c.executionCtx, c.env, id);
+  const created = await insertPendingItem(c.env, c.executionCtx, {
+    id,
+    userId: user.id,
+    kind: "file",
+    title: titleOverride ?? file.name,
+    r2Key,
+    sizeBytes,
+    mimeType: contentType,
+    spaceId,
+    previewR2Key,
+  });
   return c.json(serializeItem(created), 201);
 }
 
 async function createFromCapture(c: Context<AppEnv>) {
   const user = c.get("user")!;
   const payload = captureSchema.parse(await c.req.json());
-  const {
-    input,
-    title,
-    workspaceId,
-    autoSpace,
-    hint,
-    tags,
-    preferredWorkspaceId,
-  } = payload;
-  const db = createDb(c.env.DB);
-
-  let workspace = workspaceId ?? null;
-  await assertOwnedWorkspace(db, workspace, user.id);
-  if (workspace == null && autoSpace) {
-    workspace = await resolveAutoSpace(
-      c.env,
-      user.id,
-      hint ?? input,
-      preferredWorkspaceId,
-    );
+  const result = await createCapturedItem(
+    c.env,
+    c.executionCtx,
+    user.id,
+    payload,
+  );
+  const body = serializeItem(result.row);
+  if (result.duplicate) {
+    return c.json({ ...body, duplicate: true }, 200);
   }
-
-  const parsed = parseCaptureInput(input);
-  const id = crypto.randomUUID();
-  const seedTags = normalizeSeedTags(tags);
-
-  if (parsed.type === "url") {
-    const normalized = normalizeUrl(parsed.url);
-    const [existing] = normalized
-      ? await db
-          .select()
-          .from(item)
-          .where(
-            and(eq(item.userId, user.id), eq(item.normalizedUrl, normalized)),
-          )
-          .limit(1)
-      : [];
-
-    if (existing) {
-      const mergedTags = seedTags
-        ? Array.from(new Set([...(existing.tags ?? []), ...seedTags]))
-        : existing.tags;
-      const nextWorkspace =
-        existing.workspaceId == null && workspace != null
-          ? workspace
-          : existing.workspaceId;
-
-      if (
-        mergedTags !== existing.tags ||
-        nextWorkspace !== existing.workspaceId
-      ) {
-        const [merged] = await db
-          .update(item)
-          .set({ tags: mergedTags, workspaceId: nextWorkspace })
-          .where(eq(item.id, existing.id))
-          .returning();
-        if (!merged) {
-          throw new HTTPException(404, { message: "Item not found" });
-        }
-        return c.json({ ...serializeItem(merged), duplicate: true }, 200);
-      }
-
-      return c.json({ ...serializeItem(existing), duplicate: true }, 200);
-    }
-
-    const [created] = await db
-      .insert(item)
-      .values({
-        id,
-        userId: user.id,
-        kind: "link",
-        title: title || parsed.url,
-        url: parsed.url,
-        normalizedUrl: normalized,
-        tags: seedTags,
-        workspaceId: workspace,
-        parseStatus: "pending",
-      })
-      .returning();
-
-    if (!created) {
-      throw new HTTPException(500, { message: "Failed to create item" });
-    }
-
-    scheduleItemEnrichment(c.executionCtx, c.env, id);
-    return c.json(serializeItem(created), 201);
-  }
-
-  const encoded = new TextEncoder().encode(parsed.content);
-  const [created] = await db
-    .insert(item)
-    .values({
-      id,
-      userId: user.id,
-      kind: "text",
-      title: title || titleFromText(parsed.content),
-      content: parsed.content,
-      sizeBytes: encoded.byteLength,
-      tags: seedTags,
-      workspaceId: workspace,
-      parseStatus: "pending",
-    })
-    .returning();
-
-  if (!created) {
-    throw new HTTPException(500, { message: "Failed to create item" });
-  }
-
-  scheduleItemEnrichment(c.executionCtx, c.env, id);
-  return c.json(serializeItem(created), 201);
+  return c.json(body, 201);
 }
 
 export function registerPostItem(app: Hono<AppEnv>) {

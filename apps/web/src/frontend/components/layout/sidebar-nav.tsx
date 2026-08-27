@@ -24,18 +24,19 @@ import {
 } from "@/components/ui/sidebar";
 import { feedsQueryOptions } from "@features/feeds/api";
 import { AddFeedDialog } from "@features/feeds/components/add-feed-dialog";
-import { updateNoteWorkspace } from "@features/notes/api";
+import { updateNotes } from "@features/notes/api";
 import {
   inboxItemsInfiniteQueryOptions,
-  updateItemWorkspace,
+  updateItems,
 } from "@features/items/api";
 import { usePworItemDrop, type PworItemDrag } from "@features/items/lib/drag";
 import {
-  workspacesQueryOptions,
-  type Workspace,
-} from "@features/workspaces/api";
-import { CreateWorkspaceDialog } from "@features/workspaces/components/create-workspace-dialog";
-import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
+  spacesQueryOptions,
+  type Space,
+} from "@features/spaces/api";
+import { CaptureButton } from "@features/command/components/capture-button";
+import { CreateSpaceDialog } from "@features/spaces/components/create-space-dialog";
+import { setStoredSpaceId } from "@features/spaces/lib/current-space";
 
 function NavSection({
   name,
@@ -59,7 +60,7 @@ function NavSection({
           <button
             type="button"
             aria-label={addLabel}
-            className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 hover:text-foreground [&>svg]:size-3.5"
+            className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 hover:text-foreground [&>svg]:size-3.5"
             onClick={onAdd}
           >
             <PlusIcon />
@@ -73,19 +74,17 @@ function NavSection({
   );
 }
 
-async function movePworItems(item: PworItemDrag, workspaceId: string | null) {
-  for (const id of item.ids) {
-    switch (item.kind) {
-      case "item":
-        await updateItemWorkspace(id, workspaceId);
-        break;
-      case "note":
-        await updateNoteWorkspace(id, workspaceId);
-        break;
-      default: {
-        const _exhaustive: never = item.kind;
-        return _exhaustive;
-      }
+async function movePworItems(item: PworItemDrag, spaceId: string | null) {
+  switch (item.kind) {
+    case "item":
+      await updateItems(item.ids, { spaceId });
+      return;
+    case "note":
+      await updateNotes(item.ids, { spaceId });
+      return;
+    default: {
+      const _exhaustive: never = item.kind;
+      return _exhaustive;
     }
   }
 }
@@ -100,7 +99,7 @@ function movedToast(item: PworItemDrag, destination: string) {
 export function SidebarNav() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: spaces = [] } = useQuery(workspacesQueryOptions);
+  const { data: spaces = [] } = useQuery(spacesQueryOptions);
   const { data: feeds = [] } = useQuery(feedsQueryOptions());
   const { data: inboxList } = useInfiniteQuery(
     inboxItemsInfiniteQueryOptions(),
@@ -125,10 +124,10 @@ export function SidebarNav() {
   const isFeeds = pathname === "/feeds" || pathname.startsWith("/feeds/");
 
   async function handleCreated(space: { id: string }) {
-    setStoredWorkspaceId(space.id);
+    setStoredSpaceId(space.id);
     setCreateSpaceOpen(false);
     await queryClient.invalidateQueries({
-      queryKey: workspacesQueryOptions.queryKey,
+      queryKey: spacesQueryOptions.queryKey,
       exact: true,
     });
     await navigate({
@@ -140,7 +139,8 @@ export function SidebarNav() {
 
   return (
     <>
-      <SidebarGroup>
+      <SidebarGroup className="gap-2">
+        <CaptureButton />
         <SidebarGroupContent>
           <SidebarMenu>
             <InboxRow inboxCount={inboxCount} isActive={isInbox} />
@@ -186,7 +186,7 @@ export function SidebarNav() {
             >
               <span className="min-w-0 truncate">All</span>
               {feedsUnread > 0 ? (
-                <span className="ml-auto shrink-0 font-nums text-xs text-muted-foreground">
+                <span className="ml-auto flex size-6 shrink-0 items-center justify-end font-nums text-xs text-muted-foreground">
                   {feedsUnread}
                 </span>
               ) : null}
@@ -209,7 +209,7 @@ export function SidebarNav() {
                   {feed.title?.trim() || feed.siteName || "Feed"}
                 </span>
                 {(feed.unreadCount ?? 0) > 0 ? (
-                  <span className="ml-auto shrink-0 font-nums text-xs text-muted-foreground">
+                  <span className="ml-auto flex size-6 shrink-0 items-center justify-end font-nums text-xs text-muted-foreground">
                     {feed.unreadCount}
                   </span>
                 ) : null}
@@ -219,7 +219,7 @@ export function SidebarNav() {
         </SidebarMenu>
       </NavSection>
 
-      <CreateWorkspaceDialog
+      <CreateSpaceDialog
         open={createSpaceOpen}
         onOpenChange={setCreateSpaceOpen}
         onCreated={handleCreated}
@@ -255,7 +255,7 @@ function InboxRow({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
+        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
       ]);
       movedToast(item, "Inbox");
     },
@@ -263,7 +263,7 @@ function InboxRow({
   });
 
   const { isOver, dropProps } = usePworItemDrop({
-    canDrop: (item) => item.kind === "item" && item.fromWorkspaceId !== null,
+    canDrop: (item) => item.kind === "item" && item.fromSpaceId !== null,
     onDrop: (item) => moveMutation.mutate(item),
   });
 
@@ -279,7 +279,7 @@ function InboxRow({
       >
         <span className="min-w-0 truncate">Inbox</span>
         {inboxCount > 0 ? (
-          <span className="ml-auto shrink-0 font-nums text-xs text-muted-foreground">
+          <span className="ml-auto flex size-6 shrink-0 items-center justify-end font-nums text-xs text-muted-foreground">
             {inboxCount}
           </span>
         ) : null}
@@ -306,7 +306,7 @@ function SpaceRow({
   space,
   isActive,
 }: {
-  space: Workspace;
+  space: Space;
   isActive: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -318,7 +318,7 @@ function SpaceRow({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
+        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
       ]);
       movedToast(item, label);
     },
@@ -326,7 +326,7 @@ function SpaceRow({
   });
 
   const { isOver, dropProps } = usePworItemDrop({
-    canDrop: (item) => item.fromWorkspaceId !== space.id,
+    canDrop: (item) => item.fromSpaceId !== space.id,
     onDrop: (item) => moveMutation.mutate(item),
   });
 

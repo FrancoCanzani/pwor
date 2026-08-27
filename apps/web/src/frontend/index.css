@@ -19,9 +19,9 @@
 }
 
 :root {
-  --background: #ffffff;
+  --background: #fafafa;
   --foreground: #111111;
-  --card: #ffffff;
+  --card: #fafafa;
   --card-foreground: #111111;
   --popover: #ffffff;
   --popover-foreground: #111111;
@@ -113,6 +113,31 @@
     100% {
       transform: translateX(100%);
       opacity: 0;
+    }
+  }
+
+  @keyframes spinner-atom-turn {
+    to {
+      transform: rotateY(360deg);
+    }
+  }
+
+  @keyframes spinner-orbit-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 0.35;
+    }
+  }
+
+  @keyframes spinner-orbit-pulse {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 0.08;
     }
   }
 }

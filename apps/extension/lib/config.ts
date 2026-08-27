@@ -5,7 +5,7 @@ export const APP_URL = (
 export const STORAGE_KEYS = {
   apiKey: "pwor:extension:api-key",
   user: "pwor:extension:user",
-  workspaceId: "pwor:extension:workspace-id",
+  spaceId: "pwor:extension:space-id",
   saveOnBookmark: "pwor:extension:save-on-bookmark",
   showInlineButton: "pwor:extension:show-inline-button",
   linking: "pwor:extension:linking",
@@ -25,17 +25,16 @@ export type ExtensionUser = {
   email: string;
 };
 
-export type Workspace = {
+export type Space = {
   id: string;
   name: string;
   description: string | null;
-  shader?: string | null;
 };
 
 export type Item = {
   id: string;
   kind: string;
   title: string | null;
-  workspaceId: string | null;
+  spaceId: string | null;
   url: string | null;
 };

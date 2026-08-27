@@ -1,6 +1,7 @@
 import normalizeUrlLib from "normalize-url";
 
 import { tweetIdFromUrl } from "@shared/tweet";
+import { HTTP_URL_RE } from "@shared/url";
 
 const TRACKING_PARAMS = [
   /^utm_/,
@@ -19,8 +20,6 @@ const TRACKING_PARAMS = [
   "_hsmi",
   "spm",
 ];
-
-const URL_RE = /^https?:\/\/\S+$/i;
 
 export type ParsedCapture =
   | { type: "url"; url: string }
@@ -54,7 +53,7 @@ export function normalizeUrl(rawUrl: string): string | null {
 
 export function extractUrl(input: string): string | null {
   const trimmed = input.trim();
-  if (!URL_RE.test(trimmed) && !tweetIdFromUrl(trimmed)) return null;
+  if (!HTTP_URL_RE.test(trimmed) && !tweetIdFromUrl(trimmed)) return null;
   try {
     return new URL(trimmed).toString();
   } catch {

@@ -9,7 +9,7 @@ export type SearchHit = {
   id: string;
   title: string;
   snippet: string | null;
-  workspaceId: string | null;
+  spaceId: string | null;
   feedId: string | null;
   updatedAt: number;
 };

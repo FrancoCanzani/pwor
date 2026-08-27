@@ -1,10 +1,9 @@
-export const TWEET_HOSTS = new Set([
-  "x.com",
-  "twitter.com",
-  "mobile.twitter.com",
-]);
-
-export const TWEET_ID_RE = /^\d{1,20}$/;
+export {
+  TWEET_HOSTS,
+  TWEET_ID_RE,
+  tweetIdFromInput,
+  tweetIdFromUrl,
+} from "@pwor/editor/embed";
 
 export type TweetPhoto = {
   url: string;
@@ -30,18 +29,6 @@ export type TweetView = {
   videos: TweetVideo[];
   quoted: TweetView | null;
 };
-
-export function tweetIdFromUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
-    if (!TWEET_HOSTS.has(host)) return null;
-    const match = parsed.pathname.match(/\/status\/(\d{1,20})/);
-    return match?.[1] ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export function decodeTweetText(value: string): string {
   return value

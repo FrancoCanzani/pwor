@@ -10,6 +10,7 @@ import {
   simulateInboundEmail,
   userInboxQueryOptions,
 } from "@features/inbox/api";
+import { McpSettings } from "@features/mcp/components/mcp-settings";
 
 type ExtensionDevice = {
   id: string;
@@ -151,6 +152,8 @@ function SettingsPage() {
           </div>
         </div>
       </section>
+
+      <McpSettings />
 
       <section className="mt-8 flex flex-col gap-3">
         <h2 className="text-[13px] font-normal tracking-tight">

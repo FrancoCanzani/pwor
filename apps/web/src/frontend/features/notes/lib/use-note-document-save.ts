@@ -78,7 +78,7 @@ export function useNoteDocumentSave({
             ? {
                 ...item,
                 title: updated.title,
-                workspaceId: updated.workspaceId,
+                spaceId: updated.spaceId,
                 updatedAt: updated.updatedAt,
                 createdAt: updated.createdAt,
                 hasBody: noteHasBody(updated.body),

@@ -1,23 +1,23 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import { spacesQueryOptions } from "@features/spaces/api";
 import {
-  getStoredWorkspaceId,
-  setStoredWorkspaceId,
-} from "@features/workspaces/lib/current-workspace";
+  getStoredSpaceId,
+  setStoredSpaceId,
+} from "@features/spaces/lib/current-space";
 
 export const Route = createFileRoute("/_app/spaces/$spaceId")({
   beforeLoad: async ({ context, params }) => {
-    const workspaces = await context.queryClient.ensureQueryData(
-      workspacesQueryOptions,
+    const spaces = await context.queryClient.ensureQueryData(
+      spacesQueryOptions,
     );
-    const valid = workspaces.some((w) => w.id === params.spaceId);
+    const valid = spaces.some((s) => s.id === params.spaceId);
 
     if (!valid) {
-      const storedId = getStoredWorkspaceId();
-      const fallbackId = workspaces.some((w) => w.id === storedId)
+      const storedId = getStoredSpaceId();
+      const fallbackId = spaces.some((s) => s.id === storedId)
         ? storedId!
-        : workspaces[0]!.id;
+        : spaces[0]!.id;
       throw redirect({
         to: "/spaces/$spaceId",
         params: { spaceId: fallbackId },
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_app/spaces/$spaceId")({
       });
     }
 
-    setStoredWorkspaceId(params.spaceId);
+    setStoredSpaceId(params.spaceId);
   },
   component: () => <Outlet />,
 });

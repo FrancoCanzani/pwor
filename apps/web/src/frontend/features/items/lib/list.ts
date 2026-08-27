@@ -14,8 +14,6 @@ export const ITEM_SORT_LABEL: Record<ItemSort, string> = {
 
 export const ITEM_SORT_ORDER: ItemSort[] = ["newest", "oldest", "name"];
 
-export type ItemNav = { mode: "all" } | { mode: "type"; type: ItemTypeFacet };
-
 export function formatItemDate(value: string | Date): string {
   const date = new Date(value);
   if (!isValid(date)) return "";
@@ -25,30 +23,21 @@ export function formatItemDate(value: string | Date): string {
 export function filterAndSortItems(
   items: Item[],
   {
-    nav,
+    facets,
     query,
     sort,
   }: {
-    nav: ItemNav;
-    query: string;
+    facets?: Set<ItemTypeFacet>;
+    query?: string;
     sort: ItemSort;
   },
 ): Item[] {
-  const q = query.trim().toLowerCase();
+  const q = query?.trim().toLowerCase() ?? "";
 
   const filtered = items.filter((item) => {
-    switch (nav.mode) {
-      case "all":
-        break;
-      case "type":
-        if (typeFacetOf(item) !== nav.type) return false;
-        break;
-      default: {
-        const _exhaustive: never = nav;
-        return _exhaustive;
-      }
+    if (facets && facets.size > 0 && !facets.has(typeFacetOf(item))) {
+      return false;
     }
-
     if (!q) return true;
     const haystack = [
       itemTitle(item),
@@ -105,7 +94,7 @@ export function sortItems(items: Item[], sort: ItemSort): Item[] {
   return sortBy(items, sort, {
     date: (item) => item.createdAt,
     name: (item) => itemTitle(item),
-    pinned: (item) => Boolean(item.pinned),
+    pinned: (item) => item.pinned,
   });
 }
 
@@ -127,7 +116,7 @@ export function kindLabel(item: Item): string {
       if (isSheetPreviewable(item.mimeType, item.title)) return "sheet";
       return "file";
     default: {
-      const _exhaustive: never = item.kind;
+      const _exhaustive: never = item;
       return _exhaustive;
     }
   }

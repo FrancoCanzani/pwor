@@ -1,18 +1,20 @@
 import { Hono } from "hono";
 
 import type { AppEnv } from "../../types";
-import { registerDeleteNote } from "./delete";
+import { registerDeleteNote, registerDeleteNotes } from "./delete";
 import { registerGetNote } from "./get";
 import { registerGetAllNotes } from "./get-all";
 import { registerGetNoteImage } from "./get-image";
 import { registerPostNote } from "./post";
 import { registerPostNoteImage } from "./post-image";
-import { registerPutNote } from "./put";
+import { registerPatchNotes, registerPutNote } from "./put";
 
 const notes = new Hono<AppEnv>();
 
 registerGetAllNotes(notes);
 registerPostNote(notes);
+registerPatchNotes(notes);
+registerDeleteNotes(notes);
 registerGetNoteImage(notes);
 registerPostNoteImage(notes);
 registerGetNote(notes);

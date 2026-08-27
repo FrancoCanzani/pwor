@@ -16,9 +16,9 @@ import { useCaptureComposer } from "@features/command/capture-composer-context";
 import { isCaptureUrl, captureHost } from "@features/command/lib/capture";
 import { MarkedText } from "@features/command/components/marked-text";
 import { fuzzyScore } from "@features/command/lib/score";
-import { workspacesQueryOptions } from "@features/workspaces/api";
-import { setStoredWorkspaceId } from "@features/workspaces/lib/current-workspace";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { spacesQueryOptions } from "@features/spaces/api";
+import { setStoredSpaceId } from "@features/spaces/lib/current-space";
+import { useCurrentSpace } from "@features/spaces/lib/use-current-space";
 
 const SPACE_NAV_ITEMS = [
   { to: "/spaces/$spaceId", label: "Library" },
@@ -44,7 +44,7 @@ const SEARCH_DEBOUNCE_MS = 120;
 
 // Stable fallbacks: a fresh `[]` per render would rebuild `items` every render.
 const NO_HITS: SearchHit[] = [];
-const NO_WORKSPACES: { id: string; name: string }[] = [];
+const NO_SPACES: { id: string; name: string }[] = [];
 
 export function CommandPalette({
   open,
@@ -57,9 +57,9 @@ export function CommandPalette({
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { id: currentWorkspaceId } = useCurrentWorkspace();
+  const { id: currentSpaceId } = useCurrentSpace();
   const { open: openCreate } = useCaptureComposer();
-  const { data: workspaces = NO_WORKSPACES } = useQuery(workspacesQueryOptions);
+  const { data: spaces = NO_SPACES } = useQuery(spacesQueryOptions);
 
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const { data: hits = NO_HITS } = useQuery(searchQueryOptions(debouncedQuery));
@@ -70,10 +70,10 @@ export function CommandPalette({
     const term = query.trim();
     const groups: { label: string; items: Omit<PaletteItem, "index">[] }[] = [];
 
-    function select(workspaceId: string, run: () => void) {
+    function select(spaceId: string, run: () => void) {
       onOpenChange(false);
       setQuery("");
-      setStoredWorkspaceId(workspaceId);
+      setStoredSpaceId(spaceId);
       run();
     }
 
@@ -105,30 +105,30 @@ export function CommandPalette({
           void navigate({ to: "/feeds", search: { item: undefined } });
         },
       },
-      ...(currentWorkspaceId
+      ...(currentSpaceId
         ? SPACE_NAV_ITEMS.map((item) => ({
             id: `nav:${item.to}`,
             label: item.label,
             run: () =>
-              select(currentWorkspaceId, () =>
+              select(currentSpaceId, () =>
                 navigate({
                   to: item.to,
-                  params: { spaceId: currentWorkspaceId },
+                  params: { spaceId: currentSpaceId },
                 }),
               ),
           }))
         : []),
-      ...workspaces
-        .filter((workspace) => workspace.id !== currentWorkspaceId)
-        .map((workspace) => ({
-          id: `workspace:${workspace.id}`,
-          label: workspace.name,
+      ...spaces
+        .filter((space) => space.id !== currentSpaceId)
+        .map((space) => ({
+          id: `space:${space.id}`,
+          label: space.name,
           meta: "Space",
           run: () =>
-            select(workspace.id, () =>
+            select(space.id, () =>
               navigate({
                 to: "/spaces/$spaceId",
-                params: { spaceId: workspace.id },
+                params: { spaceId: space.id },
               }),
             ),
         })),
@@ -175,7 +175,7 @@ export function CommandPalette({
           id: `${hit.kind}:${hit.id}`,
           label: hit.title,
           detail: hit.snippet,
-          meta: workspaceLabel(hit, currentWorkspaceId, workspaces),
+          meta: hitSpaceLabel(hit, currentSpaceId, spaces),
           run: () => {
             switch (hit.kind) {
               case "feed":
@@ -195,7 +195,7 @@ export function CommandPalette({
                 }
                 return;
               case "item": {
-                if (!hit.workspaceId) {
+                if (!hit.spaceId) {
                   onOpenChange(false);
                   setQuery("");
                   void navigate({
@@ -204,20 +204,20 @@ export function CommandPalette({
                   });
                   return;
                 }
-                const workspaceId = hit.workspaceId;
-                select(workspaceId, () =>
+                const spaceId = hit.spaceId;
+                select(spaceId, () =>
                   navigate({
                     to: "/spaces/$spaceId",
-                    params: { spaceId: workspaceId },
+                    params: { spaceId: spaceId },
                     search: { item: hit.id },
                   }),
                 );
                 return;
               }
               case "note": {
-                const workspaceId = hit.workspaceId ?? currentWorkspaceId;
-                if (!workspaceId) return;
-                select(workspaceId, () =>
+                const spaceId = hit.spaceId ?? currentSpaceId;
+                if (!spaceId) return;
+                select(spaceId, () =>
                   navigate({
                     to: "/notes/$noteId",
                     params: { noteId: hit.id },
@@ -245,8 +245,8 @@ export function CommandPalette({
   }, [
     query,
     hits,
-    workspaces,
-    currentWorkspaceId,
+    spaces,
+    currentSpaceId,
     navigate,
     openCreate,
     onOpenChange,
@@ -413,13 +413,13 @@ function rank<T extends { label: string }>(items: T[], term: string): T[] {
     .map((entry) => entry.item);
 }
 
-function workspaceLabel(
+function hitSpaceLabel(
   hit: SearchHit,
-  currentWorkspaceId: string | undefined,
-  workspaces: { id: string; name: string }[],
+  currentSpaceId: string | undefined,
+  spaces: { id: string; name: string }[],
 ) {
   if (hit.kind === "feed") return "Feeds";
-  if (!hit.workspaceId) return hit.kind === "item" ? "Inbox" : undefined;
-  if (hit.workspaceId === currentWorkspaceId) return undefined;
-  return workspaces.find((workspace) => workspace.id === hit.workspaceId)?.name;
+  if (!hit.spaceId) return hit.kind === "item" ? "Inbox" : undefined;
+  if (hit.spaceId === currentSpaceId) return undefined;
+  return spaces.find((space) => space.id === hit.spaceId)?.name;
 }

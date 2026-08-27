@@ -9,7 +9,7 @@ export type HighlightTarget = { itemId: string } | { feedItemId: string };
 export type NoteListItem = {
   id: string;
   title: string | null;
-  workspaceId: string | null;
+  spaceId: string | null;
   updatedAt: string | Date;
   createdAt: string | Date;
   itemId: string | null;
@@ -78,11 +78,13 @@ export function passageIsNoted(note: NoteListItem): boolean {
 }
 
 async function fetchNotes(filter?: {
-  workspaceId?: string;
+  spaceId?: string;
+  standalone?: boolean;
   target?: HighlightTarget;
 }): Promise<NoteListItem[]> {
   const params = new URLSearchParams();
-  if (filter?.workspaceId) params.set("workspaceId", filter.workspaceId);
+  if (filter?.spaceId) params.set("spaceId", filter.spaceId);
+  if (filter?.standalone) params.set("standalone", "1");
   if (filter?.target) {
     if ("itemId" in filter.target) params.set("itemId", filter.target.itemId);
     else params.set("feedItemId", filter.target.feedItemId);
@@ -98,10 +100,10 @@ async function fetchNote(id: string): Promise<Note> {
   return parseJson<Note>(await fetch(`/api/notes/${id}`));
 }
 
-export function notesQueryOptions(workspaceId?: string) {
+export function notesQueryOptions(spaceId?: string) {
   return queryOptions({
-    queryKey: ["notes", "list", workspaceId ?? null] as const,
-    queryFn: () => fetchNotes({ workspaceId }),
+    queryKey: ["notes", "list", spaceId ?? null, "standalone"] as const,
+    queryFn: () => fetchNotes({ spaceId, standalone: true }),
   });
 }
 
@@ -126,7 +128,7 @@ export function noteQueryOptions(id: string) {
 export async function createNote(params: {
   body?: string;
   title?: string | null;
-  workspaceId?: string | null;
+  spaceId?: string | null;
   target?: HighlightTarget;
   anchor?: HighlightAnchor;
 }): Promise<Note> {
@@ -137,7 +139,7 @@ export async function createNote(params: {
       body: JSON.stringify({
         body: params.body ?? "",
         title: params.title,
-        workspaceId: params.workspaceId,
+        spaceId: params.spaceId,
         ...(params.target ?? {}),
         ...(params.anchor ? { anchor: params.anchor } : {}),
       }),
@@ -150,7 +152,7 @@ export async function updateNote(
   patch: {
     body?: string;
     title?: string | null;
-    workspaceId?: string | null;
+    spaceId?: string | null;
     pinned?: boolean;
     expectedUpdatedAt?: string | Date | number;
   },
@@ -175,17 +177,43 @@ export async function updateNote(
   return parseJson<Note>(res);
 }
 
-export async function updateNoteWorkspace(
+export async function updateNotes(
+  ids: string[],
+  patch: { spaceId?: string | null; pinned?: boolean },
+): Promise<Note[]> {
+  if (ids.length === 0) return [];
+  const data = await parseJson<{ items: Note[] }>(
+    await fetch("/api/notes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, ...patch }),
+    }),
+  );
+  return data.items;
+}
+
+export async function updateNoteSpace(
   id: string,
-  workspaceId: string | null,
+  spaceId: string | null,
 ): Promise<Note> {
-  return updateNote(id, { workspaceId });
+  const [updated] = await updateNotes([id], { spaceId });
+  if (!updated) throw new Error("Failed to move note");
+  return updated;
+}
+
+export async function deleteNotes(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await parseJson<{ ok: boolean }>(
+    await fetch("/api/notes", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
+  );
 }
 
 export async function deleteNote(id: string): Promise<void> {
-  await parseJson<{ ok: boolean }>(
-    await fetch(`/api/notes/${id}`, { method: "DELETE" }),
-  );
+  await deleteNotes([id]);
 }
 
 export async function uploadNoteImage(

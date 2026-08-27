@@ -19,12 +19,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import { spacesQueryOptions } from "@features/spaces/api";
 
 export function LibrarySelectionBar({
   count,
   busy,
-  excludeWorkspaceId,
+  excludeSpaceId,
   deleteTitle,
   deleteDescription,
   onClear,
@@ -33,16 +33,16 @@ export function LibrarySelectionBar({
 }: {
   count: number;
   busy: boolean;
-  excludeWorkspaceId?: string | null;
+  excludeSpaceId?: string | null;
   deleteTitle: string;
   deleteDescription: string;
   onClear: () => void;
-  onMove: (workspaceId: string) => void;
+  onMove: (spaceId: string) => void;
   onDelete: () => void;
 }) {
-  const { data: spaces = [] } = useQuery(workspacesQueryOptions);
+  const { data: spaces = [] } = useQuery(spacesQueryOptions);
   const destinations = spaces.filter(
-    (space) => space.id !== excludeWorkspaceId,
+    (space) => space.id !== excludeSpaceId,
   );
 
   return (

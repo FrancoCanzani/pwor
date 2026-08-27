@@ -4,7 +4,7 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { user } from "./auth";
 import { feedItem } from "./feeds";
 import { item } from "./items";
-import { workspace } from "./workspaces";
+import { space } from "./spaces";
 
 export const note = sqliteTable(
   "note",
@@ -13,7 +13,7 @@ export const note = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    workspaceId: text("workspace_id").references(() => workspace.id, {
+    spaceId: text("space_id").references(() => space.id, {
       onDelete: "set null",
     }),
     title: text("title"),
@@ -46,7 +46,7 @@ export const note = sqliteTable(
   },
   (table) => [
     index("note_user_updated").on(table.userId, table.updatedAt),
-    index("note_workspace").on(table.workspaceId),
+    index("note_space").on(table.spaceId),
     index("note_item").on(table.itemId),
     index("note_feed_item").on(table.feedItemId),
   ],

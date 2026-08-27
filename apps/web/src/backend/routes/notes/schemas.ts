@@ -2,9 +2,18 @@ import { z } from "zod";
 
 export const listQuerySchema = z
   .object({
-    workspaceId: z.string().optional(),
+    spaceId: z.string().optional(),
     itemId: z.string().optional(),
     feedItemId: z.string().optional(),
+    standalone: z
+      .union([
+        z.literal("1"),
+        z.literal("true"),
+        z.literal("0"),
+        z.literal("false"),
+      ])
+      .optional()
+      .transform((value) => value === "1" || value === "true"),
   })
   .refine((value) => !(value.itemId && value.feedItemId), {
     message: "itemId and feedItemId are mutually exclusive",
@@ -22,7 +31,7 @@ export const createNoteSchema = z
   .object({
     body: z.string().optional().default(""),
     title: z.string().nullable().optional(),
-    workspaceId: z.string().nullable().optional(),
+    spaceId: z.string().nullable().optional(),
     itemId: z.string().nullable().optional(),
     feedItemId: z.string().nullable().optional(),
     anchor: anchorSchema.optional(),
@@ -43,7 +52,7 @@ export const updateNoteSchema = z
   .object({
     body: z.string().optional(),
     title: z.string().nullable().optional(),
-    workspaceId: z.string().nullable().optional(),
+    spaceId: z.string().nullable().optional(),
     pinned: z.boolean().optional(),
     expectedUpdatedAt: z.union([z.string(), z.number()]).optional(),
   })
@@ -51,9 +60,9 @@ export const updateNoteSchema = z
     (value) =>
       value.body !== undefined ||
       value.title !== undefined ||
-      value.workspaceId !== undefined ||
+      value.spaceId !== undefined ||
       value.pinned !== undefined,
-    { message: "body, title, workspaceId, or pinned is required" },
+    { message: "body, title, spaceId, or pinned is required" },
   )
   .refine(
     (value) => {
@@ -64,6 +73,20 @@ export const updateNoteSchema = z
     {
       message: "expectedUpdatedAt is required when updating body or title",
     },
+  );
+
+export const idsSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(100),
+});
+
+export const batchUpdateNoteSchema = idsSchema
+  .extend({
+    spaceId: z.string().nullable().optional(),
+    pinned: z.boolean().optional(),
+  })
+  .refine(
+    (value) => value.spaceId !== undefined || value.pinned !== undefined,
+    { message: "spaceId or pinned is required" },
   );
 
 export function titleFromQuote(quote: string): string {

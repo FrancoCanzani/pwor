@@ -1,33 +1,32 @@
 import { zValidator } from "@hono/zod-validator";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Hono } from "hono";
 
-import {
-  noteBodyPreview,
-  noteHasBody,
-  noteIsNoted,
-} from "@shared/note-frontmatter";
 import { createDb } from "../../db";
 import { note } from "../../db/schema";
 import type { AppEnv } from "../../types";
+import { serializeNoteListItem } from "./lib/serialize";
 import { listQuerySchema } from "./schemas";
 
 export function registerGetAllNotes(app: Hono<AppEnv>) {
   return app.get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { workspaceId, itemId, feedItemId } = c.req.valid("query");
+    const { spaceId, itemId, feedItemId, standalone } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const conditions = [eq(note.userId, user.id)];
-    if (workspaceId) conditions.push(eq(note.workspaceId, workspaceId));
+    if (spaceId) conditions.push(eq(note.spaceId, spaceId));
     if (itemId) conditions.push(eq(note.itemId, itemId));
     if (feedItemId) conditions.push(eq(note.feedItemId, feedItemId));
+    if (standalone) {
+      conditions.push(isNull(note.itemId), isNull(note.feedItemId));
+    }
 
     const items = await db
       .select({
         id: note.id,
         title: note.title,
-        workspaceId: note.workspaceId,
+        spaceId: note.spaceId,
         updatedAt: note.updatedAt,
         createdAt: note.createdAt,
         itemId: note.itemId,
@@ -45,13 +44,7 @@ export function registerGetAllNotes(app: Hono<AppEnv>) {
       .orderBy(desc(note.updatedAt));
 
     return c.json({
-      items: items.map(({ body, pinnedAt, ...item }) => ({
-        ...item,
-        pinned: pinnedAt != null,
-        hasBody: noteHasBody(body),
-        noted: noteIsNoted(body),
-        bodyPreview: noteBodyPreview(body),
-      })),
+      items: items.map(serializeNoteListItem),
     });
   });
 }

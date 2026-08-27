@@ -158,7 +158,7 @@ function IconButton({
       aria-label={label}
       aria-pressed={active}
       className={cn(
-        "inline-flex size-6 items-center justify-center rounded-sm font-normal text-foreground",
+        "inline-flex size-6 items-center justify-center rounded-sm font-normal text-foreground hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground",
         active ? "bg-muted" : "bg-transparent",
       )}
       onMouseDown={(event) => event.preventDefault()}
@@ -179,7 +179,7 @@ function BlockTypeMenu({ editor }: { editor: Editor }) {
     <div className="relative">
       <button
         type="button"
-        className="inline-flex h-6 items-center gap-1 rounded-sm px-1 text-xs font-normal"
+        className="inline-flex h-6 items-center gap-1 rounded-sm px-1 text-xs font-normal hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpen((value) => !value)}
       >
@@ -195,7 +195,7 @@ function BlockTypeMenu({ editor }: { editor: Editor }) {
                 key={type.name}
                 type="button"
                 className={cn(
-                  "flex w-full items-center gap-2 px-2 py-1 text-left text-xs font-normal",
+                  "flex w-full items-center gap-2 px-2 py-1 text-left text-xs font-normal hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground",
                   type.isActive(editor) ? "bg-muted" : "bg-transparent",
                 )}
                 onMouseDown={(event) => event.preventDefault()}
@@ -257,7 +257,7 @@ function LinkControl({ editor }: { editor: Editor }) {
           />
           <button
             type="submit"
-            className="h-6 px-1.5 text-xs font-normal text-muted-foreground"
+            className="h-6 px-1.5 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground"
           >
             Apply
           </button>
@@ -272,6 +272,8 @@ function shouldShow({ editor }: { editor: Editor }): boolean {
   const { selection } = editor.state;
   if (selection.empty) return false;
   if (editor.isActive("image")) return false;
+  if (editor.isActive("youtube")) return false;
+  if (editor.isActive("tweet")) return false;
   return true;
 }
 

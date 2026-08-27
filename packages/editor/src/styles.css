@@ -132,24 +132,6 @@
   color: inherit;
 }
 
-.pwor-editor .tiptap table {
-  border-collapse: collapse;
-  width: 100%;
-  table-layout: fixed;
-}
-
-.pwor-editor .tiptap th,
-.pwor-editor .tiptap td {
-  border: 1px solid var(--border);
-  padding: 0.25rem 0.4rem;
-  vertical-align: top;
-}
-
-.pwor-editor .tiptap th {
-  background: var(--muted);
-  font-weight: 400;
-}
-
 .pwor-editor .tiptap aside[data-callout] {
   border-left: 2px solid var(--border);
   background: var(--muted);
@@ -166,4 +148,15 @@
   background: var(--muted);
   padding: 0.05em 0.3em;
   cursor: pointer;
+}
+
+.pwor-editor .tiptap [data-youtube],
+.pwor-editor .tiptap [data-tweet] {
+  margin: 0.5rem 0;
+}
+
+.pwor-editor .tiptap .ProseMirror-selectednode[data-youtube],
+.pwor-editor .tiptap .ProseMirror-selectednode[data-tweet] {
+  outline: 1px solid var(--border);
+  outline-offset: 2px;
 }

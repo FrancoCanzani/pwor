@@ -29,7 +29,6 @@ const BLOCK_BREAK = new Set([
   "listItem",
   "taskItem",
   "horizontalRule",
-  "tableRow",
 ]);
 
 export function emptyDocument(): DocumentJSON {
@@ -86,7 +85,11 @@ function hasVisibleContent(node: DocumentNode): boolean {
     const src = node.attrs?.src;
     return typeof src === "string" && src.length > 0;
   }
-  if (node.type === "horizontalRule" || node.type === "table") return true;
+  if (node.type === "youtube" || node.type === "tweet") {
+    const src = node.attrs?.src;
+    return typeof src === "string" && src.length > 0;
+  }
+  if (node.type === "horizontalRule") return true;
   return (node.content ?? []).some(hasVisibleContent);
 }
 
@@ -136,6 +139,20 @@ function writePlainText(node: DocumentNode, out: string[]): void {
     case "image": {
       const alt = node.attrs?.alt;
       if (typeof alt === "string" && alt.trim().length > 0) out.push(alt);
+      return;
+    }
+    case "youtube": {
+      const src = node.attrs?.src;
+      if (typeof src === "string" && src.length > 0) {
+        out.push(`https://youtu.be/${src}`);
+      }
+      return;
+    }
+    case "tweet": {
+      const src = node.attrs?.src;
+      if (typeof src === "string" && src.length > 0) {
+        out.push(`https://x.com/i/status/${src}`);
+      }
       return;
     }
     case "horizontalRule":

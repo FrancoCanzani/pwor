@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { useCaptureComposer } from "@features/command/capture-composer-context";
 import { isCaptureUrl } from "@features/command/lib/capture";
 import { useCaptureFeedback } from "@features/command/lib/use-capture-feedback";
-import { captureItemInput, uploadItem, type Item } from "@features/items/api";
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import { captureItemInput, uploadItem } from "@features/items/api";
+import { spacesQueryOptions } from "@features/spaces/api";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -23,7 +23,7 @@ export function PasteCapture() {
   const spaceId = routeSpaceId ?? null;
   const busyRef = useRef(false);
   const { open, isOpen } = useCaptureComposer();
-  const { data: spaces = [] } = useQuery(workspacesQueryOptions);
+  const { data: spaces = [] } = useQuery(spacesQueryOptions);
   const { notifySaved, invalidateItems, savedLabel } = useCaptureFeedback();
   const label = spaceId
     ? spaces.find((space) => space.id === spaceId)?.name.trim() || "Untitled"
@@ -49,10 +49,9 @@ export function PasteCapture() {
       if (files.length === 0 || busyRef.current) return;
       busyRef.current = true;
       try {
-        const created: Item[] = [];
-        for (const file of files) {
-          created.push(await uploadItem(file, spaceId));
-        }
+        const created = await Promise.all(
+          files.map((file) => uploadItem(file, spaceId)),
+        );
         await invalidateItems();
         notifySaved(label, created);
       } catch {

@@ -13,9 +13,9 @@ import {
   Pilcrow,
   Quote,
   Square,
-  Table2,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import { XIcon, YoutubeIcon } from "./brand-icons";
 
 export type SlashItem = {
   name: string;
@@ -118,15 +118,20 @@ export function slashItems(canUpload: boolean): SlashItem[] {
       run: (editor, range) => apply(editor, range, (chain) => chain.setCallout("note")),
     },
     {
-      name: "table",
-      label: "Table",
-      aliases: ["grid"],
-      icon: Table2,
+      name: "youtube",
+      label: "YouTube",
+      aliases: ["yt", "video"],
+      icon: YoutubeIcon,
       group: "insert",
-      run: (editor, range) =>
-        apply(editor, range, (chain) =>
-          chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }),
-        ),
+      run: (editor, range) => apply(editor, range, (chain) => chain.setYoutubeEmbed()),
+    },
+    {
+      name: "tweet",
+      label: "X",
+      aliases: ["twitter", "post", "embed"],
+      icon: XIcon,
+      group: "insert",
+      run: (editor, range) => apply(editor, range, (chain) => chain.setTweetEmbed()),
     },
     {
       name: "separator",

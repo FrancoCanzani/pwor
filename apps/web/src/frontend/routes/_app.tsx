@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { NotFound } from "@components/not-found";
 import { RouteError } from "@components/route-error";
 import { ItemDropZone } from "@features/items/components/item-drop-zone";
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import { spacesQueryOptions } from "@features/spaces/api";
 import { sessionQueryOptions } from "@lib/session";
 
 export const Route = createFileRoute("/_app")({
@@ -19,11 +19,11 @@ export const Route = createFileRoute("/_app")({
       await context.queryClient.ensureQueryData(sessionQueryOptions);
     if (!session) throw redirect({ to: "/login" });
 
-    const workspaces = await context.queryClient.ensureQueryData(
-      workspacesQueryOptions,
+    const spaces = await context.queryClient.ensureQueryData(
+      spacesQueryOptions,
     );
 
-    const incomplete = workspaces.length === 0;
+    const incomplete = spaces.length === 0;
     const onOnboarding = location.pathname === "/onboarding";
 
     if (incomplete && !onOnboarding) {

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createWorkersAI } from "workers-ai-provider";
 
 import { createDb } from "../../../db";
-import { workspace } from "../../../db/schema";
+import { space } from "../../../db/schema";
 
 const MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast" as const;
 
@@ -24,13 +24,13 @@ function scoreOverlap(haystack: string, needle: string): number {
 
 function pickPreferredOrInbox(
   spaces: Array<{ id: string }>,
-  preferredWorkspaceId?: string | null,
+  preferredSpaceId?: string | null,
 ): string | null {
   if (
-    preferredWorkspaceId &&
-    spaces.some((space) => space.id === preferredWorkspaceId)
+    preferredSpaceId &&
+    spaces.some((row) => row.id === preferredSpaceId)
   ) {
-    return preferredWorkspaceId;
+    return preferredSpaceId;
   }
   return null;
 }
@@ -39,31 +39,31 @@ export async function resolveAutoSpace(
   env: Env,
   userId: string,
   hint: string | null | undefined,
-  preferredWorkspaceId?: string | null,
+  preferredSpaceId?: string | null,
 ): Promise<string | null> {
   const db = createDb(env.DB);
   const spaces = await db
     .select({
-      id: workspace.id,
-      name: workspace.name,
-      description: workspace.description,
+      id: space.id,
+      name: space.name,
+      description: space.description,
     })
-    .from(workspace)
-    .where(eq(workspace.userId, userId))
-    .orderBy(desc(workspace.updatedAt));
+    .from(space)
+    .where(eq(space.userId, userId))
+    .orderBy(desc(space.updatedAt));
 
   if (spaces.length === 0) return null;
   if (spaces.length === 1) return spaces[0]!.id;
 
   const trimmed = hint?.trim() ?? "";
   if (!trimmed) {
-    return pickPreferredOrInbox(spaces, preferredWorkspaceId);
+    return pickPreferredOrInbox(spaces, preferredSpaceId);
   }
 
   const scored = spaces
-    .map((space) => {
-      const blob = `${space.name} ${space.description ?? ""}`;
-      return { id: space.id, score: scoreOverlap(blob, trimmed) };
+    .map((row) => {
+      const blob = `${row.name} ${row.description ?? ""}`;
+      return { id: row.id, score: scoreOverlap(blob, trimmed) };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -78,18 +78,18 @@ export async function resolveAutoSpace(
     const { object } = await generateObject({
       model: workersai(MODEL),
       schema: z.object({
-        workspaceId: z.string(),
+        spaceId: z.string(),
         confidence: z.number().min(0).max(1),
       }),
       prompt: `Pick the best Pwor space for this captured content.
 Only choose a space if you are reasonably confident it fits.
-If unsure, still return a workspaceId but set confidence below 0.55 so the item stays in Inbox.
+If unsure, still return a spaceId but set confidence below 0.55 so the item stays in Inbox.
 
 Spaces:
 ${spaces
   .map(
-    (space) =>
-      `- id=${space.id} name=${JSON.stringify(space.name)} description=${JSON.stringify(space.description ?? "")}`,
+    (row) =>
+      `- id=${row.id} name=${JSON.stringify(row.name)} description=${JSON.stringify(row.description ?? "")}`,
   )
   .join("\n")}
 
@@ -99,13 +99,13 @@ ${trimmed.slice(0, 2000)}`,
 
     if (
       object.confidence >= 0.55 &&
-      spaces.some((space) => space.id === object.workspaceId)
+      spaces.some((row) => row.id === object.spaceId)
     ) {
-      return object.workspaceId;
+      return object.spaceId;
     }
   } catch (error) {
     console.error("auto-space AI failed", error);
   }
 
-  return pickPreferredOrInbox(spaces, preferredWorkspaceId);
+  return pickPreferredOrInbox(spaces, preferredSpaceId);
 }

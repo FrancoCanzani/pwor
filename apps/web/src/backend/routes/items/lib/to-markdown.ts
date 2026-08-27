@@ -1,8 +1,3 @@
-import { eq } from "drizzle-orm";
-
-import { createDb } from "../../../db";
-import { item } from "../../../db/schema";
-
 const EXTENSION_MIME: Record<string, string> = {
   pdf: "application/pdf",
   jpeg: "image/jpeg",
@@ -65,71 +60,37 @@ export async function markdownFromFile(
   }
 }
 
-async function markParse(
+export type FileMarkdown =
+  | { status: "extracted"; markdown: string }
+  | { status: "skipped"; reason: string }
+  | { status: "failed"; error: string };
+
+export async function extractFileMarkdown(
   env: Env,
-  id: string,
-  values: {
-    parseStatus: "pending" | "ready" | "failed" | "skipped";
-    extractedMarkdown?: string | null;
-    parseError?: string | null;
-    parsedAt?: Date | null;
+  row: {
+    kind: "file" | "link" | "text";
+    title: string | null;
+    mimeType: string | null;
+    r2Key: string | null;
   },
-): Promise<void> {
-  const db = createDb(env.DB);
-  await db
-    .update(item)
-    .set({
-      parseStatus: values.parseStatus,
-      extractedMarkdown: values.extractedMarkdown ?? null,
-      parseError: values.parseError ?? null,
-      parsedAt: values.parsedAt ?? null,
-    })
-    .where(eq(item.id, id));
-}
-
-export async function extractItemMarkdown(
-  env: Env,
-  itemId: string,
-): Promise<void> {
-  const db = createDb(env.DB);
-  const [row] = await db
-    .select()
-    .from(item)
-    .where(eq(item.id, itemId))
-    .limit(1);
-
-  if (!row || row.kind !== "file" || !row.r2Key) {
-    await markParse(env, itemId, {
-      parseStatus: "skipped",
-      parseError: "not a file item",
-      parsedAt: new Date(),
-    });
-    return;
+): Promise<FileMarkdown> {
+  if (row.kind !== "file" || !row.r2Key) {
+    return { status: "skipped", reason: "not a file item" };
   }
 
   const object = await env.ITEMS_BUCKET.get(row.r2Key);
   if (!object) {
-    await markParse(env, itemId, {
-      parseStatus: "failed",
-      parseError: "r2 object missing",
-      parsedAt: new Date(),
-    });
-    return;
+    return { status: "failed", error: "r2 object missing" };
   }
 
   const buffer = await object.arrayBuffer();
-
   const mime = resolveMime(row.title, row.mimeType);
   if (!mime) {
-    await markParse(env, itemId, {
-      parseStatus: "skipped",
-      parseError: "unsupported format for toMarkdown",
-      parsedAt: new Date(),
-    });
-    return;
+    return { status: "skipped", reason: "unsupported format for toMarkdown" };
   }
 
-  const filename = row.title?.trim() || `document.${extensionOf(row.title) ?? "bin"}`;
+  const filename =
+    row.title?.trim() || `document.${extensionOf(row.title) ?? "bin"}`;
 
   const converted = await markdownFromFile(
     env,
@@ -141,18 +102,8 @@ export async function extractItemMarkdown(
   );
 
   if (!converted.ok) {
-    await markParse(env, itemId, {
-      parseStatus: "failed",
-      parseError: converted.error,
-      parsedAt: new Date(),
-    });
-    return;
+    return { status: "failed", error: converted.error };
   }
 
-  await markParse(env, itemId, {
-    parseStatus: "ready",
-    extractedMarkdown: converted.data,
-    parseError: null,
-    parsedAt: new Date(),
-  });
+  return { status: "extracted", markdown: converted.data };
 }

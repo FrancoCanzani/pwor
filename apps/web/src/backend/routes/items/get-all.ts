@@ -22,14 +22,14 @@ function parseListCursor(cursor: string | undefined) {
 export function registerGetAllItems(app: Hono<AppEnv>) {
   return app.get("/", zValidator("query", listQuerySchema), async (c) => {
     const user = c.get("user")!;
-    const { workspaceId, inbox, cursor, limit } = c.req.valid("query");
+    const { spaceId, inbox, cursor, limit } = c.req.valid("query");
     const db = createDb(c.env.DB);
 
     const baseConditions = [eq(item.userId, user.id)];
     if (inbox) {
-      baseConditions.push(isNull(item.workspaceId));
-    } else if (workspaceId) {
-      baseConditions.push(eq(item.workspaceId, workspaceId));
+      baseConditions.push(isNull(item.spaceId));
+    } else if (spaceId) {
+      baseConditions.push(eq(item.spaceId, spaceId));
     }
 
     const conditions = [...baseConditions];

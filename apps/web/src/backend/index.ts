@@ -8,6 +8,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { handleInboundEmail } from "./email";
 import { createAuth, isAllowedExtensionOrigin } from "./lib/auth";
 import { authMiddleware, requireAuthUnlessPublic } from "./middleware/auth";
+import { handleMcp } from "./mcp/handle";
 import { api, extension, registerGetHealth } from "./routes";
 import { purgeStalePairings } from "./routes/extension/lib/pairing";
 import { syncAllFeeds } from "./routes/feeds/lib/sync";
@@ -59,7 +60,17 @@ app.route("/api/extension", extension);
 app.route("/api", api);
 
 export default {
-  fetch: app.fetch,
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/mcp") {
+      return handleMcp(request, env, ctx);
+    }
+    return app.fetch(request, env, ctx);
+  },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     if (controller.cron === "0 6 * * *") {

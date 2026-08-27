@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./auth";
-import { workspace } from "./workspaces";
+import { space } from "./spaces";
 
 export const item = sqliteTable(
   "item",
@@ -11,7 +11,7 @@ export const item = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    workspaceId: text("workspace_id").references(() => workspace.id, {
+    spaceId: text("space_id").references(() => space.id, {
       onDelete: "set null",
     }),
     kind: text("kind", { enum: ["file", "link", "text"] })
@@ -52,7 +52,7 @@ export const item = sqliteTable(
   },
   (table) => [
     index("item_user_created").on(table.userId, table.createdAt),
-    index("item_workspace").on(table.workspaceId),
+    index("item_space").on(table.spaceId),
     index("item_user_normalized_url").on(table.userId, table.normalizedUrl),
   ],
 );

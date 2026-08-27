@@ -13,3 +13,5 @@ export type AppEnv = {
     user: AppUser | null;
   };
 };
+
+export type WaitUntilCtx = Pick<ExecutionContext, "waitUntil">;

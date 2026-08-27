@@ -2,26 +2,26 @@ import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { workspacesQueryOptions } from "@features/workspaces/api";
+import { spacesQueryOptions } from "@features/spaces/api";
 
 import { ProfileStep } from "./profile-step";
-import { WorkspaceStep } from "./workspace-step";
+import { SpaceStep } from "./space-step";
 
 const routeApi = getRouteApi("/_app/onboarding/");
 
 export function OnboardingPage() {
   const { user } = routeApi.useRouteContext();
   const navigate = useNavigate();
-  const { data: workspaces } = useQuery(workspacesQueryOptions);
-  const [step, setStep] = useState<"profile" | "workspace">(
-    user.name.trim() ? "workspace" : "profile",
+  const { data: spaces } = useQuery(spacesQueryOptions);
+  const [step, setStep] = useState<"profile" | "space">(
+    user.name.trim() ? "space" : "profile",
   );
 
   async function handleProfileDone() {
-    if ((workspaces?.length ?? 0) > 0) {
+    if ((spaces?.length ?? 0) > 0) {
       await navigate({ to: "/" });
     } else {
-      setStep("workspace");
+      setStep("space");
     }
   }
 
@@ -37,8 +37,8 @@ export function OnboardingPage() {
             : "Give your first space a name — Work, Life, whatever fits."}
         </p>
 
-        {step === "workspace" ? (
-          <WorkspaceStep />
+        {step === "space" ? (
+          <SpaceStep />
         ) : (
           <ProfileStep
             defaultName={user.name.trim() || ""}

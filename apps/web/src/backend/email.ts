@@ -2,14 +2,15 @@ import { eq } from "drizzle-orm";
 import PostalMime, { type Attachment } from "postal-mime";
 
 import { createDb } from "./db";
-import { userInbox, item } from "./db/schema";
+import { userInbox } from "./db/schema";
 import {
   allocateInboxToken,
   inboundTokenFromTo,
   isLegacyHexToken,
 } from "./lib/inbox-address";
+import type { WaitUntilCtx } from "./types";
 import { titleFromText } from "./routes/items/lib/capture";
-import { scheduleItemEnrichment } from "./routes/items/lib/enrichment";
+import { insertPendingItem } from "./routes/items/lib/create";
 import { putItemObject } from "./routes/items/lib/storage";
 
 function attachmentBytes(
@@ -89,7 +90,7 @@ export type InboundEmail = {
 export async function handleInboundEmail(
   message: InboundEmail,
   env: Env,
-  ctx: { waitUntil(promise: Promise<unknown>): void },
+  ctx: WaitUntilCtx,
 ): Promise<void> {
   const token = inboundTokenFromTo(message.to);
   const db = createDb(env.DB);
@@ -119,45 +120,39 @@ export async function handleInboundEmail(
   ].filter((part): part is string => part !== null);
   const content = contentParts.join("\n");
 
-  const textId = crypto.randomUUID();
-  await db.insert(item).values({
-    id: textId,
+  await insertPendingItem(env, ctx, {
     userId: inbox.userId,
-    workspaceId: null,
     kind: "text",
     title: subject || titleFromText(body) || "Email",
     content,
     sizeBytes: new TextEncoder().encode(content).byteLength,
     tags: ["email"],
-    parseStatus: "pending",
+    spaceId: null,
   });
-  scheduleItemEnrichment(ctx, env, textId);
 
   for (const attachment of parsed.attachments) {
     const id = crypto.randomUUID();
     const filename = attachment.filename || "attachment";
     const r2Key = `${inbox.userId}/${id}/${filename}`;
+    const mimeType = attachment.mimeType || "application/octet-stream";
 
     const sizeBytes = await putItemObject(
       env.ITEMS_BUCKET,
       r2Key,
       attachmentBytes(attachment),
-      attachment.mimeType || "application/octet-stream",
+      mimeType,
     );
 
-    await db.insert(item).values({
+    await insertPendingItem(env, ctx, {
       id,
       userId: inbox.userId,
-      workspaceId: null,
       kind: "file",
       title: filename,
       r2Key,
       sizeBytes,
-      mimeType: attachment.mimeType || "application/octet-stream",
+      mimeType,
       tags: ["email"],
-      parseStatus: "pending",
+      spaceId: null,
     });
-
-    scheduleItemEnrichment(ctx, env, id);
   }
 }

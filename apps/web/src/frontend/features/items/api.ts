@@ -11,23 +11,44 @@ export type ItemKind = "file" | "link" | "text";
 
 export type ItemParseStatus = "pending" | "ready" | "failed" | "skipped";
 
-export type Item = {
+type ItemBase = {
   id: string;
-  kind: ItemKind;
   title: string | null;
   summary: string | null;
   tags: string[] | null;
-  mimeType: string | null;
-  url: string | null;
-  siteName: string | null;
-  workspaceId: string | null;
+  spaceId: string | null;
   parseStatus: ItemParseStatus | null;
-  hasPreview?: boolean;
-  sizeBytes?: number | null;
+  sizeBytes: number;
   createdAt: string;
-  pinned?: boolean;
+  pinned: boolean;
   duplicate?: boolean;
 };
+
+export type ItemLink = ItemBase & {
+  kind: "link";
+  url: string;
+  siteName: string | null;
+  mimeType: null;
+  hasPreview: boolean;
+};
+
+export type ItemFile = ItemBase & {
+  kind: "file";
+  url: null;
+  siteName: null;
+  mimeType: string | null;
+  hasPreview: boolean;
+};
+
+export type ItemText = ItemBase & {
+  kind: "text";
+  url: null;
+  siteName: null;
+  mimeType: null;
+  hasPreview: false;
+};
+
+export type Item = ItemLink | ItemFile | ItemText;
 
 export type ItemListPage = {
   items: Item[];
@@ -38,13 +59,13 @@ export type ItemListPage = {
 const ITEM_PAGE_SIZE = 50;
 
 async function fetchItemsPage(options: {
-  workspaceId?: string;
+  spaceId?: string;
   inbox?: boolean;
   cursor?: string | null;
 }): Promise<ItemListPage> {
   const params = new URLSearchParams();
   if (options.inbox) params.set("inbox", "1");
-  else if (options.workspaceId) params.set("workspaceId", options.workspaceId);
+  else if (options.spaceId) params.set("spaceId", options.spaceId);
   params.set("limit", String(ITEM_PAGE_SIZE));
   if (options.cursor) params.set("cursor", options.cursor);
   return parseJson<ItemListPage>(await fetch(`/api/items?${params}`));
@@ -80,11 +101,18 @@ function listRefetchInterval(query: {
   return false;
 }
 
-export function itemsInfiniteQueryOptions(workspaceId?: string) {
+export type ItemListScope = { inbox: true } | { spaceId: string };
+
+export function itemsInfiniteQueryOptions(scope: ItemListScope) {
+  const listKey = "inbox" in scope ? "inbox" : scope.spaceId;
   return infiniteQueryOptions({
-    queryKey: ["item", "items", workspaceId] as const,
+    queryKey: ["item", "items", listKey] as const,
     queryFn: ({ pageParam }) =>
-      fetchItemsPage({ workspaceId, cursor: pageParam }),
+      fetchItemsPage({
+        inbox: "inbox" in scope,
+        spaceId: "inbox" in scope ? undefined : scope.spaceId,
+        cursor: pageParam,
+      }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     refetchInterval: listRefetchInterval,
@@ -92,14 +120,7 @@ export function itemsInfiniteQueryOptions(workspaceId?: string) {
 }
 
 export function inboxItemsInfiniteQueryOptions() {
-  return infiniteQueryOptions({
-    queryKey: ["item", "items", "inbox"] as const,
-    queryFn: ({ pageParam }) =>
-      fetchItemsPage({ inbox: true, cursor: pageParam }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => last.nextCursor,
-    refetchInterval: listRefetchInterval,
-  });
+  return itemsInfiniteQueryOptions({ inbox: true });
 }
 
 export type ItemDetail = Item & {
@@ -142,12 +163,12 @@ export function itemSheetQueryOptions(id: string) {
 
 export async function uploadItem(
   file: File,
-  workspaceId?: string | null,
+  spaceId?: string | null,
   options?: { title?: string | null },
 ): Promise<Item> {
   const formData = new FormData();
   formData.append("file", file);
-  if (workspaceId) formData.append("workspaceId", workspaceId);
+  if (spaceId) formData.append("spaceId", spaceId);
   if (options?.title) formData.append("title", options.title);
   const poster = await captureVideoPoster(file);
   if (poster) formData.append("poster", poster);
@@ -159,7 +180,7 @@ export async function uploadItem(
 
 export async function captureItemInput(
   input: string,
-  workspaceId?: string | null,
+  spaceId?: string | null,
   options?: { title?: string | null; autoSpace?: boolean },
 ): Promise<Item> {
   return parseJson<Item>(
@@ -169,43 +190,60 @@ export async function captureItemInput(
       body: JSON.stringify({
         input,
         title: options?.title || undefined,
-        workspaceId,
+        spaceId,
         autoSpace: options?.autoSpace || undefined,
       }),
     }),
   );
 }
 
-export async function deleteItem(id: string): Promise<{ id: string }> {
-  return parseJson<{ id: string }>(
-    await fetch(`/api/items/${id}`, { method: "DELETE" }),
+export async function deleteItems(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await parseJson<{ ids: string[] }>(
+    await fetch("/api/items", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
   );
 }
 
-export async function updateItemWorkspace(
-  id: string,
-  workspaceId: string | null,
-): Promise<Item> {
-  return parseJson<Item>(
-    await fetch(`/api/items/${id}`, {
+export async function deleteItem(id: string): Promise<{ id: string }> {
+  await deleteItems([id]);
+  return { id };
+}
+
+export async function updateItems(
+  ids: string[],
+  patch: { spaceId?: string | null; pinned?: boolean },
+): Promise<Item[]> {
+  if (ids.length === 0) return [];
+  const data = await parseJson<{ items: Item[] }>(
+    await fetch("/api/items", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspaceId }),
+      body: JSON.stringify({ ids, ...patch }),
     }),
   );
+  return data.items;
+}
+
+export async function updateItemSpace(
+  id: string,
+  spaceId: string | null,
+): Promise<Item> {
+  const [updated] = await updateItems([id], { spaceId });
+  if (!updated) throw new Error("Failed to move item");
+  return updated;
 }
 
 export async function updateItemPinned(
   id: string,
   pinned: boolean,
 ): Promise<Item> {
-  return parseJson<Item>(
-    await fetch(`/api/items/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pinned }),
-    }),
-  );
+  const [updated] = await updateItems([id], { pinned });
+  if (!updated) throw new Error("Failed to pin item");
+  return updated;
 }
 
 export async function renameItem(id: string, title: string): Promise<Item> {

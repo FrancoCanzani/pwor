@@ -11,7 +11,8 @@
       "@components/*": ["./src/frontend/components/*"],
       "@shared/*": ["./src/shared/*"],
       "@pwor/editor": ["../../packages/editor/src/index.ts"],
-      "@pwor/editor/document": ["../../packages/editor/src/document.ts"]
+      "@pwor/editor/document": ["../../packages/editor/src/document.ts"],
+      "@pwor/editor/embed": ["../../packages/editor/src/embed.ts"]
     }
   },
   "include": ["src/frontend", "src/shared"]

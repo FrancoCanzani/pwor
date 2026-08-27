@@ -46,7 +46,10 @@ The only legal comment is a short `//` that explains a non-obvious **why**: a pl
 ## Product
 
 - Product name: **Pwor**.
-- Personal intelligence layer: capture anything, AI turns it into connected living objects (people, trips, companies, documents…). Not a task manager, not folders.
+- Capture for humans, memory for any AI. Dump anything in. Find it later. Give it to the model you already use.
+- Spaces are folders (`space` table, `spaceId` everywhere). Inbox is unfiled (`spaceId` null). Not objects, not a task manager.
+- Notes are TipTap documents via `@pwor/editor`. Autosave, no toolbar.
+- Onboarding: full name, then first space. Avatar is optional; missing avatars use [Hashvatar](https://www.hashvatar.com/) from email (soft-squared, not circular).
 
 ## UI
 
@@ -63,6 +66,3 @@ The only legal comment is a short `//` that explains a non-obvious **why**: a pl
 - Numbers and dates use `font-nums` (Geist Mono + tabular-nums).
 - Empty states use shadcn `Empty`.
 - App chrome uses shadcn `Sidebar` (brand, nav, user footer dropdown). Keep it minimal — no inset/floating chrome.
-- New users are gated to `/onboarding` until they set a full name. Avatar is optional; missing avatars use [Hashvatar](https://www.hashvatar.com/) from email (soft-squared, not circular).
-- Notes use a CodeMirror editor with live preview (ProseMark) and a Source toggle (`Mod+Alt+M`) — the document stays markdown; autosave; no toolbar. Title/tags live in YAML frontmatter at the top (`---` / `title:` / `tags:`) — no separate title input; list title is derived from frontmatter (else leading `#`).
-- Homepage is search-first, not a task feed.

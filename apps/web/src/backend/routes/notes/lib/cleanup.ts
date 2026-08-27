@@ -1,4 +1,4 @@
-import { eq, inArray, lte } from "drizzle-orm";
+import { inArray, lte } from "drizzle-orm";
 
 import { createDb, type Db } from "../../../db";
 import { note, noteImage } from "../../../db/schema";
@@ -17,15 +17,16 @@ export async function deleteNoteImagesFromR2(
   }
 }
 
-export async function deleteNotesForItem(
+export async function deleteNotesForItems(
   db: Db,
   env: Env,
-  itemId: string,
+  itemIds: string[],
 ): Promise<void> {
+  if (itemIds.length === 0) return;
   const notes = await db
     .select({ id: note.id })
     .from(note)
-    .where(eq(note.itemId, itemId));
+    .where(inArray(note.itemId, itemIds));
   if (notes.length === 0) return;
 
   const images = await db
@@ -38,11 +39,19 @@ export async function deleteNotesForItem(
       ),
     );
   await deleteNoteImagesFromR2(env.ITEMS_BUCKET, images);
-  await db.delete(note).where(eq(note.itemId, itemId));
+  await db.delete(note).where(inArray(note.itemId, itemIds));
   await deleteEmbeddings(
     env,
     notes.map((row) => vectorId("note", row.id)),
   );
+}
+
+export async function deleteNotesForItem(
+  db: Db,
+  env: Env,
+  itemId: string,
+): Promise<void> {
+  await deleteNotesForItems(db, env, [itemId]);
 }
 
 export async function cleanupOrphanNoteImages(env: Env): Promise<number> {

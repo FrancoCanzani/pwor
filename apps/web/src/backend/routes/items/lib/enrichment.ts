@@ -3,125 +3,20 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createWorkersAI } from "workers-ai-provider";
 
+import { tweetIdFromUrl } from "@shared/tweet";
+
 import { createDb } from "../../../db";
 import { item } from "../../../db/schema";
 import { embedItem } from "../../../lib/embed";
-import { assertPublicHttpUrl } from "../../../lib/safe-url";
-import { tweetIdFromUrl } from "@shared/tweet";
+import type { WaitUntilCtx } from "../../../types";
 import { titleFromText } from "./capture";
 import { extractArticleHtml } from "./extract";
+import { fetchPageMetadata } from "./page-meta";
 import { shouldCaptureScreenshot, storeSiteScreenshot } from "./screenshot";
-import { extractItemMarkdown } from "./to-markdown";
+import { extractFileMarkdown } from "./to-markdown";
 import { fetchTweet, tweetToHtml } from "./tweet";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-
-function decodeEntities(value: string): string {
-  return value
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
-}
-
-function metaContent(html: string, property: string): string | null {
-  const patterns = [
-    new RegExp(
-      `<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']`,
-      "i",
-    ),
-    new RegExp(
-      `<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`,
-      "i",
-    ),
-  ];
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) return decodeEntities(match[1].trim());
-  }
-  return null;
-}
-
-type FetchedPage = {
-  title: string | null;
-  siteName: string | null;
-  description: string | null;
-  text: string | null;
-  html: string | null;
-};
-
-async function fetchPageMetadata(url: string): Promise<FetchedPage> {
-  try {
-    assertPublicHttpUrl(url);
-    const response = await fetch(url, {
-      redirect: "follow",
-      signal: AbortSignal.timeout(15_000),
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    if (!response.ok) {
-      return {
-        title: null,
-        siteName: null,
-        description: null,
-        text: null,
-        html: null,
-      };
-    }
-
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.includes("html") && !contentType.includes("text")) {
-      return {
-        title: null,
-        siteName: new URL(url).hostname,
-        description: null,
-        text: null,
-        html: null,
-      };
-    }
-
-    const html = (await response.text()).slice(0, 2_000_000);
-    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-    const title =
-      metaContent(html, "og:title") ||
-      metaContent(html, "twitter:title") ||
-      (titleMatch?.[1] ? decodeEntities(titleMatch[1].trim()) : null);
-    const description =
-      metaContent(html, "og:description") ||
-      metaContent(html, "description") ||
-      metaContent(html, "twitter:description");
-    const siteName = metaContent(html, "og:site_name") || new URL(url).hostname;
-
-    const stripped = html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 6_000);
-
-    return {
-      title: title?.slice(0, 200) || null,
-      siteName,
-      description: description?.slice(0, 500) || null,
-      text: stripped || null,
-      html,
-    };
-  } catch {
-    return {
-      title: null,
-      siteName: null,
-      description: null,
-      text: null,
-      html: null,
-    };
-  }
-}
 
 const ENRICHMENT_SYSTEM_PROMPT = `You enrich a saved item for later search and recall.
 
@@ -139,6 +34,17 @@ const enrichmentSchema = z.object({
 });
 
 const BODY_CHARS = 6_000;
+
+type ItemRecord = typeof item.$inferSelect;
+
+type Gathered = {
+  title: string | null;
+  siteName: string | null;
+  summary: string | null;
+  content: string | null;
+  contentHtml: string | null;
+  extractedMarkdown: string | null;
+};
 
 function filenameFromR2Key(r2Key: string | null): string | null {
   if (!r2Key) return null;
@@ -159,105 +65,103 @@ function normalizeTags(tags: string[]): string[] {
   return out;
 }
 
+async function gatherEnrichment(env: Env, row: ItemRecord): Promise<Gathered> {
+  const gathered: Gathered = {
+    title: row.title,
+    siteName: row.siteName,
+    summary: row.summary,
+    content: row.content,
+    contentHtml: row.contentHtml,
+    extractedMarkdown: row.extractedMarkdown,
+  };
+
+  if (row.kind === "link" && row.url) {
+    const tweetId = tweetIdFromUrl(row.url);
+    const tweet = tweetId ? await fetchTweet(tweetId) : null;
+
+    if (tweet) {
+      gathered.title = titleFromText(tweet.text) || row.title || row.url;
+      gathered.siteName = "X";
+      gathered.summary = tweet.text.slice(0, 500) || row.summary;
+      gathered.content = tweet.text || row.content;
+      gathered.contentHtml = tweetToHtml(tweet);
+    } else {
+      const page = await fetchPageMetadata(row.url);
+      gathered.title = page.title || row.title || row.url;
+      gathered.siteName = page.siteName ?? row.siteName;
+      gathered.summary = page.description ?? row.summary;
+      gathered.content =
+        [page.description, page.text].filter(Boolean).join("\n\n") ||
+        row.content;
+      if (page.html) {
+        const extracted = extractArticleHtml(page.html, row.url);
+        if (extracted) gathered.contentHtml = extracted.html;
+        else console.error("link content extraction failed", row.id);
+      }
+    }
+  }
+
+  if (row.kind === "file" && row.r2Key && !row.extractedMarkdown) {
+    const extracted = await extractFileMarkdown(env, row);
+    if (extracted.status === "extracted") {
+      gathered.extractedMarkdown = extracted.markdown;
+    }
+  }
+
+  return gathered;
+}
+
+type ParseWrite = Partial<Gathered> & {
+  tags?: string[] | null;
+  kind?: ItemRecord["kind"];
+  parseStatus: "pending" | "ready" | "failed" | "skipped";
+  parseError: string | null;
+  parsedAt: Date;
+};
+
+async function writeParse(
+  env: Env,
+  itemId: string,
+  values: ParseWrite,
+): Promise<void> {
+  const db = createDb(env.DB);
+  await db.update(item).set(values).where(eq(item.id, itemId));
+}
+
 export async function enrichItem(env: Env, itemId: string): Promise<void> {
   const db = createDb(env.DB);
-  const [initial] = await db
+  const [row] = await db
     .select()
     .from(item)
     .where(eq(item.id, itemId))
     .limit(1);
 
-  if (!initial) return;
+  if (!row) return;
 
-  let row = initial;
+  const gathered = await gatherEnrichment(env, row);
   const kind = row.kind;
 
-  if (kind === "link" && row.url) {
-    const tweetId = tweetIdFromUrl(row.url);
-    const tweet = tweetId ? await fetchTweet(tweetId) : null;
-
-    let title = row.title;
-    let siteName = row.siteName;
-    let summary = row.summary;
-    let content = row.content;
-    let contentHtml = row.contentHtml;
-
-    if (tweet) {
-      title = titleFromText(tweet.text) || row.title || row.url;
-      siteName = "X";
-      summary = tweet.text.slice(0, 500) || row.summary;
-      content = tweet.text || row.content;
-      contentHtml = tweetToHtml(tweet);
-    } else {
-      const page = await fetchPageMetadata(row.url);
-      title = page.title || row.title || row.url;
-      siteName = page.siteName ?? row.siteName;
-      summary = page.description ?? row.summary;
-      content =
-        [page.description, page.text].filter(Boolean).join("\n\n") ||
-        row.content;
-      if (page.html) {
-        const extracted = extractArticleHtml(page.html, row.url);
-        if (extracted) contentHtml = extracted.html;
-        else console.error("link content extraction failed", itemId);
-      }
-    }
-
-    await db
-      .update(item)
-      .set({
-        kind: "link",
-        title,
-        siteName,
-        summary,
-        content,
-        contentHtml,
-      })
-      .where(eq(item.id, itemId));
-
-    row = {
-      ...row,
-      kind: "link",
-      title,
-      siteName,
-      summary,
-      content,
-      contentHtml,
-    };
-  }
-
-  if (kind === "file" && row.r2Key && !row.extractedMarkdown) {
-    await extractItemMarkdown(env, itemId);
-    const [refreshed] = await db
-      .select()
-      .from(item)
-      .where(eq(item.id, itemId))
-      .limit(1);
-    if (!refreshed) return;
-    row = refreshed;
-  }
-
   const bodyParts = [
-    row.title ? `Title: ${row.title}` : null,
+    gathered.title ? `Title: ${gathered.title}` : null,
     row.url ? `URL: ${row.url}` : null,
-    row.siteName ? `Site: ${row.siteName}` : null,
-    row.kind ? `Kind: ${row.kind}` : null,
-    row.content ? `Content:\n${row.content.slice(0, BODY_CHARS)}` : null,
-    row.extractedMarkdown
-      ? `Extracted:\n${row.extractedMarkdown.slice(0, BODY_CHARS)}`
+    gathered.siteName ? `Site: ${gathered.siteName}` : null,
+    kind ? `Kind: ${kind}` : null,
+    gathered.content
+      ? `Content:\n${gathered.content.slice(0, BODY_CHARS)}`
       : null,
-    row.summary ? `Existing summary: ${row.summary}` : null,
+    gathered.extractedMarkdown
+      ? `Extracted:\n${gathered.extractedMarkdown.slice(0, BODY_CHARS)}`
+      : null,
+    gathered.summary ? `Existing summary: ${gathered.summary}` : null,
   ].filter(Boolean);
 
   if (bodyParts.length === 0) {
-    await db
-      .update(item)
-      .set({
-        parseStatus: "skipped",
-        parseError: "nothing to enrich",
-        parsedAt: new Date(),
-      })
-      .where(eq(item.id, itemId));
+    await writeParse(env, itemId, {
+      ...gathered,
+      parseStatus: "skipped",
+      parseError: "nothing to enrich",
+      parsedAt: new Date(),
+    });
     return;
   }
 
@@ -275,52 +179,31 @@ export async function enrichItem(env: Env, itemId: string): Promise<void> {
       ...object.tags,
     ]);
 
-    const aiTitle = object.title.trim() || row.title;
+    const aiTitle = object.title.trim() || gathered.title;
     const title =
       kind === "file"
         ? row.title || filenameFromR2Key(row.r2Key) || aiTitle
         : aiTitle;
 
-    await db
-      .update(item)
-      .set({
-        title,
-        summary: object.summary.trim(),
-        tags,
-        kind,
-        parseStatus: "ready",
-        parseError: null,
-        parsedAt: new Date(),
-      })
-      .where(eq(item.id, itemId));
+    await writeParse(env, itemId, {
+      ...gathered,
+      title,
+      summary: object.summary.trim(),
+      tags,
+      kind,
+      parseStatus: "ready",
+      parseError: null,
+      parsedAt: new Date(),
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await db
-      .update(item)
-      .set({
-        parseStatus: "failed",
-        parseError: message.slice(0, 500),
-        parsedAt: new Date(),
-      })
-      .where(eq(item.id, itemId));
-  }
-}
-
-async function markEnrichmentFailed(
-  env: Env,
-  itemId: string,
-  err: unknown,
-): Promise<void> {
-  const message = err instanceof Error ? err.message : String(err);
-  const db = createDb(env.DB);
-  await db
-    .update(item)
-    .set({
+    await writeParse(env, itemId, {
+      ...gathered,
       parseStatus: "failed",
       parseError: message.slice(0, 500),
       parsedAt: new Date(),
-    })
-    .where(eq(item.id, itemId));
+    });
+  }
 }
 
 async function enrichItemScreenshot(env: Env, itemId: string): Promise<void> {
@@ -349,7 +232,7 @@ async function enrichItemScreenshot(env: Env, itemId: string): Promise<void> {
 const MAX_SCREENSHOT_BACKFILL = 4;
 
 export function scheduleMissingScreenshots(
-  ctx: { waitUntil(promise: Promise<unknown>): void },
+  ctx: WaitUntilCtx,
   env: Env,
   rows: Array<{
     id: string;
@@ -380,7 +263,7 @@ export function scheduleMissingScreenshots(
 }
 
 export function scheduleItemEnrichment(
-  ctx: { waitUntil(promise: Promise<unknown>): void },
+  ctx: WaitUntilCtx,
   env: Env,
   itemId: string,
 ): void {
@@ -391,7 +274,14 @@ export function scheduleItemEnrichment(
       } catch (err) {
         console.error("item enrichment failed", itemId, err);
         try {
-          await markEnrichmentFailed(env, itemId, err);
+          await writeParse(env, itemId, {
+            parseStatus: "failed",
+            parseError: (err instanceof Error ? err.message : String(err)).slice(
+              0,
+              500,
+            ),
+            parsedAt: new Date(),
+          });
         } catch (updateErr) {
           console.error(
             "item enrichment status update failed",

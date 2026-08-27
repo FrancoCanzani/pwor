@@ -3,12 +3,12 @@ import {
   clearLinkingState,
   getLinkingState,
   getStoredUser,
-  listWorkspaces,
+  listSpaces,
   pollLink,
   setLinkingState,
   setSession,
   startLink,
-  workspaceLabel,
+  spaceLabel,
 } from "../lib/api";
 import {
   LINK_TIMEOUT_MS,
@@ -191,12 +191,12 @@ export default defineBackground(() => {
             hint: (message.hint as string | undefined) ?? null,
             tags: message.via === "bookmark" ? ["bookmark"] : undefined,
           });
-          const spaces = await listWorkspaces().catch(() => []);
+          const spaces = await listSpaces().catch(() => []);
 
           sendResponse({
             ok: true,
-            workspaceId: item.workspaceId,
-            spaceName: workspaceLabel(item.workspaceId, spaces),
+            spaceId: item.spaceId,
+            spaceName: spaceLabel(item.spaceId, spaces),
           });
         } catch (error) {
           sendResponse({

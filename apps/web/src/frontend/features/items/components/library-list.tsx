@@ -27,7 +27,7 @@ export function LibraryList({
   selected,
   draggingIds,
   deleteDescription,
-  fromWorkspaceId,
+  fromSpaceId,
   hasNextPage,
   sentinelRef,
   edgeToEdge = false,
@@ -41,7 +41,7 @@ export function LibraryList({
   selected: Set<string>;
   draggingIds: Set<string>;
   deleteDescription: string;
-  fromWorkspaceId: string | null;
+  fromSpaceId: string | null;
   hasNextPage: boolean;
   sentinelRef: RefObject<HTMLDivElement | null>;
   edgeToEdge?: boolean;
@@ -89,7 +89,7 @@ export function LibraryList({
           ids,
           title: itemTitle(item),
           meta: kindLabel(item),
-          fromWorkspaceId,
+          fromSpaceId,
         });
         onDraggingIds(ids);
       },
@@ -117,7 +117,7 @@ export function LibraryList({
           ids,
           title: noteDisplayTitle(note.title),
           meta: "note",
-          fromWorkspaceId,
+          fromSpaceId,
         });
         onDraggingIds(ids);
       },

@@ -6,13 +6,13 @@ import {
   fetchMe,
   getLinkingState,
   getStoredUser,
-  getStoredWorkspaceId,
-  listWorkspaces,
-  setStoredWorkspaceId,
-  updateItemWorkspace,
-  workspaceLabel,
+  getStoredSpaceId,
+  listSpaces,
+  setStoredSpaceId,
+  updateItemSpace,
+  spaceLabel,
 } from "../../lib/api";
-import { APP_URL, STORAGE_KEYS, type Workspace } from "../../lib/config";
+import { APP_URL, STORAGE_KEYS, type Space } from "../../lib/config";
 import { resolveCaptureUrl } from "../../lib/page";
 import { cn } from "../../lib/utils";
 
@@ -74,8 +74,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [linking, setLinking] = useState(false);
   const [page, setPage] = useState<PageInfo | null>(null);
-  const [spaces, setSpaces] = useState<Workspace[]>([]);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [spaceId, setSpaceId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -105,22 +105,22 @@ export default function App() {
           return;
         }
 
-        const [meResult, listed, storedWorkspaceId] = await Promise.all([
+        const [meResult, listed, storedSpaceId] = await Promise.all([
           fetchMe()
             .then((me) => ({ ok: true as const, me }))
             .catch(() => ({ ok: false as const })),
-          listWorkspaces().catch(() => [] as Workspace[]),
-          getStoredWorkspaceId(),
+          listSpaces().catch(() => [] as Space[]),
+          getStoredSpaceId(),
         ]);
         setSpaces(listed);
-        const nextWorkspaceId =
-          storedWorkspaceId &&
-          listed.some((space) => space.id === storedWorkspaceId)
-            ? storedWorkspaceId
+        const nextSpaceId =
+          storedSpaceId &&
+          listed.some((space) => space.id === storedSpaceId)
+            ? storedSpaceId
             : null;
-        setWorkspaceId(nextWorkspaceId);
-        if (storedWorkspaceId && !nextWorkspaceId) {
-          void setStoredWorkspaceId(null);
+        setSpaceId(nextSpaceId);
+        if (storedSpaceId && !nextSpaceId) {
+          void setStoredSpaceId(null);
         }
 
         if (meResult.ok) {
@@ -152,16 +152,16 @@ export default function App() {
           setError(null);
           void (async () => {
             const [listed, stored] = await Promise.all([
-              listWorkspaces().catch(() => [] as Workspace[]),
-              getStoredWorkspaceId(),
+              listSpaces().catch(() => [] as Space[]),
+              getStoredSpaceId(),
             ]);
             setSpaces(listed);
             const next =
               stored && listed.some((space) => space.id === stored)
                 ? stored
                 : null;
-            setWorkspaceId(next);
-            if (stored && !next) await setStoredWorkspaceId(null);
+            setSpaceId(next);
+            if (stored && !next) await setStoredSpaceId(null);
           })();
         }
       }
@@ -199,12 +199,12 @@ export default function App() {
 
   async function handleDestination(nextId: string) {
     const id = nextId || null;
-    setWorkspaceId(id);
-    await setStoredWorkspaceId(id);
+    setSpaceId(id);
+    await setStoredSpaceId(id);
     if (!savedId) return;
     try {
-      await updateItemWorkspace(savedId, id);
-      setStatus(`Saved to ${workspaceLabel(id, spaces)}`);
+      await updateItemSpace(savedId, id);
+      setStatus(`Saved to ${spaceLabel(id, spaces)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn’t move");
     }
@@ -220,13 +220,13 @@ export default function App() {
         if (!page.selection.trim()) {
           throw new Error("Nothing selected on the page.");
         }
-        const item = await capture({ input: page.selection, workspaceId });
+        const item = await capture({ input: page.selection, spaceId });
         setSavedId(item.id);
       } else {
-        const item = await capture({ input: page.url, workspaceId });
+        const item = await capture({ input: page.url, spaceId });
         setSavedId(item.id);
       }
-      setStatus(`Saved to ${workspaceLabel(workspaceId, spaces)}`);
+      setStatus(`Saved to ${spaceLabel(spaceId, spaces)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -285,7 +285,7 @@ export default function App() {
     }
   })();
 
-  const openPath = workspaceId ? `/spaces/${workspaceId}` : "/inbox";
+  const openPath = spaceId ? `/spaces/${spaceId}` : "/inbox";
 
   return (
     <div className="flex min-h-[280px] flex-col p-4">
@@ -304,7 +304,7 @@ export default function App() {
             {status ?? "Saved"} — change
           </span>
           <select
-            value={workspaceId ?? ""}
+            value={spaceId ?? ""}
             disabled={busy}
             onChange={(event) => void handleDestination(event.target.value)}
             className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs font-normal outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 disabled:opacity-50"
@@ -323,7 +323,7 @@ export default function App() {
         </label>
       ) : (
         <p className="mb-3 text-xs text-muted-foreground">
-          Saves to {workspaceLabel(workspaceId, spaces)}
+          Saves to {spaceLabel(spaceId, spaces)}
         </p>
       )}
 

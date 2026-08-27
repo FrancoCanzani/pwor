@@ -4,6 +4,6 @@ export * from "./feeds";
 export * from "./inbox";
 export * from "./notes";
 export * from "./items";
-export * from "./workspaces";
+export * from "./spaces";
 
 

@@ -3,18 +3,20 @@ import FileHandler from "@tiptap/extension-file-handler";
 import Highlight from "@tiptap/extension-highlight";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { TableKit } from "@tiptap/extension-table/kit";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import Underline from "@tiptap/extension-underline";
 import UniqueID from "@tiptap/extension-unique-id";
 import StarterKit from "@tiptap/starter-kit";
 import { Callout } from "./extensions/callout";
+import { EmbedPaste } from "./extensions/embed-paste";
 import { EditorImage } from "./extensions/image";
 import { Mention } from "./extensions/mention";
 import { mentionClickPlugin } from "./extensions/mention-click";
 import { MentionSuggestion } from "./extensions/mention-suggestion";
 import { SlashCommand } from "./extensions/slash-command";
+import { Tweet } from "./extensions/tweet";
+import { Youtube } from "./extensions/youtube";
 import type { MentionSource, UploadImage } from "./types";
 
 const IMAGE_MIMES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -29,13 +31,11 @@ const UNIQUE_ID_TYPES = [
   "listItem",
   "taskList",
   "taskItem",
-  "table",
-  "tableRow",
-  "tableHeader",
-  "tableCell",
   "horizontalRule",
   "image",
   "callout",
+  "youtube",
+  "tweet",
 ];
 
 function isImageFile(file: File): boolean {
@@ -90,14 +90,13 @@ export function createDocumentSchema(): AnyExtension[] {
       autolink: true,
       defaultProtocol: "https",
     }),
-    TableKit.configure({
-      table: { resizable: false },
-    }),
     TaskList,
     TaskItem.configure({ nested: true }),
     Callout,
     Mention,
     EditorImage.configure({ inline: false }),
+    Youtube,
+    Tweet,
     UniqueID.configure({
       attributeName: "blockId",
       types: UNIQUE_ID_TYPES,
@@ -116,6 +115,7 @@ export function createEditorExtensions(options: SchemaOptions = {}): AnyExtensio
       showOnlyCurrent: true,
     }),
     SlashCommand.configure({ canUpload: Boolean(uploadImage) }),
+    EmbedPaste,
   ];
 
   if (mentions) {

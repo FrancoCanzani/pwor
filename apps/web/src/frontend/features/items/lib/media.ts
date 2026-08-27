@@ -1,14 +1,12 @@
 import { shouldCaptureScreenshot } from "@shared/preview";
 
+import type { Item } from "@features/items/api";
+
 export function itemFileUrl(id: string) {
   return `/api/items/${id}/file`;
 }
 
-export function itemOpenHref(item: {
-  id: string;
-  kind: "file" | "link" | "text";
-  url: string | null;
-}): string | null {
+export function itemOpenHref(item: Item): string | null {
   if (item.kind === "link") return item.url;
   return itemFileUrl(item.id);
 }
@@ -26,37 +24,24 @@ export function itemHost(url: string | null | undefined): string | null {
   }
 }
 
-export function itemAwaitingScreenshot(item: {
-  kind: "file" | "link" | "text";
-  url: string | null;
-  parseStatus: string | null;
-  hasPreview?: boolean;
-}): boolean {
+export function itemAwaitingScreenshot(item: Item): boolean {
   if (item.hasPreview) return false;
-  if (item.kind !== "link" || !item.url) return false;
+  if (item.kind !== "link") return false;
   if (item.parseStatus === "failed" || item.parseStatus === "skipped") {
     return false;
   }
   return shouldCaptureScreenshot(item.url);
 }
 
-export function isVideoFile(item: {
-  kind: "file" | "link" | "text";
-  mimeType: string | null;
-}): boolean {
+export function isVideoFile(item: Item): boolean {
   return item.kind === "file" && Boolean(item.mimeType?.startsWith("video/"));
 }
 
-export function isPdfFile(item: { mimeType: string | null }): boolean {
+export function isPdfFile(item: Pick<Item, "mimeType">): boolean {
   return item.mimeType === "application/pdf";
 }
 
-export function itemStillUrl(item: {
-  id: string;
-  kind: "file" | "link" | "text";
-  mimeType: string | null;
-  hasPreview?: boolean;
-}): string | null {
+export function itemStillUrl(item: Item): string | null {
   if (item.hasPreview) return itemPreviewUrl(item.id);
   if (item.kind === "file" && item.mimeType?.startsWith("image/")) {
     return itemFileUrl(item.id);

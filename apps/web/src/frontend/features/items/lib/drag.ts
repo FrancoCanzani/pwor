@@ -7,7 +7,7 @@ export type PworItemDrag = {
   ids: string[];
   title: string;
   meta: string;
-  fromWorkspaceId: string | null;
+  fromSpaceId: string | null;
 };
 
 let activeDrag: PworItemDrag | null = null;

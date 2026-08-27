@@ -2,9 +2,8 @@ import { and, eq, type AnyColumn } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 
 import type { Db } from "./index";
-import { feedItem, item, workspace } from "./schema";
+import { feedItem, item, space } from "./schema";
 
-// Owner-scoped lookup: ownedBy(table.id, id, table.userId, userId)
 export function ownedBy(
   idColumn: AnyColumn,
   id: string,
@@ -14,19 +13,19 @@ export function ownedBy(
   return and(eq(idColumn, id), eq(userIdColumn, userId));
 }
 
-export async function assertOwnedWorkspace(
+export async function assertOwnedSpace(
   db: Db,
-  workspaceId: string | null | undefined,
+  spaceId: string | null | undefined,
   userId: string,
 ): Promise<void> {
-  if (workspaceId == null) return;
+  if (spaceId == null) return;
   const [row] = await db
-    .select({ id: workspace.id })
-    .from(workspace)
-    .where(ownedBy(workspace.id, workspaceId, workspace.userId, userId))
+    .select({ id: space.id })
+    .from(space)
+    .where(ownedBy(space.id, spaceId, space.userId, userId))
     .limit(1);
   if (!row) {
-    throw new HTTPException(400, { message: "Invalid workspace" });
+    throw new HTTPException(400, { message: "Invalid space" });
   }
 }
 
@@ -34,10 +33,10 @@ export async function assertOwnedItem(
   db: Db,
   itemId: string | null | undefined,
   userId: string,
-): Promise<{ id: string; workspaceId: string | null } | null> {
+): Promise<{ id: string; spaceId: string | null } | null> {
   if (itemId == null) return null;
   const [row] = await db
-    .select({ id: item.id, workspaceId: item.workspaceId })
+    .select({ id: item.id, spaceId: item.spaceId })
     .from(item)
     .where(ownedBy(item.id, itemId, item.userId, userId))
     .limit(1);

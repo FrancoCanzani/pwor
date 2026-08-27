@@ -29,12 +29,12 @@ export async function semanticSearchHits(
   {
     userId,
     q,
-    workspaceId,
+    spaceId,
     limit,
   }: {
     userId: string;
     q: string;
-    workspaceId?: string;
+    spaceId?: string;
     limit: number;
   },
 ): Promise<SearchHit[]> {
@@ -72,13 +72,13 @@ export async function semanticSearchHits(
 
   if (itemIds.length > 0) {
     const itemFilter = [eq(item.userId, userId), inArray(item.id, itemIds)];
-    if (workspaceId) itemFilter.push(eq(item.workspaceId, workspaceId));
+    if (spaceId) itemFilter.push(eq(item.spaceId, spaceId));
     const rows = await db
       .select({
         id: item.id,
         title: item.title,
         summary: item.summary,
-        workspaceId: item.workspaceId,
+        spaceId: item.spaceId,
         updatedAt: item.updatedAt,
       })
       .from(item)
@@ -89,7 +89,7 @@ export async function semanticSearchHits(
         id: row.id,
         title: row.title?.trim() || "Untitled",
         snippet: itemSnippet(row),
-        workspaceId: row.workspaceId,
+        spaceId: row.spaceId,
         feedId: null,
         updatedAt: toEpochMs(row.updatedAt),
       });
@@ -98,13 +98,13 @@ export async function semanticSearchHits(
 
   if (noteIds.length > 0) {
     const noteFilter = [eq(note.userId, userId), inArray(note.id, noteIds)];
-    if (workspaceId) noteFilter.push(eq(note.workspaceId, workspaceId));
+    if (spaceId) noteFilter.push(eq(note.spaceId, spaceId));
     const rows = await db
       .select({
         id: note.id,
         title: note.title,
         body: note.body,
-        workspaceId: note.workspaceId,
+        spaceId: note.spaceId,
         updatedAt: note.updatedAt,
       })
       .from(note)
@@ -115,7 +115,7 @@ export async function semanticSearchHits(
         id: row.id,
         title: row.title?.trim() || "Untitled",
         snippet: snippetOf(row.body),
-        workspaceId: row.workspaceId,
+        spaceId: row.spaceId,
         feedId: null,
         updatedAt: toEpochMs(row.updatedAt),
       });

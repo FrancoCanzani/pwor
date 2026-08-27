@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { noteDisplayTitle } from "@shared/note-frontmatter";
 import { PageEmpty } from "@components/page-empty";
 import { LibraryHeader } from "@features/items/components/library-header";
 import {
@@ -18,19 +17,19 @@ import { LibrarySortMenu } from "@features/items/components/library-sort";
 import { sortBy, type ItemSort } from "@features/items/lib/list";
 import {
   createNote,
-  deleteNote,
-  isStandaloneNote,
+  deleteNotes,
   noteQueryOptions,
   notesQueryOptions,
   updateNote,
-  updateNoteWorkspace,
+  updateNotes,
 } from "@features/notes/api";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { useCurrentSpace } from "@features/spaces/lib/use-current-space";
+import { noteDisplayTitle } from "@shared/note-frontmatter";
 
 export function NotesPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { id: workspaceId } = useCurrentWorkspace();
+  const { id: spaceId } = useCurrentSpace();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -38,26 +37,22 @@ export function NotesPage() {
   const [sort, setSort] = useState<ItemSort>("newest");
 
   const { data: notes = [] } = useQuery({
-    ...notesQueryOptions(workspaceId),
-    enabled: Boolean(workspaceId),
+    ...notesQueryOptions(spaceId),
+    enabled: Boolean(spaceId),
   });
 
-  const standaloneNotes = useMemo(
-    () => notes.filter(isStandaloneNote),
-    [notes],
-  );
-  const hasNotes = standaloneNotes.length > 0;
+  const hasNotes = notes.length > 0;
   const entries = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = q
-      ? standaloneNotes.filter((note) => {
+      ? notes.filter((note) => {
           const haystack = [noteDisplayTitle(note.title), note.bodyPreview]
             .filter(Boolean)
             .join(" ")
             .toLowerCase();
           return haystack.includes(q);
         })
-      : standaloneNotes;
+      : notes;
     return noteEntries(
       sortBy(filtered, sort, {
         date: (note) => new Date(note.updatedAt).toISOString(),
@@ -65,9 +60,9 @@ export function NotesPage() {
         pinned: (note) => Boolean(note.pinned),
       }),
     );
-  }, [standaloneNotes, sort, query]);
+  }, [notes, sort, query]);
 
-  const selectedIds = standaloneNotes
+  const selectedIds = notes
     .map((note) => note.id)
     .filter((id) => selected.has(id));
   const selectedCount = selectedIds.length;
@@ -79,8 +74,8 @@ export function NotesPage() {
 
   const createMutation = useMutation({
     mutationFn: () => {
-      if (!workspaceId) throw new Error("No space");
-      return createNote({ workspaceId });
+      if (!spaceId) throw new Error("No space");
+      return createNote({ spaceId });
     },
     onSuccess: async (created) => {
       setSelected(new Set());
@@ -94,9 +89,7 @@ export function NotesPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      for (const id of ids) await deleteNote(id);
-    },
+    mutationFn: (ids: string[]) => deleteNotes(ids),
     onSuccess: async () => {
       setSelected(new Set());
       await queryClient.invalidateQueries({ queryKey: ["notes"] });
@@ -105,17 +98,14 @@ export function NotesPage() {
   });
 
   const moveMutation = useMutation({
-    mutationFn: async (nextWorkspaceId: string) => {
-      for (const id of selectedIds) {
-        await updateNoteWorkspace(id, nextWorkspaceId);
-      }
-    },
+    mutationFn: (nextSpaceId: string) =>
+      updateNotes(selectedIds, { spaceId: nextSpaceId }),
     onSuccess: async () => {
       const count = selectedIds.length;
       setSelected(new Set());
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["workspaces"] }),
+        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
       ]);
       toast.success(count > 1 ? `Moved ${count}` : "Moved");
     },
@@ -173,7 +163,7 @@ export function NotesPage() {
               variant="ghost"
               size="xs"
               className="font-normal text-muted-foreground"
-              disabled={!workspaceId || createMutation.isPending}
+              disabled={!spaceId || createMutation.isPending}
               onClick={() => createMutation.mutate()}
             >
               New
@@ -202,14 +192,12 @@ export function NotesPage() {
               selected={selected}
               draggingIds={draggingIds}
               deleteDescription="This permanently deletes the note. This can’t be undone."
-              fromWorkspaceId={workspaceId ?? null}
+              fromSpaceId={spaceId ?? null}
               hasNextPage={false}
               sentinelRef={sentinelRef}
               onOpen={(entry) => {
                 if (entry.kind !== "note") return;
-                void queryClient.prefetchQuery(
-                  noteQueryOptions(entry.note.id),
-                );
+                void queryClient.prefetchQuery(noteQueryOptions(entry.note.id));
                 void navigate({
                   to: "/notes/$noteId",
                   params: { noteId: entry.note.id },
@@ -235,7 +223,7 @@ export function NotesPage() {
         <LibrarySelectionBar
           count={selectedCount}
           busy={busy}
-          excludeWorkspaceId={workspaceId}
+          excludeSpaceId={spaceId}
           deleteTitle={
             selectedCount === 1
               ? "Delete note?"
@@ -243,7 +231,7 @@ export function NotesPage() {
           }
           deleteDescription={`This permanently deletes ${selectedCount === 1 ? "it" : "them"}. This can’t be undone.`}
           onClear={() => setSelected(new Set())}
-          onMove={(nextWorkspaceId) => moveMutation.mutate(nextWorkspaceId)}
+          onMove={(nextSpaceId) => moveMutation.mutate(nextSpaceId)}
           onDelete={() => deleteMutation.mutate(selectedIds)}
         />
       ) : null}

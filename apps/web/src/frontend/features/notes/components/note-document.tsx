@@ -14,10 +14,10 @@ import {
   noteSaveLabel,
   useNoteDocumentSave,
 } from "@features/notes/lib/use-note-document-save";
-import { useCurrentWorkspace } from "@features/workspaces/lib/use-current-workspace";
+import { useCurrentSpace } from "@features/spaces/lib/use-current-space";
 
 export function useNoteDocument(noteId: string) {
-  const { id: workspaceId } = useCurrentWorkspace();
+  const { id: spaceId } = useCurrentSpace();
   const queryClient = useQueryClient();
   const cached = queryClient.getQueryData<Note>(
     noteQueryOptions(noteId).queryKey,
@@ -29,10 +29,10 @@ export function useNoteDocument(noteId: string) {
       noteQueryOptions(noteId).queryKey,
     )?.dataUpdatedAt,
   });
-  const mentionWorkspaceId = note?.workspaceId ?? workspaceId;
+  const mentionSpaceId = note?.spaceId ?? spaceId;
   const { data: notes = [] } = useQuery({
-    ...notesQueryOptions(mentionWorkspaceId ?? undefined),
-    enabled: Boolean(mentionWorkspaceId),
+    ...notesQueryOptions(mentionSpaceId ?? undefined),
+    enabled: Boolean(mentionSpaceId),
   });
 
   const save = useNoteDocumentSave({
@@ -44,7 +44,7 @@ export function useNoteDocument(noteId: string) {
     note,
     error,
     notes,
-    mentionWorkspaceId,
+    mentionSpaceId,
     saveLabel: noteSaveLabel(save.saveState),
     ...save,
   };
@@ -122,7 +122,7 @@ export function NoteDocumentBody({
     note,
     error,
     notes,
-    mentionWorkspaceId,
+    mentionSpaceId,
     editorNonce,
     handleDocumentChange,
     initialDocument,
@@ -145,7 +145,7 @@ export function NoteDocumentBody({
       }
       className={cn("min-h-full", className)}
       mentions={
-        mentionWorkspaceId
+        mentionSpaceId
           ? {
               currentNoteId: noteId,
               getNotes: () => notes.filter(isStandaloneNote),

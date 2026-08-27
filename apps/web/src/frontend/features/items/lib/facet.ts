@@ -26,7 +26,7 @@ export function typeFacetOf(item: Item): ItemTypeFacet {
       if (item.mimeType?.startsWith("image/")) return "images";
       return "docs";
     default: {
-      const _exhaustive: never = item.kind;
+      const _exhaustive: never = item;
       return _exhaustive;
     }
   }

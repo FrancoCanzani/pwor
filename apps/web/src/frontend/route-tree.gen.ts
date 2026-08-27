@@ -9,9 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ExtensionLinkRouteImport } from './routes/extension/link'
 import { Route as AppFeedsIndexRouteImport } from './routes/_app/feeds/index'
 import { Route as AppInboxIndexRouteImport } from './routes/_app/inbox/index'
@@ -23,6 +23,11 @@ import { Route as AppSpacesSpaceIdRouteImport } from './routes/_app/spaces/$spac
 import { Route as AppFeedsFeedIdIndexRouteImport } from './routes/_app/feeds/$feedId/index'
 import { Route as AppSpacesSpaceIdIndexRouteImport } from './routes/_app/spaces/$spaceId/index'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -31,11 +36,6 @@ const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppIndexRoute = AppIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppRoute,
 } as any)
 const ExtensionLinkRoute = ExtensionLinkRouteImport.update({
   id: '/extension/link',
@@ -89,7 +89,7 @@ const AppSpacesSpaceIdIndexRoute = AppSpacesSpaceIdIndexRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/extension/link': typeof ExtensionLinkRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
@@ -103,9 +103,9 @@ export interface FileRoutesByFullPath {
   '/spaces/$spaceId/': typeof AppSpacesSpaceIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/extension/link': typeof ExtensionLinkRoute
-  '/': typeof AppIndexRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/feeds': typeof AppFeedsIndexRoute
   '/inbox': typeof AppInboxIndexRoute
@@ -117,10 +117,10 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/extension/link': typeof ExtensionLinkRoute
-  '/_app/': typeof AppIndexRoute
   '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
   '/_app/spaces/$spaceId': typeof AppSpacesSpaceIdRouteWithChildren
   '/_app/feeds/': typeof AppFeedsIndexRoute
@@ -148,9 +148,9 @@ export interface FileRouteTypes {
     | '/spaces/$spaceId/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/login'
     | '/extension/link'
-    | '/'
     | '/notes/$noteId'
     | '/feeds'
     | '/inbox'
@@ -161,10 +161,10 @@ export interface FileRouteTypes {
     | '/spaces/$spaceId'
   id:
     | '__root__'
+    | '/'
     | '/_app'
     | '/login'
     | '/extension/link'
-    | '/_app/'
     | '/_app/notes/$noteId'
     | '/_app/spaces/$spaceId'
     | '/_app/feeds/'
@@ -177,6 +177,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ExtensionLinkRoute: typeof ExtensionLinkRoute
@@ -184,6 +185,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -197,13 +205,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_app/': {
-      id: '/_app/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
     }
     '/extension/link': {
       id: '/extension/link'
@@ -290,7 +291,6 @@ const AppSpacesSpaceIdRouteWithChildren =
   AppSpacesSpaceIdRoute._addFileChildren(AppSpacesSpaceIdRouteChildren)
 
 interface AppRouteChildren {
-  AppIndexRoute: typeof AppIndexRoute
   AppNotesNoteIdRoute: typeof AppNotesNoteIdRoute
   AppSpacesSpaceIdRoute: typeof AppSpacesSpaceIdRouteWithChildren
   AppFeedsIndexRoute: typeof AppFeedsIndexRoute
@@ -302,7 +302,6 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppIndexRoute: AppIndexRoute,
   AppNotesNoteIdRoute: AppNotesNoteIdRoute,
   AppSpacesSpaceIdRoute: AppSpacesSpaceIdRouteWithChildren,
   AppFeedsIndexRoute: AppFeedsIndexRoute,
@@ -316,6 +315,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ExtensionLinkRoute: ExtensionLinkRoute,

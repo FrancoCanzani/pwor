@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageEmpty } from "@components/page-empty";
 import { LibraryHeader, ContentColumn } from "@features/items/components/library-header";
-import { LibraryList } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
+import { LibraryView } from "@features/items/components/library-view";
+import { LibraryViewToggle } from "@features/items/components/library-view-toggle";
+import { useLibraryView } from "@features/items/lib/view";
 import { sortBy, type ItemSort } from "@features/items/lib/list";
 import {
   createNote,
@@ -40,6 +42,10 @@ export function NotesPage() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [draggingIds, setDraggingIds] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<ItemSort>("newest");
+  const [view, setView] = useLibraryView({
+    storageKey: "pwor:notes-view",
+    modes: ["list", "grid"],
+  });
 
   const { data: notes = [] } = useQuery({
     ...notesQueryOptions(spaceId),
@@ -178,7 +184,7 @@ export function NotesPage() {
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <LibraryHeader
           leading={
             <h1 className="min-w-0 truncate text-base leading-none font-normal tracking-tight">
@@ -194,7 +200,12 @@ export function NotesPage() {
                   placeholder="Search…"
                   className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
                 />
-                <div className="ml-auto">
+                <div className="flex items-center gap-2">
+                  <LibraryViewToggle
+                    value={view}
+                    onChange={setView}
+                    modes={["list", "grid"]}
+                  />
                   <LibrarySortMenu value={sort} onChange={setSort} />
                 </div>
               </>
@@ -214,24 +225,24 @@ export function NotesPage() {
           }
         />
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <ContentColumn>
+        <ContentColumn>
           {!hasNotes ? (
-            <div className="px-4 pt-8 pb-24">
+            <div className="px-4 pb-24">
               <PageEmpty
                 title="No notes yet"
                 description="A blank page, whenever you need one."
               />
             </div>
           ) : entries.length === 0 && !hiding ? (
-            <div className="px-4 pt-8 pb-24">
+            <div className="px-4 pb-24">
               <PageEmpty
                 title="No matches"
                 description="Try a different search."
               />
             </div>
           ) : (
-            <LibraryList
+            <LibraryView
+              view={view}
               entries={entries}
               selected={selected}
               draggingIds={draggingIds}
@@ -261,7 +272,6 @@ export function NotesPage() {
             />
           )}
           </ContentColumn>
-        </div>
       </div>
 
       {selectedCount > 0 ? (

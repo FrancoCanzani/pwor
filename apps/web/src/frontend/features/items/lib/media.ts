@@ -1,4 +1,5 @@
 import { shouldCaptureScreenshot } from "@shared/preview";
+import { tweetIdFromUrl } from "@shared/tweet";
 
 import type { Item } from "@features/items/api";
 
@@ -41,7 +42,13 @@ export function isPdfFile(item: Pick<Item, "mimeType">): boolean {
   return item.mimeType === "application/pdf";
 }
 
+export function itemTweetId(item: Item): string | null {
+  if (item.kind !== "link" || !item.url) return null;
+  return tweetIdFromUrl(item.url);
+}
+
 export function itemStillUrl(item: Item): string | null {
+  if (itemTweetId(item)) return null;
   if (item.hasPreview) return itemPreviewUrl(item.id);
   if (item.kind === "file" && item.mimeType?.startsWith("image/")) {
     return itemFileUrl(item.id);

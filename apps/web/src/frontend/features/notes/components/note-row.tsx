@@ -27,7 +27,7 @@ import type { LibraryItemHandlers } from "@features/items/components/library-row
 import { formatItemDate } from "@features/items/lib/list";
 import type { NoteListItem } from "@features/notes/api";
 
-function NoteMenus({
+export function NoteMenus({
   title,
   pinned,
   deleteDescription,
@@ -122,6 +122,8 @@ export function NoteRow({
   active,
   deleteDescription,
   edgeToEdge = false,
+  first = false,
+  last = false,
   onOpen,
   onToggle,
   onPin,
@@ -132,6 +134,8 @@ export function NoteRow({
   note: NoteListItem;
   deleteDescription: string;
   edgeToEdge?: boolean;
+  first?: boolean;
+  last?: boolean;
 } & LibraryItemHandlers) {
   const title = noteDisplayTitle(note.title);
   const preview = note.bodyPreview?.trim() || null;
@@ -169,6 +173,8 @@ export function NoteRow({
             className={cn(
               "group flex w-full cursor-grab items-center gap-2 py-2 select-none hover:bg-muted/40 active:cursor-grabbing",
               edgeToEdge ? "px-3" : "px-4",
+              first && "rounded-t-lg",
+              last && "rounded-b-lg",
               active && "bg-muted/50",
               dragging && "opacity-40",
             )}

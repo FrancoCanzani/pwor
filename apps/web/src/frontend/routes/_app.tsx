@@ -19,9 +19,8 @@ export const Route = createFileRoute("/_app")({
       await context.queryClient.ensureQueryData(sessionQueryOptions);
     if (!session) throw redirect({ to: "/login" });
 
-    const spaces = await context.queryClient.ensureQueryData(
-      spacesQueryOptions,
-    );
+    const spaces =
+      await context.queryClient.ensureQueryData(spacesQueryOptions);
 
     const incomplete = spaces.length === 0;
     const onOnboarding = location.pathname === "/onboarding";

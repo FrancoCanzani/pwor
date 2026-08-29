@@ -51,9 +51,11 @@ import {
 } from "@features/items/api";
 import { ItemPreview } from "@features/items/components/item-preview";
 import { LibraryHeader, ContentColumn } from "@features/items/components/library-header";
-import { LibraryList } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
+import { LibraryView } from "@features/items/components/library-view";
+import { LibraryViewToggle } from "@features/items/components/library-view-toggle";
+import { useLibraryView } from "@features/items/lib/view";
 import {
   TYPE_FACET_LABEL,
   TYPE_FACET_ORDER,
@@ -75,6 +77,7 @@ export function LibraryPage() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [draggingIds, setDraggingIds] = useState<Set<string>>(() => new Set());
   const [sort, setSort] = useState<ItemSort>("newest");
+  const [view, setView] = useLibraryView();
 
   const { data: spaces = [] } = useQuery(spacesQueryOptions);
   const space = spaceId
@@ -273,7 +276,7 @@ export function LibraryPage() {
   const scope = inbox ? "Inbox" : "this space";
 
   const listPane = (
-    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto">
       <LibraryHeader
         edgeToEdge={previewOpen}
         leading={
@@ -362,7 +365,8 @@ export function LibraryPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <div className="ml-auto">
+              <div className="flex items-center gap-2">
+                <LibraryViewToggle value={view} onChange={setView} />
                 <LibrarySortMenu value={sort} onChange={setSort} />
               </div>
             </>
@@ -370,10 +374,9 @@ export function LibraryPage() {
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <ContentColumn constrain={!previewOpen}>
+      <ContentColumn constrain={!previewOpen}>
         {!hasCaptured ? (
-          <div className="px-4 pt-8 pb-24">
+            <div className="px-4 pb-24">
             <PageEmpty
               title={inbox ? "Nothing yet" : "Nothing here yet"}
               description={
@@ -385,14 +388,15 @@ export function LibraryPage() {
             />
           </div>
         ) : entries.length === 0 && !hiding ? (
-          <div className="px-4 pt-8 pb-24">
+            <div className="px-4 pb-24">
             <PageEmpty
               title="No matches"
               description="Try a different search or filter."
             />
           </div>
         ) : (
-          <LibraryList
+          <LibraryView
+            view={view}
             entries={entries}
             edgeToEdge={previewOpen}
             selected={selected}
@@ -418,7 +422,6 @@ export function LibraryPage() {
           />
         )}
         </ContentColumn>
-      </div>
     </div>
   );
 

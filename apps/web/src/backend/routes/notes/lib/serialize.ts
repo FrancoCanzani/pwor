@@ -18,11 +18,11 @@ export function serializeNoteListItem<
     pinnedAt: Date | null;
   },
 >(row: T) {
-  const { body, ...rest } = serializeNote(row);
+  const serialized = serializeNote(row);
   return {
-    ...rest,
-    hasBody: noteHasBody(body),
-    noted: noteIsNoted(body),
-    bodyPreview: noteBodyPreview(body),
+    ...serialized,
+    hasBody: noteHasBody(serialized.body),
+    noted: noteIsNoted(serialized.body),
+    bodyPreview: noteBodyPreview(serialized.body),
   };
 }

@@ -81,6 +81,7 @@ export function useNoteDocumentSave({
                 spaceId: updated.spaceId,
                 updatedAt: updated.updatedAt,
                 createdAt: updated.createdAt,
+                body: updated.body,
                 hasBody: noteHasBody(updated.body),
                 noted: noteIsNoted(updated.body),
                 bodyPreview: noteBodyPreview(updated.body),

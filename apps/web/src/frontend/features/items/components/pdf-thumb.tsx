@@ -31,7 +31,7 @@ export function PdfThumb({
   return (
     <div
       ref={hostRef}
-      className={cn("size-full overflow-hidden bg-muted/40", className)}
+      className={cn("size-full overflow-hidden bg-background", className)}
     >
       {width > 0 && !failed ? (
         <Document

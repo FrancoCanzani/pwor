@@ -80,7 +80,7 @@ export async function captureSiteScreenshot(
     const response = await env.BROWSER.quickAction("screenshot", {
       url,
       screenshotOptions: {
-        fullPage: true,
+        fullPage: false,
         type: "jpeg",
         quality: 72,
       },

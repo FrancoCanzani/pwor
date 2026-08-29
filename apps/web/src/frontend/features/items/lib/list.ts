@@ -20,6 +20,15 @@ export function formatItemDate(value: string | Date): string {
   return format(date, "MMM d, yyyy, h:mm a");
 }
 
+export function formatItemDateShort(value: string | Date): string {
+  const date = new Date(value);
+  if (!isValid(date)) return "";
+  if (date.getFullYear() === new Date().getFullYear()) {
+    return format(date, "MMM d");
+  }
+  return format(date, "MMM d, yyyy");
+}
+
 export function filterAndSortItems(
   items: Item[],
   {

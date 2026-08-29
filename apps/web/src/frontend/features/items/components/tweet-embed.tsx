@@ -53,9 +53,15 @@ function TweetText({ text }: { text: string }) {
   );
 }
 
-function TweetMedia({ tweet }: { tweet: TweetView }) {
-  const photos = tweet.photos;
-  const videos = tweet.videos;
+function TweetMedia({
+  tweet,
+  compact,
+}: {
+  tweet: TweetView;
+  compact: boolean;
+}) {
+  const photos = compact ? tweet.photos.slice(0, 2) : tweet.photos;
+  const videos = compact ? tweet.videos.slice(0, 1) : tweet.videos;
   if (photos.length === 0 && videos.length === 0) return null;
 
   return (
@@ -73,15 +79,18 @@ function TweetMedia({ tweet }: { tweet: TweetView }) {
               src={photo.url}
               alt={photo.alt ?? ""}
               className={cn(
-                "max-h-96 w-full object-cover",
-                photos.length === 1 ? "object-contain" : "aspect-square",
+                "w-full object-cover",
+                compact ? "max-h-28" : "max-h-96",
+                !compact && photos.length === 1
+                  ? "object-contain"
+                  : "aspect-square",
               )}
             />
           ))}
         </div>
       ) : null}
       {videos.map((video, index) =>
-        video.url ? (
+        video.url && !compact ? (
           <video
             key={video.url}
             src={video.url}
@@ -95,7 +104,10 @@ function TweetMedia({ tweet }: { tweet: TweetView }) {
             key={`${video.poster}-${index}`}
             src={video.poster}
             alt=""
-            className="max-h-96 w-full rounded-md border border-border object-cover"
+            className={cn(
+              "w-full rounded-md border border-border object-cover",
+              compact ? "max-h-28" : "max-h-96",
+            )}
           />
         ) : null,
       )}
@@ -106,23 +118,39 @@ function TweetMedia({ tweet }: { tweet: TweetView }) {
 function TweetCard({
   tweet,
   nested = false,
+  compact = false,
 }: {
   tweet: TweetView;
   nested?: boolean;
+  compact?: boolean;
 }) {
   const date = formatTweetDate(tweet.createdAt);
 
   return (
-    <article className={cn("flex flex-col gap-2.5", nested && "gap-2")}>
+    <article
+      className={cn(
+        "flex flex-col",
+        compact ? "gap-1.5" : "gap-2.5",
+        nested && "gap-2",
+      )}
+    >
       <header className="flex items-center gap-2">
         {tweet.author.avatarUrl ? (
           <img
             src={tweet.author.avatarUrl}
             alt=""
-            className="size-8 shrink-0 rounded-sm object-cover"
+            className={cn(
+              "shrink-0 rounded-sm object-cover",
+              compact ? "size-6" : "size-8",
+            )}
           />
         ) : (
-          <div className="size-8 shrink-0 rounded-sm bg-muted" />
+          <div
+            className={cn(
+              "shrink-0 rounded-sm bg-muted",
+              compact ? "size-6" : "size-8",
+            )}
+          />
         )}
         <div className="min-w-0">
           <div className="truncate text-xs font-bold">{tweet.author.name}</div>
@@ -137,9 +165,17 @@ function TweetCard({
           </div>
         </div>
       </header>
-      {tweet.text ? <TweetText text={tweet.text} /> : null}
-      <TweetMedia tweet={tweet} />
-      {tweet.quoted ? (
+      {tweet.text ? (
+        compact ? (
+          <p className="line-clamp-5 whitespace-pre-wrap text-[11px] leading-snug">
+            {decodeTweetText(tweet.text)}
+          </p>
+        ) : (
+          <TweetText text={tweet.text} />
+        )
+      ) : null}
+      <TweetMedia tweet={tweet} compact={compact} />
+      {tweet.quoted && !compact ? (
         <div className="rounded-md border border-border p-3">
           <TweetCard tweet={tweet.quoted} nested />
         </div>
@@ -148,7 +184,13 @@ function TweetCard({
   );
 }
 
-export function TweetEmbed({ id }: { id: string }) {
+export function TweetEmbed({
+  id,
+  compact = false,
+}: {
+  id: string;
+  compact?: boolean;
+}) {
   const tweetQuery = useQuery(tweetQueryOptions(id));
   const tweet = tweetQuery.data;
 
@@ -160,8 +202,8 @@ export function TweetEmbed({ id }: { id: string }) {
   if (!tweet) return null;
 
   return (
-    <div className="max-w-xl">
-      <TweetCard tweet={tweet} />
+    <div className={cn(!compact && "max-w-xl")}>
+      <TweetCard tweet={tweet} compact={compact} />
     </div>
   );
 }

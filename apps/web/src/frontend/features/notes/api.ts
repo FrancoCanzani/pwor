@@ -21,6 +21,7 @@ export type NoteListItem = {
   hasBody?: boolean;
   noted?: boolean;
   bodyPreview?: string | null;
+  body?: string;
   pinned?: boolean;
 };
 

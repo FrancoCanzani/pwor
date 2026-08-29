@@ -71,6 +71,13 @@
       "when": 1787848397567,
       "tag": "0009_little_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788013463124,
+      "tag": "0010_late_johnny_blaze",
+      "breakpoints": true
     }
   ]
 }

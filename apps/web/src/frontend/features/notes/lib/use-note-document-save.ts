@@ -193,7 +193,7 @@ export function useNoteDocumentSave({
     if (baseUpdatedAtRef.current === null) {
       baseUpdatedAtRef.current = note.updatedAt;
     }
-    keepNotedRef.current = note.itemId != null || note.feedItemId != null;
+    keepNotedRef.current = note.itemId != null;
   }, [note]);
 
   useEffect(() => {

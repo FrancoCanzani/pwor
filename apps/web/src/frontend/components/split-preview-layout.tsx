@@ -8,22 +8,6 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
-function WidthShell({
-  constrained,
-  children,
-}: {
-  constrained: boolean;
-  children: ReactNode;
-}) {
-  if (!constrained) return children;
-
-  return (
-    <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden">
-      {children}
-    </div>
-  );
-}
-
 export function SplitPreviewLayout({
   list,
   preview,
@@ -69,28 +53,24 @@ export function SplitPreviewLayout({
 
   if (isMobile) {
     return (
-      <WidthShell constrained={!previewOpen}>
-        <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
-          {listPane}
-          {previewOpen ? (
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              {preview}
-            </div>
-          ) : null}
-          {overlay}
-        </div>
-      </WidthShell>
+      <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
+        {listPane}
+        {previewOpen ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {preview}
+          </div>
+        ) : null}
+        {overlay}
+      </div>
     );
   }
 
   if (!showSplit) {
     return (
-      <WidthShell constrained>
-        <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
-          {listPane}
-          {overlay}
-        </div>
-      </WidthShell>
+      <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
+        {listPane}
+        {overlay}
+      </div>
     );
   }
 

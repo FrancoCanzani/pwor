@@ -130,7 +130,7 @@ function FloatingNoteShell({
       className={cn(
         "fixed z-50 flex min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         isMobile
-          ? "inset-0 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
+          ? "inset-0 p-safe"
           : "resize rounded-md border border-border shadow-[0_16px_48px_rgba(0,0,0,0.14)] ring-1 ring-black/5",
       )}
       style={

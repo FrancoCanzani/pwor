@@ -27,10 +27,9 @@ const SPACE_NAV_ITEMS = [
 const KIND_META = {
   note: { label: "Notes" },
   item: { label: "Library" },
-  feed: { label: "Feeds" },
 } as const satisfies Record<SearchKind, { label: string }>;
 
-const KIND_ORDER: SearchKind[] = ["note", "item", "feed"];
+const KIND_ORDER: SearchKind[] = ["note", "item"];
 type PaletteItem = {
   id: string;
   label: string;
@@ -94,15 +93,6 @@ export function CommandPalette({
           onOpenChange(false);
           setQuery("");
           void navigate({ to: "/notes" });
-        },
-      },
-      {
-        id: "nav:/feeds",
-        label: "Feeds",
-        run: () => {
-          onOpenChange(false);
-          setQuery("");
-          void navigate({ to: "/feeds", search: { item: undefined } });
         },
       },
       ...(currentSpaceId
@@ -178,22 +168,6 @@ export function CommandPalette({
           meta: hitSpaceLabel(hit, currentSpaceId, spaces),
           run: () => {
             switch (hit.kind) {
-              case "feed":
-                onOpenChange(false);
-                setQuery("");
-                if (hit.feedId) {
-                  void navigate({
-                    to: "/feeds/$feedId",
-                    params: { feedId: hit.feedId },
-                    search: { item: hit.id },
-                  });
-                } else {
-                  void navigate({
-                    to: "/feeds",
-                    search: { item: hit.id },
-                  });
-                }
-                return;
               case "item": {
                 if (!hit.spaceId) {
                   onOpenChange(false);
@@ -418,7 +392,6 @@ function hitSpaceLabel(
   currentSpaceId: string | undefined,
   spaces: { id: string; name: string }[],
 ) {
-  if (hit.kind === "feed") return "Feeds";
   if (!hit.spaceId) return hit.kind === "item" ? "Inbox" : undefined;
   if (hit.spaceId === currentSpaceId) return undefined;
   return spaces.find((space) => space.id === hit.spaceId)?.name;

@@ -1,4 +1,4 @@
-export type SearchKind = "note" | "item" | "feed";
+export type SearchKind = "note" | "item";
 
 export type SearchHit = {
   kind: SearchKind;
@@ -6,7 +6,6 @@ export type SearchHit = {
   title: string;
   snippet: string | null;
   spaceId: string | null;
-  feedId: string | null;
   updatedAt: number;
 };
 
@@ -21,9 +20,8 @@ type Source = {
   userId: string;
   spaceColumn: string | null;
   timestamp: string;
-  body: string | null;
+  match: string[];
   snippet: string;
-  feedId: string;
 };
 
 const SOURCES: Source[] = [
@@ -35,9 +33,8 @@ const SOURCES: Source[] = [
     userId: "user_id",
     spaceColumn: "space_id",
     timestamp: "updated_at",
-    body: "body",
+    match: ["body"],
     snippet: `substr(trim(body), 1, ${SNIPPET_CHARS})`,
-    feedId: "null",
   },
   {
     kind: "item",
@@ -47,21 +44,8 @@ const SOURCES: Source[] = [
     userId: "user_id",
     spaceColumn: "space_id",
     timestamp: "updated_at",
-    body: "coalesce(summary, content, extracted_markdown, tags)",
-    snippet: `substr(trim(coalesce(summary, content, extracted_markdown, tags)), 1, ${SNIPPET_CHARS})`,
-    feedId: "null",
-  },
-  {
-    kind: "feed",
-    from: "feed_item inner join feed on feed.id = feed_item.feed_id",
-    id: "feed_item.id",
-    title: "feed_item.title",
-    userId: "feed_item.user_id",
-    spaceColumn: null,
-    timestamp: "coalesce(feed_item.published_at, feed_item.created_at)",
-    body: "coalesce(feed_item.summary, feed_item.author, feed.title)",
-    snippet: "feed.title",
-    feedId: "feed_item.feed_id",
+    match: ["summary", "content", "extracted_markdown", "tags"],
+    snippet: `substr(trim(coalesce(extracted_markdown, content, summary, tags)), 1, ${SNIPPET_CHARS})`,
   },
 ];
 
@@ -100,9 +84,9 @@ export function buildSearchQuery({
     params.push(infix);
     where += ` and (lower(${source.title}) like ? escape '\\'`;
 
-    if (source.body) {
+    for (const column of source.match) {
       params.push(infix);
-      where += ` or lower(${source.body}) like ? escape '\\'`;
+      where += ` or lower(${column}) like ? escape '\\'`;
     }
     where += `)`;
 
@@ -115,7 +99,6 @@ export function buildSearchQuery({
         coalesce(nullif(trim(${source.title}), ''), 'Untitled') as title,
         ${source.snippet} as snippet,
         ${spaceSelect} as spaceId,
-        ${source.feedId} as feedId,
         ${source.timestamp} as updatedAt,
         case
           when lower(${source.title}) like ? escape '\\' then 0

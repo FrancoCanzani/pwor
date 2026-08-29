@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { SweepEffect } from "@components/sweep-effect";
 import { useCaptureComposer } from "@features/command/capture-composer-context";
 import { useCaptureFeedback } from "@features/command/lib/use-capture-feedback";
-import { markCaptureHintSeen } from "@features/inbox/lib/capture-hint";
+import { uploadItem, type Item } from "@features/items/api";
 import { createNote } from "@features/notes/api";
 import { bodyToDocument } from "@features/notes/lib/legacy-document";
-import { uploadItem, type Item } from "@features/items/api";
 import { spacesQueryOptions } from "@features/spaces/api";
-import { inferTitleFromRaw, serializeTiptapBody } from "@shared/note-frontmatter";
+import {
+  inferTitleFromRaw,
+  serializeTiptapBody,
+} from "@shared/note-frontmatter";
 
 const SWEEP_DURATION_MS = 800;
 
@@ -21,11 +23,15 @@ function hasFiles(event: DragEvent): boolean {
 
 function isNoteEditorTarget(event: Event): boolean {
   const target = event.target;
-  return target instanceof Element && Boolean(target.closest("[data-note-editor]"));
+  return (
+    target instanceof Element && Boolean(target.closest("[data-note-editor]"))
+  );
 }
 
 function isMarkdownFile(file: File) {
-  return file.name.toLowerCase().endsWith(".md") || file.type === "text/markdown";
+  return (
+    file.name.toLowerCase().endsWith(".md") || file.type === "text/markdown"
+  );
 }
 
 export function ItemDropZone() {
@@ -78,7 +84,6 @@ export function ItemDropZone() {
 
       if (notesChanged) {
         await queryClient.invalidateQueries({ queryKey: ["notes", "list"] });
-        markCaptureHintSeen();
       }
       if (captured.length > 0) {
         await invalidateItems();

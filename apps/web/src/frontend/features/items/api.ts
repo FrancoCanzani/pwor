@@ -101,6 +101,10 @@ function listRefetchInterval(query: {
   return false;
 }
 
+export const itemsDeleteKey = ["items", "delete"] as const;
+export const itemsMoveKey = ["items", "move"] as const;
+export const itemsPinKey = ["items", "pin"] as const;
+
 export type ItemListScope = { inbox: true } | { spaceId: string };
 
 export function itemsInfiniteQueryOptions(scope: ItemListScope) {

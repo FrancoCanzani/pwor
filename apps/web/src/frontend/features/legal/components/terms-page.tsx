@@ -8,9 +8,9 @@ export function TermsPage() {
         product, the product wins until we replace this.
       </p>
 
-      <LegalSection title="The pile is yours">
+      <LegalSection title="What you capture is yours">
         <p>
-          You own what you dump in: pages, files, notes, mail, feeds. We host
+          You own what you dump in: pages, files, notes, mail. We host
           it so you can search it and so a model you already use can read it
           over MCP. We do not claim it.
         </p>
@@ -18,7 +18,7 @@ export function TermsPage() {
 
       <LegalSection title="Use">
         <p>
-          Don’t break the service, scrape other people’s piles, or use Pwor to
+          Don’t break the service, scrape other people’s saves, or use Pwor to
           store anything you’re not allowed to have. Keys (clipper, MCP) act as
           you. Keep them to yourself.
         </p>

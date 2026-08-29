@@ -45,10 +45,15 @@
     "binding": "BROWSER",
     "remote": true,
   },
+  "send_email": [
+    {
+      "name": "EMAIL",
+    },
+  ],
   "triggers": {
-    "crons": ["*/30 * * * *", "0 6 * * *"],
+    "crons": ["0 6 * * *"],
   },
   "secrets": {
-    "required": ["BETTER_AUTH_SECRET"],
+    "required": ["BETTER_AUTH_SECRET", "FEEDBACK_TO"],
   },
 }

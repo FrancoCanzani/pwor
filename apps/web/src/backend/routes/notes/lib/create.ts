@@ -8,11 +8,7 @@ import { HTTPException } from "hono/http-exception";
 import type { z } from "zod";
 
 import { createDb } from "../../../db";
-import {
-  assertOwnedFeedItem,
-  assertOwnedItem,
-  assertOwnedSpace,
-} from "../../../db/helpers";
+import { assertOwnedItem, assertOwnedSpace } from "../../../db/helpers";
 import { note } from "../../../db/schema";
 import { scheduleNoteEmbed } from "../../../lib/embed";
 import type { WaitUntilCtx } from "../../../types";
@@ -32,7 +28,6 @@ export async function createNote(
   const [, ownedItem] = await Promise.all([
     assertOwnedSpace(db, payload.spaceId, userId),
     assertOwnedItem(db, payload.itemId, userId),
-    assertOwnedFeedItem(db, payload.feedItemId, userId),
   ]);
 
   const id = crypto.randomUUID();
@@ -57,7 +52,6 @@ export async function createNote(
       title,
       spaceId,
       itemId: payload.itemId ?? null,
-      feedItemId: payload.feedItemId ?? null,
       ...(payload.anchor
         ? {
             anchorFrom: payload.anchor.from,

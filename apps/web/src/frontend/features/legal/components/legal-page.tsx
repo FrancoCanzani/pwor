@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
+import { SiteAuthButton } from "@features/landing/components/site-auth-button";
 import { SiteFooter } from "@features/landing/components/site-footer";
 
 export function LegalPage({
@@ -22,9 +22,7 @@ export function LegalPage({
         >
           pwor
         </Link>
-        <Button variant="secondary" size="sm" render={<Link to="/login" />}>
-          Sign in
-        </Button>
+        <SiteAuthButton />
       </header>
 
       <article className="mx-auto flex w-full max-w-2xl flex-1 flex-col pt-16">

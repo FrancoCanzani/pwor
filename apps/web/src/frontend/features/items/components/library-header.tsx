@@ -3,6 +3,18 @@ import type { ReactNode } from "react";
 import { LayoutSidebarTrigger } from "@/components/layout/layout-sidebar-trigger";
 import { cn } from "@/lib/utils";
 
+export function ContentColumn({
+  constrain = true,
+  children,
+}: {
+  constrain?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn(constrain && "mx-auto w-full max-w-4xl")}>{children}</div>
+  );
+}
+
 export function LibraryHeader({
   leading,
   trailing,
@@ -14,22 +26,23 @@ export function LibraryHeader({
   toolbar?: ReactNode;
   edgeToEdge?: boolean;
 }) {
+  const pad = edgeToEdge ? "px-3" : "px-4";
+
   return (
-    <div
-      className={cn(
-        "flex h-12 shrink-0 items-center gap-2",
-        edgeToEdge ? "px-3" : "px-4",
-      )}
-    >
-      <LayoutSidebarTrigger className="size-4 shrink-0 p-0 [&_svg]:size-3" />
-      <div className="flex min-w-0 flex-1 items-center gap-2">{leading}</div>
+    <div className="flex shrink-0 flex-col">
+      <div className={cn("flex h-12 items-center gap-2", pad)}>
+        <LayoutSidebarTrigger />
+        <div className="min-w-0 flex-1">{leading}</div>
+        {trailing ? (
+          <div className="flex shrink-0 items-center">{trailing}</div>
+        ) : null}
+      </div>
       {toolbar ? (
-        <div className="flex min-w-0 shrink items-center justify-end gap-2">
-          {toolbar}
-        </div>
-      ) : null}
-      {trailing ? (
-        <div className="flex shrink-0 items-center">{trailing}</div>
+        <ContentColumn constrain={!edgeToEdge}>
+          <div className={cn("flex items-center gap-2 pt-8 pb-2", pad)}>
+            {toolbar}
+          </div>
+        </ContentColumn>
       ) : null}
     </div>
   );

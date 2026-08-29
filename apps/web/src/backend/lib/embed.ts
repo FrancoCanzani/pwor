@@ -62,7 +62,9 @@ function clip(value: string): string {
 
 function itemSearchText(row: ItemEmbedRow): string {
   const tags = Array.isArray(row.tags) ? row.tags.join(", ") : "";
-  const body = row.content || row.extractedMarkdown || "";
+  const body = [row.extractedMarkdown, row.content]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join("\n\n");
   return [
     row.title ? `TITLE: ${row.title}` : null,
     row.siteName ? `SOURCE: ${row.siteName}` : null,

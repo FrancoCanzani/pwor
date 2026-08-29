@@ -49,7 +49,7 @@ export function McpSettings() {
       <h2 className="text-[13px] font-normal tracking-tight">AI</h2>
       <p className="text-xs text-muted-foreground">
         Give this to Cursor or Claude. It can search, open, and save. It cannot
-        empty your pile.
+        delete anything.
       </p>
       <div className="flex flex-col gap-1 text-xs">
         <div className="text-muted-foreground">URL</div>

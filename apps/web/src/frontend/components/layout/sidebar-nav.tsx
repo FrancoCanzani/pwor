@@ -4,17 +4,25 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
-import { Link, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Kbd } from "@/components/ui/kbd";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -22,19 +30,17 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { feedsQueryOptions } from "@features/feeds/api";
-import { AddFeedDialog } from "@features/feeds/components/add-feed-dialog";
-import { updateNotes } from "@features/notes/api";
+import { cn } from "@/lib/utils";
+import { useCaptureComposer } from "@features/command/capture-composer-context";
+import { useCommandPalette } from "@features/command/command-palette-context";
 import {
   inboxItemsInfiniteQueryOptions,
+  itemsMoveKey,
   updateItems,
 } from "@features/items/api";
-import { usePworItemDrop, type PworItemDrag } from "@features/items/lib/drag";
-import {
-  spacesQueryOptions,
-  type Space,
-} from "@features/spaces/api";
-import { CaptureButton } from "@features/command/components/capture-button";
+import { usePworItemDrop } from "@features/items/lib/drag";
+import { notesMoveKey, updateNotes } from "@features/notes/api";
+import { spacesQueryOptions, type Space } from "@features/spaces/api";
 import { CreateSpaceDialog } from "@features/spaces/components/create-space-dialog";
 import { setStoredSpaceId } from "@features/spaces/lib/current-space";
 
@@ -55,12 +61,12 @@ function NavSection({
         <div className="group/header flex h-8 items-center rounded-md px-2 hover:bg-sidebar-accent">
           <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm font-normal text-muted-foreground hover:text-foreground">
             <span className="truncate">{name}</span>
-            <CaretRightIcon className="size-2.5 shrink-0 text-muted-foreground transition-transform in-data-open:rotate-90" />
+            <CaretRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform in-data-open:rotate-90" />
           </CollapsibleTrigger>
           <button
             type="button"
             aria-label={addLabel}
-            className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100 hover:text-foreground [&>svg]:size-3.5"
+            className="flex opacity-0 text-muted-foreground group-hover/header:opacity-100 group-focus-within/header:opacity-100 hover:text-foreground [&>svg]:size-3"
             onClick={onAdd}
           >
             <PlusIcon />
@@ -74,54 +80,41 @@ function NavSection({
   );
 }
 
-async function movePworItems(item: PworItemDrag, spaceId: string | null) {
-  switch (item.kind) {
-    case "item":
-      await updateItems(item.ids, { spaceId });
-      return;
-    case "note":
-      await updateNotes(item.ids, { spaceId });
-      return;
-    default: {
-      const _exhaustive: never = item.kind;
-      return _exhaustive;
-    }
-  }
+function invalidateMoved(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
+    queryClient.invalidateQueries({ queryKey: ["notes"] }),
+    queryClient.invalidateQueries({ queryKey: ["spaces"] }),
+  ]);
 }
 
-function movedToast(item: PworItemDrag, destination: string) {
-  const count = item.ids.length;
+function movedToast(count: number, destination: string) {
   toast.success(
     count > 1 ? `Moved ${count} to ${destination}` : `Moved to ${destination}`,
   );
 }
 
 export function SidebarNav() {
+  const { open: openCapture } = useCaptureComposer();
+  const { open: openSearch } = useCommandPalette();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: spaces = [] } = useQuery(spacesQueryOptions);
-  const { data: feeds = [] } = useQuery(feedsQueryOptions());
   const { data: inboxList } = useInfiniteQuery(
     inboxItemsInfiniteQueryOptions(),
   );
   const inboxCount = inboxList?.pages[0]?.total ?? 0;
-  const feedsUnread = feeds.reduce(
-    (sum, feed) => sum + (feed.unreadCount ?? 0),
-    0,
-  );
 
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
-  const [addFeedOpen, setAddFeedOpen] = useState(false);
 
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const { spaceId: routeSpaceId, feedId: activeFeedId } = useParams({
+  const { spaceId: routeSpaceId } = useParams({
     strict: false,
   });
   const isInbox = pathname === "/inbox" || pathname.startsWith("/inbox/");
   const isNotes = pathname === "/notes" || pathname.startsWith("/notes/");
-  const isFeeds = pathname === "/feeds" || pathname.startsWith("/feeds/");
 
   async function handleCreated(space: { id: string }) {
     setStoredSpaceId(space.id);
@@ -139,8 +132,30 @@ export function SidebarNav() {
 
   return (
     <>
-      <SidebarGroup className="gap-2">
-        <CaptureButton />
+      <SidebarGroup>
+        <ButtonGroup className="w-full" aria-label="Capture and search">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={() => openCapture()}
+          >
+            Capture
+            <Kbd>⌘U</Kbd>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={() => openSearch()}
+          >
+            Search
+            <Kbd>⌘K</Kbd>
+          </Button>
+        </ButtonGroup>
+      </SidebarGroup>
+
+      <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
             <InboxRow inboxCount={inboxCount} isActive={isInbox} />
@@ -172,69 +187,10 @@ export function SidebarNav() {
         </SidebarMenu>
       </NavSection>
 
-      <NavSection
-        name="Feeds"
-        addLabel="Add feed"
-        onAdd={() => setAddFeedOpen(true)}
-      >
-        <SidebarMenu className="max-h-72 gap-0.5 overflow-y-auto">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={isFeeds && !activeFeedId}
-              render={<Link to="/feeds" search={{ item: undefined }} />}
-              className="font-normal"
-            >
-              <span className="min-w-0 truncate">All</span>
-              {feedsUnread > 0 ? (
-                <span className="ml-auto flex size-6 shrink-0 items-center justify-end font-nums text-xs text-muted-foreground">
-                  {feedsUnread}
-                </span>
-              ) : null}
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          {feeds.map((feed) => (
-            <SidebarMenuItem key={feed.id}>
-              <SidebarMenuButton
-                isActive={activeFeedId === feed.id}
-                render={
-                  <Link
-                    to="/feeds/$feedId"
-                    params={{ feedId: feed.id }}
-                    search={{ item: undefined }}
-                  />
-                }
-                className="font-normal"
-              >
-                <span className="min-w-0 truncate">
-                  {feed.title?.trim() || feed.siteName || "Feed"}
-                </span>
-                {(feed.unreadCount ?? 0) > 0 ? (
-                  <span className="ml-auto flex size-6 shrink-0 items-center justify-end font-nums text-xs text-muted-foreground">
-                    {feed.unreadCount}
-                  </span>
-                ) : null}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </NavSection>
-
       <CreateSpaceDialog
         open={createSpaceOpen}
         onOpenChange={setCreateSpaceOpen}
         onCreated={handleCreated}
-      />
-
-      <AddFeedDialog
-        open={addFeedOpen}
-        onOpenChange={setAddFeedOpen}
-        onCreated={(feed) =>
-          navigate({
-            to: "/feeds/$feedId",
-            params: { feedId: feed.id },
-            search: { item: undefined },
-          })
-        }
       />
     </>
   );
@@ -249,22 +205,18 @@ function InboxRow({
 }) {
   const queryClient = useQueryClient();
 
-  const moveMutation = useMutation({
-    mutationFn: (item: PworItemDrag) => movePworItems(item, null),
-    onSuccess: async (_result, item) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
-        queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
-      ]);
-      movedToast(item, "Inbox");
-    },
+  const moveItems = useMutation({
+    mutationKey: itemsMoveKey,
+    mutationFn: (vars: { ids: string[]; spaceId: string | null }) =>
+      updateItems(vars.ids, { spaceId: vars.spaceId }),
+    onSuccess: (_result, vars) => movedToast(vars.ids.length, "Inbox"),
     onError: () => toast.error("Couldn’t move item"),
+    onSettled: () => invalidateMoved(queryClient),
   });
 
   const { isOver, dropProps } = usePworItemDrop({
     canDrop: (item) => item.kind === "item" && item.fromSpaceId !== null,
-    onDrop: (item) => moveMutation.mutate(item),
+    onDrop: (item) => moveItems.mutate({ ids: item.ids, spaceId: null }),
   });
 
   return (
@@ -302,32 +254,45 @@ function NotesRow({ isActive }: { isActive: boolean }) {
   );
 }
 
-function SpaceRow({
-  space,
-  isActive,
-}: {
-  space: Space;
-  isActive: boolean;
-}) {
+function SpaceRow({ space, isActive }: { space: Space; isActive: boolean }) {
   const queryClient = useQueryClient();
   const label = space.name.trim() || "Untitled";
 
-  const moveMutation = useMutation({
-    mutationFn: (item: PworItemDrag) => movePworItems(item, space.id),
-    onSuccess: async (_result, item) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
-        queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
-      ]);
-      movedToast(item, label);
-    },
+  const moveItems = useMutation({
+    mutationKey: itemsMoveKey,
+    mutationFn: (vars: { ids: string[]; spaceId: string | null }) =>
+      updateItems(vars.ids, { spaceId: vars.spaceId }),
+    onSuccess: (_result, vars) => movedToast(vars.ids.length, label),
     onError: () => toast.error("Couldn’t move item"),
+    onSettled: () => invalidateMoved(queryClient),
+  });
+
+  const moveNotes = useMutation({
+    mutationKey: notesMoveKey,
+    mutationFn: (vars: { ids: string[]; spaceId: string | null }) =>
+      updateNotes(vars.ids, { spaceId: vars.spaceId }),
+    onSuccess: (_result, vars) => movedToast(vars.ids.length, label),
+    onError: () => toast.error("Couldn’t move item"),
+    onSettled: () => invalidateMoved(queryClient),
   });
 
   const { isOver, dropProps } = usePworItemDrop({
     canDrop: (item) => item.fromSpaceId !== space.id,
-    onDrop: (item) => moveMutation.mutate(item),
+    onDrop: (item) => {
+      const vars = { ids: item.ids, spaceId: space.id };
+      switch (item.kind) {
+        case "item":
+          moveItems.mutate(vars);
+          return;
+        case "note":
+          moveNotes.mutate(vars);
+          return;
+        default: {
+          const _exhaustive: never = item.kind;
+          return _exhaustive;
+        }
+      }
+    },
   });
 
   return (

@@ -53,7 +53,7 @@ export function Providers({ children }: { children: ReactNode }) {
               activeNoteId: floatingOpen ? floatingNoteId : null,
             }}
           >
-            <SidebarProvider className="h-dvh min-h-0 overflow-hidden pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]">
+            <SidebarProvider className="h-dvh min-h-0 overflow-hidden p-safe">
               <CommandPalette
                 open={paletteOpen}
                 onOpenChange={setPaletteOpen}

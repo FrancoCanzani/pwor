@@ -19,9 +19,9 @@
 }
 
 :root {
-  --background: #fafafa;
+  --background: #ffffff;
   --foreground: #111111;
-  --card: #fafafa;
+  --card: #ffffff;
   --card-foreground: #111111;
   --popover: #ffffff;
   --popover-foreground: #111111;
@@ -145,6 +145,31 @@
 @utility font-nums {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+@utility p-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+@utility px-safe-* {
+  padding-left: max(--spacing(--value(integer)), env(safe-area-inset-left));
+  padding-right: max(--spacing(--value(integer)), env(safe-area-inset-right));
+}
+
+@utility py-safe-* {
+  padding-top: max(--spacing(--value(integer)), env(safe-area-inset-top));
+  padding-bottom: max(--spacing(--value(integer)), env(safe-area-inset-bottom));
+}
+
+@utility top-safe-offset-* {
+  top: calc(env(safe-area-inset-top) + --spacing(--value(integer)));
+}
+
+@utility right-safe-offset-* {
+  right: calc(env(safe-area-inset-right) + --spacing(--value(integer)));
 }
 
 @layer base {

@@ -36,7 +36,7 @@ function TextPreview({
   downloadUrl?: string;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-2">
       <div className="flex shrink-0 justify-end gap-2">
         {downloadUrl ? (
           <Button variant="outline" render={<a href={downloadUrl} download />}>
@@ -191,7 +191,7 @@ function LinkArticle({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-3 pb-4">
+      <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-2">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {item.url && host ? (
             <a
@@ -243,7 +243,7 @@ function LinkArticle({
       </div>
       <div
         className={cn(
-          "min-h-0 flex-1 px-4 pt-3 pb-3",
+          "min-h-0 flex-1 px-4 pb-3",
           view !== "web" && "overflow-y-auto overscroll-contain",
         )}
       >
@@ -392,7 +392,7 @@ export function ItemPreview({
   ) : null;
 
   const title = (
-    <span className="min-w-0 truncate text-sm leading-none font-normal">
+    <span className="min-w-0 truncate text-base leading-none font-normal">
       {itemTitle(displayItem)}
     </span>
   );
@@ -400,16 +400,14 @@ export function ItemPreview({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
-        {onClose ? (
-          <LayoutSidebarTrigger className="size-4 shrink-0 p-0 [&_svg]:size-3" />
-        ) : null}
+        <LayoutSidebarTrigger />
         <div className="min-w-0 flex-1">{title}</div>
         {chrome}
       </div>
       <div
         className={cn(
           "min-h-0 flex-1 overflow-hidden",
-          !isLinkLike && "px-4 pt-3 pb-3",
+          !isLinkLike && "px-4 pt-4 pb-3",
         )}
       >
         {body}

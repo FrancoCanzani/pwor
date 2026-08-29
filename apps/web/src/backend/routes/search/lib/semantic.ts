@@ -20,8 +20,12 @@ function snippetOf(value: string | null | undefined): string | null {
 function itemSnippet(row: {
   title: string | null;
   summary: string | null;
+  content: string | null;
+  extractedMarkdown: string | null;
 }): string | null {
-  return snippetOf(row.summary || row.title);
+  return snippetOf(
+    row.extractedMarkdown || row.content || row.summary || row.title,
+  );
 }
 
 export async function semanticSearchHits(
@@ -78,6 +82,8 @@ export async function semanticSearchHits(
         id: item.id,
         title: item.title,
         summary: item.summary,
+        content: item.content,
+        extractedMarkdown: item.extractedMarkdown,
         spaceId: item.spaceId,
         updatedAt: item.updatedAt,
       })
@@ -90,7 +96,6 @@ export async function semanticSearchHits(
         title: row.title?.trim() || "Untitled",
         snippet: itemSnippet(row),
         spaceId: row.spaceId,
-        feedId: null,
         updatedAt: toEpochMs(row.updatedAt),
       });
     }
@@ -116,7 +121,6 @@ export async function semanticSearchHits(
         title: row.title?.trim() || "Untitled",
         snippet: snippetOf(row.body),
         spaceId: row.spaceId,
-        feedId: null,
         updatedAt: toEpochMs(row.updatedAt),
       });
     }

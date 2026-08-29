@@ -1,5 +1,5 @@
 import type { Editor, Range } from "@tiptap/core";
-import { PICK_IMAGE_EVENT } from "../constants";
+import { PICK_IMAGE_EVENT } from "../lib/pick-image";
 import {
   Code2,
   Heading1,

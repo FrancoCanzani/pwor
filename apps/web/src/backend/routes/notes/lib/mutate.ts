@@ -5,6 +5,7 @@ import { createDb } from "../../../db";
 import { assertOwnedSpace } from "../../../db/helpers";
 import { note, noteImage } from "../../../db/schema";
 import { deleteEmbeddings, vectorId } from "../../../lib/embed";
+import type { WaitUntilCtx } from "../../../types";
 import { deleteNoteImagesFromR2 } from "./cleanup";
 import { serializeNote } from "./serialize";
 
@@ -46,6 +47,7 @@ export async function patchOwnedNotes(
 
 export async function deleteOwnedNotes(
   env: Env,
+  ctx: WaitUntilCtx,
   userId: string,
   ids: string[],
 ) {
@@ -57,25 +59,27 @@ export async function deleteOwnedNotes(
     .from(note)
     .where(and(eq(note.userId, userId), inArray(note.id, unique)));
 
-  if (rows.length !== unique.length) {
-    throw new HTTPException(404, { message: "Not found" });
-  }
+  if (rows.length === 0) return [];
+
+  const foundIds = rows.map((row) => row.id);
 
   const images = await db
     .select({ r2Key: noteImage.r2Key })
     .from(noteImage)
     .where(
-      and(eq(noteImage.userId, userId), inArray(noteImage.noteId, unique)),
+      and(eq(noteImage.userId, userId), inArray(noteImage.noteId, foundIds)),
     );
 
   await deleteNoteImagesFromR2(env.ITEMS_BUCKET, images);
   await db
     .delete(note)
-    .where(and(eq(note.userId, userId), inArray(note.id, unique)));
-  await deleteEmbeddings(
-    env,
-    unique.map((id) => vectorId("note", id)),
+    .where(and(eq(note.userId, userId), inArray(note.id, foundIds)));
+  ctx.waitUntil(
+    deleteEmbeddings(
+      env,
+      foundIds.map((id) => vectorId("note", id)),
+    ),
   );
 
-  return unique;
+  return foundIds;
 }

@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -57,7 +57,7 @@ function LoginPage() {
       try {
         const { error: signInError } = await authClient.signIn.magicLink({
           email: value.email,
-          callbackURL: callbackURL || "/",
+          callbackURL: callbackURL || "/inbox",
         });
 
         if (signInError) {
@@ -73,80 +73,111 @@ function LoginPage() {
   });
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-background pt-[max(1.5rem,env(safe-area-inset-top))] pr-[max(1.25rem,env(safe-area-inset-right))] pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1.25rem,env(safe-area-inset-left))]">
-      <div className="w-full max-w-70">
-        <h1 className="mb-1.5 text-lg font-normal tracking-tight leading-tight">
-          Pwor
-        </h1>
-        <p className="mb-5 text-xs leading-normal text-muted-foreground">
-          Dump anything in. Find it later.
-        </p>
+    <main className="flex min-h-dvh flex-col bg-background px-safe-6 py-safe-5">
+      <header>
+        <Link
+          to="/"
+          className="text-base leading-none font-normal tracking-tight no-underline"
+        >
+          pwor
+        </Link>
+      </header>
 
-        {sentTo ? (
-          <p className="m-0 text-xs leading-normal text-foreground">
-            Check your email for a link sent to{" "}
-            <span className="text-muted-foreground">{sentTo}</span>.
-          </p>
-        ) : (
-          <form
-            className="flex flex-col gap-2.5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              void form.handleSubmit();
-            }}
-          >
-            <form.Field name="email">
-              {(field) => {
-                const errorMessage = fieldErrorMessage(field.state.meta.errors);
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <div className="w-full max-w-70">
+          <h1 className="mb-5 text-lg font-normal tracking-tight leading-tight">
+            Dump anything in. Find it later.
+          </h1>
 
-                return (
-                  <>
-                    <Label
-                      htmlFor={field.name}
-                      className="text-xs text-muted-foreground"
-                    >
-                      Email
-                    </Label>
-                    <Input
-                      id={field.name}
-                      type="email"
-                      name={field.name}
-                      autoComplete="email"
-                      autoFocus
-                      placeholder="you@example.com"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                      className="h-8 font-normal"
-                    />
-                    {errorMessage ? (
-                      <p className="m-0 text-xs text-destructive" role="alert">
-                        {errorMessage}
-                      </p>
-                    ) : null}
-                  </>
-                );
+          {sentTo ? (
+            <p className="m-0 text-xs leading-normal text-foreground">
+              Check your email for a link sent to{" "}
+              <span className="text-muted-foreground">{sentTo}</span>.
+            </p>
+          ) : (
+            <form
+              className="flex flex-col gap-2.5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void form.handleSubmit();
               }}
-            </form.Field>
+            >
+              <form.Field name="email">
+                {(field) => {
+                  const errorMessage = fieldErrorMessage(
+                    field.state.meta.errors,
+                  );
 
-            {submitError ? (
-              <p className="m-0 text-xs text-destructive" role="alert">
-                {submitError}
+                  return (
+                    <>
+                      <Label
+                        htmlFor={field.name}
+                        className="text-xs text-muted-foreground"
+                      >
+                        Email
+                      </Label>
+                      <Input
+                        id={field.name}
+                        type="email"
+                        name={field.name}
+                        autoComplete="email"
+                        autoFocus
+                        placeholder="you@example.com"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        className="h-8 font-normal"
+                      />
+                      {errorMessage ? (
+                        <p
+                          className="m-0 text-xs text-destructive"
+                          role="alert"
+                        >
+                          {errorMessage}
+                        </p>
+                      ) : null}
+                    </>
+                  );
+                }}
+              </form.Field>
+
+              {submitError ? (
+                <p className="m-0 text-xs text-destructive" role="alert">
+                  {submitError}
+                </p>
+              ) : null}
+
+              <form.Subscribe selector={(state) => state.isSubmitting}>
+                {(isSubmitting) => (
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Sending…" : "Continue"}
+                  </Button>
+                )}
+              </form.Subscribe>
+
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                By signing in, you accept our{" "}
+                <Link
+                  to="/terms"
+                  className="text-foreground underline-offset-2 hover:underline"
+                >
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy"
+                  className="text-foreground underline-offset-2 hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+                .
               </p>
-            ) : null}
-
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Sending…" : "Continue"}
-                </Button>
-              )}
-            </form.Subscribe>
-          </form>
-        )}
+            </form>
+          )}
+        </div>
       </div>
     </main>
   );

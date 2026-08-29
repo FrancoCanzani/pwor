@@ -53,7 +53,7 @@ function ExtensionLinkPage() {
   });
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-background pt-[max(1.5rem,env(safe-area-inset-top))] pr-[max(1.25rem,env(safe-area-inset-right))] pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(1.25rem,env(safe-area-inset-left))]">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-safe-5 py-safe-6">
       <div className="w-full max-w-70">
         <h1 className="mb-1.5 text-lg font-normal tracking-tight leading-tight">
           Pwor

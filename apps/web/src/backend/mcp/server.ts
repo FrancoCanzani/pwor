@@ -8,7 +8,6 @@ import {
   captureInput,
   createNoteInput,
   createUserNote,
-  getFeedItem,
   getItem,
   getNote,
   idInput,
@@ -55,7 +54,7 @@ export function createPworMcpServer(ctx: McpContext) {
     {
       title: "Search",
       description:
-        "Search the user's pile: saved pages, files, notes, and feed posts. Start here. Hits have kind item, note, or feed — open them with get_item, get_note, or get_feed_item.",
+        "Search what the user saved: pages, files, and notes. Start here. Hits include a body excerpt. Open with get_item or get_note.",
       inputSchema: searchInput,
       annotations: { readOnlyHint: true, destructiveHint: false },
     },
@@ -86,17 +85,6 @@ export function createPworMcpServer(ctx: McpContext) {
   );
 
   server.registerTool(
-    "get_feed_item",
-    {
-      title: "Open a feed post",
-      description: "Open an RSS or YouTube feed post by id from search.",
-      inputSchema: idInput,
-      annotations: { readOnlyHint: true, destructiveHint: false },
-    },
-    async (args) => runTool(() => getFeedItem(ctx, args)),
-  );
-
-  server.registerTool(
     "list_spaces",
     {
       title: "List folders",
@@ -112,7 +100,7 @@ export function createPworMcpServer(ctx: McpContext) {
     {
       title: "Save",
       description:
-        "Save a URL or some text into the user's pile. Lands in inbox unless spaceId or autoSpace is set. Enrichment (title, summary, tags) runs in the background.",
+        "Save a URL or some text. Lands in inbox unless spaceId or autoSpace is set. Enrichment (title, summary, tags) runs in the background.",
       inputSchema: captureInput,
       annotations: { readOnlyHint: false, destructiveHint: false },
     },

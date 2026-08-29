@@ -14,14 +14,6 @@ export type LibraryEntry =
   | { kind: "item"; item: Item }
   | { kind: "note"; note: NoteListItem };
 
-export function itemEntries(items: Item[]): LibraryEntry[] {
-  return items.map((item) => ({ kind: "item" as const, item }));
-}
-
-export function noteEntries(notes: NoteListItem[]): LibraryEntry[] {
-  return notes.map((note) => ({ kind: "note" as const, note }));
-}
-
 export function LibraryList({
   entries,
   selected,
@@ -130,7 +122,7 @@ export function LibraryList({
 
   return (
     <>
-      <ul className="flex flex-col divide-y divide-dashed divide-border pt-3 pb-24">
+      <ul className="flex flex-col divide-y divide-dashed divide-border pb-24">
         {entries.map((entry) => {
           switch (entry.kind) {
             case "item":

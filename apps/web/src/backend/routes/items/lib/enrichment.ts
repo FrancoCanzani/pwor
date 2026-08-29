@@ -15,6 +15,11 @@ import { fetchPageMetadata } from "./page-meta";
 import { shouldCaptureScreenshot, storeSiteScreenshot } from "./screenshot";
 import { extractFileMarkdown } from "./to-markdown";
 import { fetchTweet, tweetToHtml } from "./tweet";
+import {
+  fetchYoutubeVideo,
+  youtubeCaptionsHtml,
+  youtubeVideoIdFromUrl,
+} from "./youtube";
 
 const ENRICHMENT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
@@ -86,17 +91,38 @@ async function gatherEnrichment(env: Env, row: ItemRecord): Promise<Gathered> {
       gathered.content = tweet.text || row.content;
       gathered.contentHtml = tweetToHtml(tweet);
     } else {
-      const page = await fetchPageMetadata(row.url);
-      gathered.title = page.title || row.title || row.url;
-      gathered.siteName = page.siteName ?? row.siteName;
-      gathered.summary = page.description ?? row.summary;
-      gathered.content =
-        [page.description, page.text].filter(Boolean).join("\n\n") ||
-        row.content;
-      if (page.html) {
-        const extracted = extractArticleHtml(page.html, row.url);
-        if (extracted) gathered.contentHtml = extracted.html;
-        else console.error("link content extraction failed", row.id);
+      const youtube = await fetchYoutubeVideo(row.url);
+      if (youtube) {
+        gathered.title = youtube.title || row.title || row.url;
+        gathered.siteName = "YouTube";
+        gathered.summary =
+          youtube.description?.slice(0, 500) || row.summary;
+        gathered.content =
+          [
+            youtube.channel ? `Channel: ${youtube.channel}` : null,
+            youtube.description,
+          ]
+            .filter(Boolean)
+            .join("\n\n") || row.content;
+        if (youtube.captions) {
+          gathered.extractedMarkdown = youtube.captions;
+          gathered.contentHtml = youtubeCaptionsHtml(youtube.captions);
+        } else if (youtube.description) {
+          gathered.contentHtml = youtubeCaptionsHtml(youtube.description);
+        }
+      } else {
+        const page = await fetchPageMetadata(row.url);
+        gathered.title = page.title || row.title || row.url;
+        gathered.siteName = page.siteName ?? row.siteName;
+        gathered.summary = page.description ?? row.summary;
+        gathered.content =
+          [page.description, page.text].filter(Boolean).join("\n\n") ||
+          row.content;
+        if (page.html) {
+          const extracted = extractArticleHtml(page.html, row.url);
+          if (extracted) gathered.contentHtml = extracted.html;
+          else console.error("link content extraction failed", row.id);
+        }
       }
     }
   }
@@ -140,6 +166,20 @@ export async function enrichItem(env: Env, itemId: string): Promise<void> {
 
   const gathered = await gatherEnrichment(env, row);
   const kind = row.kind;
+
+  if (
+    gathered.content ||
+    gathered.extractedMarkdown ||
+    gathered.contentHtml ||
+    gathered.title
+  ) {
+    await writeParse(env, itemId, {
+      ...gathered,
+      parseStatus: "pending",
+      parseError: null,
+      parsedAt: new Date(),
+    });
+  }
 
   const bodyParts = [
     gathered.title ? `Title: ${gathered.title}` : null,
@@ -216,6 +256,7 @@ async function enrichItemScreenshot(env: Env, itemId: string): Promise<void> {
 
   if (!row) return;
   if (row.kind !== "link" || !row.url || row.previewR2Key) return;
+  if (youtubeVideoIdFromUrl(row.url)) return;
   if (!shouldCaptureScreenshot(row.url)) return;
 
   const previewR2Key = await storeSiteScreenshot(
@@ -246,6 +287,7 @@ export function scheduleMissingScreenshots(
       row.kind === "link" &&
       row.url &&
       !row.previewR2Key &&
+      !youtubeVideoIdFromUrl(row.url) &&
       shouldCaptureScreenshot(row.url),
   );
   if (missing.length === 0) return;

@@ -3,13 +3,13 @@ import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   useInfiniteQuery,
   useMutation,
+  useMutationState,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import {
   AlertDialog,
@@ -39,20 +39,19 @@ import {
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
 import { PageEmpty } from "@components/page-empty";
 import { SplitPreviewLayout } from "@components/split-preview-layout";
-import { userInboxQueryOptions } from "@features/inbox/api";
 import {
   deleteItems,
+  itemsDeleteKey,
   itemsInfiniteQueryOptions,
+  itemsMoveKey,
+  itemsPinKey,
   updateItemPinned,
   updateItems,
   type Item,
 } from "@features/items/api";
 import { ItemPreview } from "@features/items/components/item-preview";
-import { LibraryHeader } from "@features/items/components/library-header";
-import {
-  LibraryList,
-  itemEntries,
-} from "@features/items/components/library-list";
+import { LibraryHeader, ContentColumn } from "@features/items/components/library-header";
+import { LibraryList } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
 import {
@@ -62,10 +61,6 @@ import {
 } from "@features/items/lib/facet";
 import { filterAndSortItems, type ItemSort } from "@features/items/lib/list";
 import { deleteSpace, spacesQueryOptions } from "@features/spaces/api";
-
-export const librarySearchSchema = z.object({
-  item: z.string().optional(),
-});
 
 export function LibraryPage() {
   const params = useParams({ strict: false });
@@ -87,12 +82,6 @@ export function LibraryPage() {
     : undefined;
   const title = inbox ? "Inbox" : space?.name.trim() || "Untitled";
 
-  const inboxAddress = useQuery({
-    ...userInboxQueryOptions(),
-    enabled: inbox,
-  });
-  const address = inboxAddress.data?.address;
-
   const listQuery = useInfiniteQuery(
     itemsInfiniteQueryOptions(
       spaceId ? { spaceId } : { inbox: true },
@@ -105,31 +94,6 @@ export function LibraryPage() {
   const sentinelRef = useInfiniteScrollSentinel(() => {
     if (!listQuery.isFetchingNextPage) void listQuery.fetchNextPage();
   }, listQuery.hasNextPage);
-
-  const sorted = useMemo(
-    () =>
-      filterAndSortItems(items, {
-        facets: inbox ? undefined : filters,
-        query: inbox ? undefined : query,
-        sort,
-      }),
-    [items, filters, query, sort, inbox],
-  );
-  const entries = useMemo(() => itemEntries(sorted), [sorted]);
-  const hasCaptured = items.length > 0;
-
-  const selectedIds = sorted
-    .map((item) => item.id)
-    .filter((id) => selected.has(id));
-  const selectedCount = selectedIds.length;
-
-  const openItem =
-    openId != null ? (items.find((item) => item.id === openId) ?? null) : null;
-
-  useHotkey("Escape", () => setSelected(new Set()), {
-    enabled: selectedCount > 0 && openItem == null,
-    conflictBehavior: "replace",
-  });
 
   const deleteSpaceMutation = useMutation({
     mutationFn: () => deleteSpace(spaceId!),
@@ -144,47 +108,124 @@ export function LibraryPage() {
   });
 
   const deleteMutation = useMutation({
+    mutationKey: itemsDeleteKey,
     mutationFn: (ids: string[]) => deleteItems(ids),
-    onSuccess: async (_result, ids) => {
-      setSelected(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
+    onMutate: (ids) => {
+      setSelected((current) => {
+        const next = new Set(current);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
       if (openId && ids.includes(openId)) setOpenItem(null);
     },
     onError: () => toast.error("Couldn’t delete"),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
   });
 
   const moveMutation = useMutation({
-    mutationFn: (nextSpaceId: string) =>
-      updateItems(selectedIds, { spaceId: nextSpaceId }),
-    onSuccess: async (_result, nextSpaceId) => {
-      const count = selectedIds.length;
-      setSelected(new Set());
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
-        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
-      ]);
-      if (openId && selectedIds.includes(openId)) setOpenItem(null);
+    mutationKey: itemsMoveKey,
+    mutationFn: (vars: { ids: string[]; spaceId: string }) =>
+      updateItems(vars.ids, { spaceId: vars.spaceId }),
+    onMutate: (vars) => {
+      setSelected((current) => {
+        const next = new Set(current);
+        for (const id of vars.ids) next.delete(id);
+        return next;
+      });
+      if (openId && vars.ids.includes(openId)) setOpenItem(null);
+    },
+    onSuccess: (_result, vars) => {
       const destination =
-        spaces.find((item) => item.id === nextSpaceId)?.name.trim() ||
+        spaces.find((item) => item.id === vars.spaceId)?.name.trim() ||
         "Untitled";
       toast.success(
-        count > 1
-          ? `Moved ${count} to ${destination}`
+        vars.ids.length > 1
+          ? `Moved ${vars.ids.length} to ${destination}`
           : `Moved to ${destination}`,
       );
     },
     onError: () => toast.error("Couldn’t move item"),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
+        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
+      ]),
   });
 
   const pinMutation = useMutation({
-    mutationFn: (item: Item) => updateItemPinned(item.id, !item.pinned),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["item", "items"] });
-    },
+    mutationKey: itemsPinKey,
+    mutationFn: (entry: { id: string; pinned: boolean }) =>
+      updateItemPinned(entry.id, entry.pinned),
     onError: () => toast.error("Couldn’t pin"),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: ["item", "items"] }),
   });
 
-  const busy = deleteMutation.isPending || moveMutation.isPending;
+  const deleting = useMutationState({
+    filters: { mutationKey: itemsDeleteKey, status: "pending" },
+    select: (mutation) => mutation.state.variables as string[] | undefined,
+  });
+  const moving = useMutationState({
+    filters: { mutationKey: itemsMoveKey, status: "pending" },
+    select: (mutation) =>
+      (mutation.state.variables as { ids: string[] } | undefined)?.ids,
+  });
+  const pinning = useMutationState({
+    filters: { mutationKey: itemsPinKey, status: "pending" },
+    select: (mutation) =>
+      mutation.state.variables as { id: string; pinned: boolean } | undefined,
+  });
+
+  const sorted = useMemo(() => {
+    const hidden = new Set<string>();
+    for (const ids of deleting) {
+      for (const id of ids ?? []) hidden.add(id);
+    }
+    for (const ids of moving) {
+      for (const id of ids ?? []) hidden.add(id);
+    }
+    const pinById = new Map<string, boolean>();
+    for (const entry of pinning) {
+      if (entry) pinById.set(entry.id, entry.pinned);
+    }
+    const next = items
+      .filter((item) => !hidden.has(item.id))
+      .map((item) => {
+        const pinned = pinById.get(item.id);
+        return pinned === undefined ? item : { ...item, pinned };
+      });
+    return filterAndSortItems(next, {
+      facets: filters,
+      query,
+      sort,
+    });
+  }, [items, filters, query, sort, deleting, moving, pinning]);
+  const entries = useMemo(
+    () => sorted.map((item) => ({ kind: "item" as const, item })),
+    [sorted],
+  );
+  const hasCaptured = items.length > 0;
+  const hiding = deleting.length > 0 || moving.length > 0;
+
+  const selectedIds = sorted
+    .map((item) => item.id)
+    .filter((id) => selected.has(id));
+  const selectedCount = selectedIds.length;
+
+  const openHidden =
+    openId != null &&
+    (deleting.some((ids) => ids?.includes(openId)) ||
+      moving.some((ids) => ids?.includes(openId)));
+  const openItem =
+    openId != null && !openHidden
+      ? (items.find((item) => item.id === openId) ?? null)
+      : null;
+
+  useHotkey("Escape", () => setSelected(new Set()), {
+    enabled: selectedCount > 0 && openItem == null,
+    conflictBehavior: "replace",
+  });
   const filterLabel =
     filters.size === 0
       ? "All"
@@ -236,14 +277,9 @@ export function LibraryPage() {
       <LibraryHeader
         edgeToEdge={previewOpen}
         leading={
-          <>
-            <h1 className="min-w-0 truncate text-base leading-none font-normal">
-              {title}
-            </h1>
-            {inbox && address ? (
-              <InboxForwardAddress address={address} />
-            ) : null}
-          </>
+          <h1 className="min-w-0 truncate text-base leading-none font-normal tracking-tight">
+            {title}
+          </h1>
         }
         trailing={
           inbox ? null : (
@@ -293,52 +329,51 @@ export function LibraryPage() {
         toolbar={
           hasCaptured ? (
             <>
-              {inbox ? null : (
-                <>
-                  <Input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search…"
-                    className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
-                  />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="max-w-[8rem] shrink-0 font-normal text-muted-foreground"
-                        />
-                      }
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search…"
+                className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="max-w-[8rem] shrink-0 font-normal text-muted-foreground"
+                    />
+                  }
+                >
+                  <span className="truncate">{filterLabel}</span>
+                  <CaretDownIcon data-icon="inline-end" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-32">
+                  {TYPE_FACET_ORDER.map((id) => (
+                    <DropdownMenuCheckboxItem
+                      key={id}
+                      className="font-normal text-xs"
+                      checked={filters.has(id)}
+                      onCheckedChange={() => toggleFilter(id)}
                     >
-                      <span className="truncate">{filterLabel}</span>
-                      <CaretDownIcon data-icon="inline-end" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-32">
-                      {TYPE_FACET_ORDER.map((id) => (
-                        <DropdownMenuCheckboxItem
-                          key={id}
-                          className="font-normal text-xs"
-                          checked={filters.has(id)}
-                          onCheckedChange={() => toggleFilter(id)}
-                        >
-                          {TYPE_FACET_LABEL[id]}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              )}
-              <LibrarySortMenu value={sort} onChange={setSort} />
+                      {TYPE_FACET_LABEL[id]}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="ml-auto">
+                <LibrarySortMenu value={sort} onChange={setSort} />
+              </div>
             </>
           ) : null
         }
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
+        <ContentColumn constrain={!previewOpen}>
         {!hasCaptured ? (
-          <div className="px-4 pt-6 pb-24">
+          <div className="px-4 pt-8 pb-24">
             <PageEmpty
               title={inbox ? "Nothing yet" : "Nothing here yet"}
               description={
@@ -349,8 +384,8 @@ export function LibraryPage() {
               }
             />
           </div>
-        ) : entries.length === 0 ? (
-          <div className="px-4 pt-6 pb-24">
+        ) : entries.length === 0 && !hiding ? (
+          <div className="px-4 pt-8 pb-24">
             <PageEmpty
               title="No matches"
               description="Try a different search or filter."
@@ -371,12 +406,18 @@ export function LibraryPage() {
             }}
             onToggle={toggleSelected}
             onPin={(entry) => {
-              if (entry.kind === "item") pinMutation.mutate(entry.item);
+              if (entry.kind === "item") {
+                pinMutation.mutate({
+                  id: entry.item.id,
+                  pinned: !entry.item.pinned,
+                });
+              }
             }}
             onDelete={(ids) => deleteMutation.mutate(ids)}
             onDraggingIds={(ids) => setDraggingIds(new Set(ids))}
           />
         )}
+        </ContentColumn>
       </div>
     </div>
   );
@@ -393,7 +434,7 @@ export function LibraryPage() {
     selectedCount > 0 ? (
       <LibrarySelectionBar
         count={selectedCount}
-        busy={busy}
+        busy={false}
         excludeSpaceId={spaceId}
         deleteTitle={
           selectedCount === 1
@@ -404,7 +445,9 @@ export function LibraryPage() {
         }
         deleteDescription={`This permanently removes ${selectedCount === 1 ? "it" : "them"} from ${scope}. This can’t be undone.`}
         onClear={() => setSelected(new Set())}
-        onMove={(nextSpaceId) => moveMutation.mutate(nextSpaceId)}
+        onMove={(nextSpaceId) =>
+          moveMutation.mutate({ ids: selectedIds, spaceId: nextSpaceId })
+        }
         onDelete={() => deleteMutation.mutate(selectedIds)}
       />
     ) : null;
@@ -421,24 +464,3 @@ export function LibraryPage() {
   );
 }
 
-function InboxForwardAddress({ address }: { address: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            className="min-w-0 truncate text-left text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              void navigator.clipboard.writeText(address);
-              toast.success("Copied");
-            }}
-          />
-        }
-      >
-        {address}
-      </TooltipTrigger>
-      <TooltipContent>Forward email here to add it to Inbox</TooltipContent>
-    </Tooltip>
-  );
-}

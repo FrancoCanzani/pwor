@@ -31,12 +31,12 @@ export function NotePage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 px-4">
-        <LayoutSidebarTrigger className="size-4 shrink-0 p-0 [&_svg]:size-3" />
+        <LayoutSidebarTrigger />
         <Link
           to="/notes"
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          Notes
+          Back
         </Link>
         <span className="min-w-0 flex-1" />
         {note ? (

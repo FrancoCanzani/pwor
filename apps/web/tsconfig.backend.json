@@ -6,7 +6,7 @@
     "paths": {
       "@shared/*": ["./src/shared/*"],
       "@pwor/editor/document": ["../../packages/editor/src/document.ts"],
-      "@pwor/editor/embed": ["../../packages/editor/src/embed.ts"]
+      "@pwor/editor/embed": ["../../packages/editor/src/embed/index.ts"]
     }
   },
   "include": ["src/backend", "src/shared", "worker-configuration.d.ts"]

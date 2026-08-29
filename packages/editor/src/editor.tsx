@@ -2,7 +2,7 @@ import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { useEffect, useRef } from "react";
 import { EditorBubble } from "./bubble/menu";
 import { cn } from "./cn";
-import { PICK_IMAGE_EVENT } from "./constants";
+import { PICK_IMAGE_EVENT } from "./lib/pick-image";
 import { documentsEqual, isDocumentJSON, type DocumentJSON } from "./document";
 import { createEditorExtensions } from "./schema";
 import type { DocumentEditorProps } from "./types";

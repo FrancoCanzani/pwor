@@ -5,6 +5,7 @@ import { createDb } from "../../../db";
 import { assertOwnedSpace } from "../../../db/helpers";
 import { item } from "../../../db/schema";
 import { deleteEmbeddings, vectorId } from "../../../lib/embed";
+import type { WaitUntilCtx } from "../../../types";
 import { deleteNotesForItems } from "../../notes/lib/cleanup";
 import { serializeItem } from "./serialize";
 
@@ -45,6 +46,7 @@ export async function patchOwnedItems(
 
 export async function deleteOwnedItems(
   env: Env,
+  ctx: WaitUntilCtx,
   userId: string,
   ids: string[],
 ) {
@@ -60,27 +62,27 @@ export async function deleteOwnedItems(
     .from(item)
     .where(and(eq(item.userId, userId), inArray(item.id, unique)));
 
-  if (rows.length !== unique.length) {
-    throw new HTTPException(404, { message: "Not found" });
-  }
+  if (rows.length === 0) return [];
 
-  await deleteNotesForItems(
-    db,
-    env,
-    rows.map((row) => row.id),
-  );
+  const foundIds = rows.map((row) => row.id);
+
+  await deleteNotesForItems(db, env, foundIds);
   await db
     .delete(item)
-    .where(and(eq(item.userId, userId), inArray(item.id, unique)));
-  await deleteEmbeddings(
-    env,
-    rows.map((row) => vectorId("item", row.id)),
-  );
+    .where(and(eq(item.userId, userId), inArray(item.id, foundIds)));
 
   const keys = rows.flatMap((row) =>
     [row.r2Key, row.previewR2Key].filter((key): key is string => Boolean(key)),
   );
-  await Promise.all(keys.map((key) => env.ITEMS_BUCKET.delete(key)));
+  ctx.waitUntil(
+    Promise.all([
+      deleteEmbeddings(
+        env,
+        foundIds.map((id) => vectorId("item", id)),
+      ),
+      ...keys.map((key) => env.ITEMS_BUCKET.delete(key)),
+    ]),
+  );
 
-  return unique;
+  return foundIds;
 }

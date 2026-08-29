@@ -5,7 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./document": "./src/document.ts",
-    "./embed": "./src/embed.ts",
+    "./embed": "./src/embed/index.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

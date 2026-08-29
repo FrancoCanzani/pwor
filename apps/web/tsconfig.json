@@ -12,7 +12,7 @@
       "@shared/*": ["./src/shared/*"],
       "@pwor/editor": ["../../packages/editor/src/index.ts"],
       "@pwor/editor/document": ["../../packages/editor/src/document.ts"],
-      "@pwor/editor/embed": ["../../packages/editor/src/embed.ts"]
+      "@pwor/editor/embed": ["../../packages/editor/src/embed/index.ts"]
     }
   },
   "include": ["src/frontend", "src/shared"]

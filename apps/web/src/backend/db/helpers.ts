@@ -2,7 +2,7 @@ import { and, eq, type AnyColumn } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 
 import type { Db } from "./index";
-import { feedItem, item, space } from "./schema";
+import { item, space } from "./schema";
 
 export function ownedBy(
   idColumn: AnyColumn,
@@ -42,23 +42,6 @@ export async function assertOwnedItem(
     .limit(1);
   if (!row) {
     throw new HTTPException(400, { message: "Invalid item" });
-  }
-  return row;
-}
-
-export async function assertOwnedFeedItem(
-  db: Db,
-  feedItemId: string | null | undefined,
-  userId: string,
-): Promise<{ id: string } | null> {
-  if (feedItemId == null) return null;
-  const [row] = await db
-    .select({ id: feedItem.id })
-    .from(feedItem)
-    .where(ownedBy(feedItem.id, feedItemId, feedItem.userId, userId))
-    .limit(1);
-  if (!row) {
-    throw new HTTPException(400, { message: "Invalid feed item" });
   }
   return row;
 }

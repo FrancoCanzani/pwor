@@ -2,7 +2,7 @@ import { Hono } from "hono";
 
 import type { AppEnv } from "../types";
 import { extension } from "./extension";
-import { feeds } from "./feeds";
+import { registerPostFeedback } from "./feedback";
 import { registerGetHealth } from "./health";
 import { inbox } from "./inbox";
 import { items } from "./items";
@@ -16,8 +16,8 @@ import { registerGetTweet } from "./tweet/get";
 const api = new Hono<AppEnv>();
 
 registerGetMe(api);
+registerPostFeedback(api);
 registerGetTweet(api);
-api.route("/feeds", feeds);
 api.route("/inbox", inbox);
 api.route("/notes", notes);
 api.route("/search", search);

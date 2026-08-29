@@ -4,7 +4,7 @@ import { parseJson } from "@lib/api";
 import type { HighlightAnchor } from "@lib/reading/highlight-anchor";
 import { toEpochMs } from "@shared/time";
 
-export type HighlightTarget = { itemId: string } | { feedItemId: string };
+export type HighlightTarget = { itemId: string };
 
 export type NoteListItem = {
   id: string;
@@ -13,7 +13,6 @@ export type NoteListItem = {
   updatedAt: string | Date;
   createdAt: string | Date;
   itemId: string | null;
-  feedItemId: string | null;
   anchorFrom: number | null;
   anchorTo: number | null;
   anchorQuote: string | null;
@@ -70,7 +69,7 @@ export function noteHasAnchor(
 }
 
 export function isStandaloneNote(note: NoteListItem): boolean {
-  return note.itemId == null && note.feedItemId == null;
+  return note.itemId == null;
 }
 
 export function passageIsNoted(note: NoteListItem): boolean {
@@ -85,10 +84,7 @@ async function fetchNotes(filter?: {
   const params = new URLSearchParams();
   if (filter?.spaceId) params.set("spaceId", filter.spaceId);
   if (filter?.standalone) params.set("standalone", "1");
-  if (filter?.target) {
-    if ("itemId" in filter.target) params.set("itemId", filter.target.itemId);
-    else params.set("feedItemId", filter.target.feedItemId);
-  }
+  if (filter?.target) params.set("itemId", filter.target.itemId);
   const query = params.toString();
   const data = await parseJson<{ items: NoteListItem[] }>(
     await fetch(`/api/notes${query ? `?${query}` : ""}`),
@@ -100,6 +96,10 @@ async function fetchNote(id: string): Promise<Note> {
   return parseJson<Note>(await fetch(`/api/notes/${id}`));
 }
 
+export const notesDeleteKey = ["notes", "delete"] as const;
+export const notesMoveKey = ["notes", "move"] as const;
+export const notesPinKey = ["notes", "pin"] as const;
+
 export function notesQueryOptions(spaceId?: string) {
   return queryOptions({
     queryKey: ["notes", "list", spaceId ?? null, "standalone"] as const,
@@ -108,12 +108,8 @@ export function notesQueryOptions(spaceId?: string) {
 }
 
 export function targetNotesQueryOptions(target: HighlightTarget) {
-  const key =
-    "itemId" in target
-      ? (["itemId", target.itemId] as const)
-      : (["feedItemId", target.feedItemId] as const);
   return queryOptions({
-    queryKey: ["notes", "list", key[0], key[1]] as const,
+    queryKey: ["notes", "list", "itemId", target.itemId] as const,
     queryFn: () => fetchNotes({ target }),
   });
 }

@@ -1,5 +1,10 @@
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -7,11 +12,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageEmpty } from "@components/page-empty";
-import { LibraryHeader } from "@features/items/components/library-header";
-import {
-  LibraryList,
-  noteEntries,
-} from "@features/items/components/library-list";
+import { LibraryHeader, ContentColumn } from "@features/items/components/library-header";
+import { LibraryList } from "@features/items/components/library-list";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
 import { sortBy, type ItemSort } from "@features/items/lib/list";
@@ -19,6 +21,9 @@ import {
   createNote,
   deleteNotes,
   noteQueryOptions,
+  notesDeleteKey,
+  notesMoveKey,
+  notesPinKey,
   notesQueryOptions,
   updateNote,
   updateNotes,
@@ -41,37 +46,6 @@ export function NotesPage() {
     enabled: Boolean(spaceId),
   });
 
-  const hasNotes = notes.length > 0;
-  const entries = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const filtered = q
-      ? notes.filter((note) => {
-          const haystack = [noteDisplayTitle(note.title), note.bodyPreview]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-          return haystack.includes(q);
-        })
-      : notes;
-    return noteEntries(
-      sortBy(filtered, sort, {
-        date: (note) => new Date(note.updatedAt).toISOString(),
-        name: (note) => noteDisplayTitle(note.title),
-        pinned: (note) => Boolean(note.pinned),
-      }),
-    );
-  }, [notes, sort, query]);
-
-  const selectedIds = notes
-    .map((note) => note.id)
-    .filter((id) => selected.has(id));
-  const selectedCount = selectedIds.length;
-
-  useHotkey("Escape", () => setSelected(new Set()), {
-    enabled: selectedCount > 0,
-    conflictBehavior: "replace",
-  });
-
   const createMutation = useMutation({
     mutationFn: () => {
       if (!spaceId) throw new Error("No space");
@@ -89,42 +63,109 @@ export function NotesPage() {
   });
 
   const deleteMutation = useMutation({
+    mutationKey: notesDeleteKey,
     mutationFn: (ids: string[]) => deleteNotes(ids),
-    onSuccess: async () => {
-      setSelected(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["notes"] });
+    onMutate: (ids) => {
+      setSelected((current) => {
+        const next = new Set(current);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
     },
     onError: () => toast.error("Couldn’t delete"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
   });
 
   const moveMutation = useMutation({
-    mutationFn: (nextSpaceId: string) =>
-      updateNotes(selectedIds, { spaceId: nextSpaceId }),
-    onSuccess: async () => {
-      const count = selectedIds.length;
-      setSelected(new Set());
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
-      ]);
-      toast.success(count > 1 ? `Moved ${count}` : "Moved");
+    mutationKey: notesMoveKey,
+    mutationFn: (vars: { ids: string[]; spaceId: string }) =>
+      updateNotes(vars.ids, { spaceId: vars.spaceId }),
+    onMutate: (vars) => {
+      setSelected((current) => {
+        const next = new Set(current);
+        for (const id of vars.ids) next.delete(id);
+        return next;
+      });
+    },
+    onSuccess: (_result, vars) => {
+      toast.success(vars.ids.length > 1 ? `Moved ${vars.ids.length}` : "Moved");
     },
     onError: () => toast.error("Couldn’t move note"),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["spaces"] }),
+      ]),
   });
 
   const pinMutation = useMutation({
+    mutationKey: notesPinKey,
     mutationFn: (entry: { id: string; pinned: boolean }) =>
-      updateNote(entry.id, { pinned: !entry.pinned }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["notes"] });
-    },
+      updateNote(entry.id, { pinned: entry.pinned }),
     onError: () => toast.error("Couldn’t pin note"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
   });
 
-  const busy =
-    deleteMutation.isPending ||
-    moveMutation.isPending ||
-    createMutation.isPending;
+  const deleting = useMutationState({
+    filters: { mutationKey: notesDeleteKey, status: "pending" },
+    select: (mutation) => mutation.state.variables as string[] | undefined,
+  });
+  const moving = useMutationState({
+    filters: { mutationKey: notesMoveKey, status: "pending" },
+    select: (mutation) =>
+      (mutation.state.variables as { ids: string[] } | undefined)?.ids,
+  });
+  const pinning = useMutationState({
+    filters: { mutationKey: notesPinKey, status: "pending" },
+    select: (mutation) =>
+      mutation.state.variables as { id: string; pinned: boolean } | undefined,
+  });
+
+  const hasNotes = notes.length > 0;
+  const hiding = deleting.length > 0 || moving.length > 0;
+  const entries = useMemo(() => {
+    const hidden = new Set<string>();
+    for (const ids of deleting) {
+      for (const id of ids ?? []) hidden.add(id);
+    }
+    for (const ids of moving) {
+      for (const id of ids ?? []) hidden.add(id);
+    }
+    const pinById = new Map<string, boolean>();
+    for (const entry of pinning) {
+      if (entry) pinById.set(entry.id, entry.pinned);
+    }
+    const q = query.trim().toLowerCase();
+    const filtered = notes
+      .filter((note) => !hidden.has(note.id))
+      .map((note) => {
+        const pinned = pinById.get(note.id);
+        return pinned === undefined ? note : { ...note, pinned };
+      })
+      .filter((note) => {
+        if (!q) return true;
+        const haystack = [noteDisplayTitle(note.title), note.bodyPreview]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(q);
+      });
+    return sortBy(filtered, sort, {
+      date: (note) => new Date(note.updatedAt).toISOString(),
+      name: (note) => noteDisplayTitle(note.title),
+      pinned: (note) => Boolean(note.pinned),
+    }).map((note) => ({ kind: "note" as const, note }));
+  }, [notes, sort, query, deleting, moving, pinning]);
+
+  const selectedIds = entries.flatMap((entry) =>
+    entry.kind === "note" && selected.has(entry.note.id) ? [entry.note.id] : [],
+  );
+  const selectedCount = selectedIds.length;
+
+  useHotkey("Escape", () => setSelected(new Set()), {
+    enabled: selectedCount > 0,
+    conflictBehavior: "replace",
+  });
 
   function toggleSelected(id: string, checked: boolean) {
     setSelected((current) => {
@@ -136,11 +177,11 @@ export function NotesPage() {
   }
 
   return (
-    <div className="relative mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden">
+    <div className="relative flex h-full w-full flex-col overflow-hidden">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <LibraryHeader
           leading={
-            <h1 className="shrink-0 text-base leading-none font-normal">
+            <h1 className="min-w-0 truncate text-base leading-none font-normal tracking-tight">
               Notes
             </h1>
           }
@@ -153,7 +194,9 @@ export function NotesPage() {
                   placeholder="Search…"
                   className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
                 />
-                <LibrarySortMenu value={sort} onChange={setSort} />
+                <div className="ml-auto">
+                  <LibrarySortMenu value={sort} onChange={setSort} />
+                </div>
               </>
             ) : null
           }
@@ -172,15 +215,16 @@ export function NotesPage() {
         />
 
         <div className="min-h-0 flex-1 overflow-y-auto">
+          <ContentColumn>
           {!hasNotes ? (
-            <div className="px-4 pt-6 pb-24">
+            <div className="px-4 pt-8 pb-24">
               <PageEmpty
                 title="No notes yet"
                 description="A blank page, whenever you need one."
               />
             </div>
-          ) : entries.length === 0 ? (
-            <div className="px-4 pt-6 pb-24">
+          ) : entries.length === 0 && !hiding ? (
+            <div className="px-4 pt-8 pb-24">
               <PageEmpty
                 title="No matches"
                 description="Try a different search."
@@ -208,7 +252,7 @@ export function NotesPage() {
                 if (entry.kind === "note") {
                   pinMutation.mutate({
                     id: entry.note.id,
-                    pinned: Boolean(entry.note.pinned),
+                    pinned: !entry.note.pinned,
                   });
                 }
               }}
@@ -216,13 +260,14 @@ export function NotesPage() {
               onDraggingIds={(ids) => setDraggingIds(new Set(ids))}
             />
           )}
+          </ContentColumn>
         </div>
       </div>
 
       {selectedCount > 0 ? (
         <LibrarySelectionBar
           count={selectedCount}
-          busy={busy}
+          busy={false}
           excludeSpaceId={spaceId}
           deleteTitle={
             selectedCount === 1
@@ -231,7 +276,9 @@ export function NotesPage() {
           }
           deleteDescription={`This permanently deletes ${selectedCount === 1 ? "it" : "them"}. This can’t be undone.`}
           onClear={() => setSelected(new Set())}
-          onMove={(nextSpaceId) => moveMutation.mutate(nextSpaceId)}
+          onMove={(nextSpaceId) =>
+            moveMutation.mutate({ ids: selectedIds, spaceId: nextSpaceId })
+          }
           onDelete={() => deleteMutation.mutate(selectedIds)}
         />
       ) : null}

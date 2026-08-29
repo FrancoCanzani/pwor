@@ -15,14 +15,12 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ExtensionLinkRouteImport } from './routes/extension/link'
-import { Route as AppFeedsIndexRouteImport } from './routes/_app/feeds/index'
 import { Route as AppInboxIndexRouteImport } from './routes/_app/inbox/index'
 import { Route as AppNotesIndexRouteImport } from './routes/_app/notes/index'
 import { Route as AppNotesNoteIdRouteImport } from './routes/_app/notes/$noteId'
 import { Route as AppOnboardingIndexRouteImport } from './routes/_app/onboarding/index'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSpacesSpaceIdRouteImport } from './routes/_app/spaces/$spaceId'
-import { Route as AppFeedsFeedIdIndexRouteImport } from './routes/_app/feeds/$feedId/index'
 import { Route as AppSpacesSpaceIdIndexRouteImport } from './routes/_app/spaces/$spaceId/index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -54,11 +52,6 @@ const ExtensionLinkRoute = ExtensionLinkRouteImport.update({
   path: '/extension/link',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppFeedsIndexRoute = AppFeedsIndexRouteImport.update({
-  id: '/feeds/',
-  path: '/feeds/',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppInboxIndexRoute = AppInboxIndexRouteImport.update({
   id: '/inbox/',
   path: '/inbox/',
@@ -89,11 +82,6 @@ const AppSpacesSpaceIdRoute = AppSpacesSpaceIdRouteImport.update({
   path: '/spaces/$spaceId',
   getParentRoute: () => AppRoute,
 } as any)
-const AppFeedsFeedIdIndexRoute = AppFeedsFeedIdIndexRouteImport.update({
-  id: '/feeds/$feedId/',
-  path: '/feeds/$feedId/',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppSpacesSpaceIdIndexRoute = AppSpacesSpaceIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -108,12 +96,10 @@ export interface FileRoutesByFullPath {
   '/extension/link': typeof ExtensionLinkRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
   '/spaces/$spaceId': typeof AppSpacesSpaceIdRouteWithChildren
-  '/feeds/': typeof AppFeedsIndexRoute
   '/inbox/': typeof AppInboxIndexRoute
   '/notes/': typeof AppNotesIndexRoute
   '/onboarding/': typeof AppOnboardingIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
-  '/feeds/$feedId/': typeof AppFeedsFeedIdIndexRoute
   '/spaces/$spaceId/': typeof AppSpacesSpaceIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -123,12 +109,10 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/extension/link': typeof ExtensionLinkRoute
   '/notes/$noteId': typeof AppNotesNoteIdRoute
-  '/feeds': typeof AppFeedsIndexRoute
   '/inbox': typeof AppInboxIndexRoute
   '/notes': typeof AppNotesIndexRoute
   '/onboarding': typeof AppOnboardingIndexRoute
   '/settings': typeof AppSettingsIndexRoute
-  '/feeds/$feedId': typeof AppFeedsFeedIdIndexRoute
   '/spaces/$spaceId': typeof AppSpacesSpaceIdIndexRoute
 }
 export interface FileRoutesById {
@@ -141,12 +125,10 @@ export interface FileRoutesById {
   '/extension/link': typeof ExtensionLinkRoute
   '/_app/notes/$noteId': typeof AppNotesNoteIdRoute
   '/_app/spaces/$spaceId': typeof AppSpacesSpaceIdRouteWithChildren
-  '/_app/feeds/': typeof AppFeedsIndexRoute
   '/_app/inbox/': typeof AppInboxIndexRoute
   '/_app/notes/': typeof AppNotesIndexRoute
   '/_app/onboarding/': typeof AppOnboardingIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
-  '/_app/feeds/$feedId/': typeof AppFeedsFeedIdIndexRoute
   '/_app/spaces/$spaceId/': typeof AppSpacesSpaceIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -159,12 +141,10 @@ export interface FileRouteTypes {
     | '/extension/link'
     | '/notes/$noteId'
     | '/spaces/$spaceId'
-    | '/feeds/'
     | '/inbox/'
     | '/notes/'
     | '/onboarding/'
     | '/settings/'
-    | '/feeds/$feedId/'
     | '/spaces/$spaceId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -174,12 +154,10 @@ export interface FileRouteTypes {
     | '/terms'
     | '/extension/link'
     | '/notes/$noteId'
-    | '/feeds'
     | '/inbox'
     | '/notes'
     | '/onboarding'
     | '/settings'
-    | '/feeds/$feedId'
     | '/spaces/$spaceId'
   id:
     | '__root__'
@@ -191,12 +169,10 @@ export interface FileRouteTypes {
     | '/extension/link'
     | '/_app/notes/$noteId'
     | '/_app/spaces/$spaceId'
-    | '/_app/feeds/'
     | '/_app/inbox/'
     | '/_app/notes/'
     | '/_app/onboarding/'
     | '/_app/settings/'
-    | '/_app/feeds/$feedId/'
     | '/_app/spaces/$spaceId/'
   fileRoutesById: FileRoutesById
 }
@@ -253,13 +229,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExtensionLinkRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/feeds/': {
-      id: '/_app/feeds/'
-      path: '/feeds'
-      fullPath: '/feeds/'
-      preLoaderRoute: typeof AppFeedsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/inbox/': {
       id: '/_app/inbox/'
       path: '/inbox'
@@ -302,13 +271,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSpacesSpaceIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/feeds/$feedId/': {
-      id: '/_app/feeds/$feedId/'
-      path: '/feeds/$feedId'
-      fullPath: '/feeds/$feedId/'
-      preLoaderRoute: typeof AppFeedsFeedIdIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/spaces/$spaceId/': {
       id: '/_app/spaces/$spaceId/'
       path: '/'
@@ -333,23 +295,19 @@ const AppSpacesSpaceIdRouteWithChildren =
 interface AppRouteChildren {
   AppNotesNoteIdRoute: typeof AppNotesNoteIdRoute
   AppSpacesSpaceIdRoute: typeof AppSpacesSpaceIdRouteWithChildren
-  AppFeedsIndexRoute: typeof AppFeedsIndexRoute
   AppInboxIndexRoute: typeof AppInboxIndexRoute
   AppNotesIndexRoute: typeof AppNotesIndexRoute
   AppOnboardingIndexRoute: typeof AppOnboardingIndexRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
-  AppFeedsFeedIdIndexRoute: typeof AppFeedsFeedIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppNotesNoteIdRoute: AppNotesNoteIdRoute,
   AppSpacesSpaceIdRoute: AppSpacesSpaceIdRouteWithChildren,
-  AppFeedsIndexRoute: AppFeedsIndexRoute,
   AppInboxIndexRoute: AppInboxIndexRoute,
   AppNotesIndexRoute: AppNotesIndexRoute,
   AppOnboardingIndexRoute: AppOnboardingIndexRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
-  AppFeedsFeedIdIndexRoute: AppFeedsFeedIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

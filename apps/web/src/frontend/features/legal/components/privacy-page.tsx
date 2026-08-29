@@ -5,13 +5,13 @@ export function PrivacyPage() {
     <LegalPage title="Privacy" updated="August 2026">
       <p>
         This is a draft. It is not legal advice. It describes how Pwor treats
-        the pile you put in it.
+        what you put in it.
       </p>
 
       <LegalSection title="What we store">
         <p>
-          Account email (magic link). The items, notes, and feeds you capture.
-          Titles, summaries, tags, and markdown we extract so the pile is
+          Account email (magic link). The items and notes you capture.
+          Titles, summaries, tags, and markdown we extract so your saves are
           searchable. Embeddings of that text. Files in object storage. API
           keys for the clipper and MCP. An inbound mail address if you use
           email capture.
@@ -20,8 +20,8 @@ export function PrivacyPage() {
 
       <LegalSection title="What we don’t">
         <p>
-          We don’t sell your pile. We don’t train a public model on it. A key
-          you mint can read and capture as you. Revoke it if it leaks.
+          We don’t sell what you capture. We don’t train a public model on it. A
+          key you mint can read and capture as you. Revoke it if it leaks.
         </p>
       </LegalSection>
 

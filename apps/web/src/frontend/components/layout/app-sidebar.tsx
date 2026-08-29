@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-import { CaptureHint } from "@/components/layout/capture-hint";
 import { NavUser } from "@/components/layout/nav-user";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import {
@@ -23,12 +22,7 @@ export function AppSidebar() {
             Pwor
           </Link>
         </div>
-        <div className="flex items-center pr-2">
-          <SidebarTrigger
-            variant="outline"
-            className="text-muted-foreground"
-          />
-        </div>
+        <SidebarTrigger className="text-muted-foreground" />
       </SidebarHeader>
 
       <SidebarContent>
@@ -36,7 +30,6 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <CaptureHint />
         <NavUser />
       </SidebarFooter>
     </Sidebar>

@@ -36,6 +36,14 @@ The only legal comment is a short `//` that explains a non-obvious **why**: a pl
 - Never run DB commands (`db:generate`, `db:migrate`, `db:migrate:dev`, `db:studio`, `wrangler d1 …`, drizzle-kit apply/push, etc.) unless the user explicitly asks.
 - Never touch migration files or `db/migrations/meta/*` (journal, snapshots) — not by hand, not via drizzle-kit. Only edit schema files in `db/schema/`. Migrations (generating and applying) are the user's to run, always.
 
+## Fetch
+
+Call `fetch` where the result is used (`queryFn`, `mutationFn`, the handler). Do not wrap a request in a named helper.
+
+Illegal: `features/feedback/api.ts` exporting `sendFeedback` whose body is `parseJson(await fetch("/api/feedback", …))`. A one-off POST does not get its own module.
+
+Shared types and `queryOptions` reused across files are fine. Do not add an API client layer.
+
 ## Keyboard
 
 - All shortcuts go through `useHotkey` from `@tanstack/react-hotkeys`. Do not add `window.addEventListener("keydown", …)` in components — there should be exactly one keyboard layer.

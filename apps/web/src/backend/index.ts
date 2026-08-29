@@ -11,7 +11,6 @@ import { authMiddleware, requireAuthUnlessPublic } from "./middleware/auth";
 import { handleMcp } from "./mcp/handle";
 import { api, extension, registerGetHealth } from "./routes";
 import { purgeStalePairings } from "./routes/extension/lib/pairing";
-import { syncAllFeeds } from "./routes/feeds/lib/sync";
 import { cleanupOrphanNoteImages } from "./routes/notes/lib/cleanup";
 import type { AppEnv } from "./types";
 
@@ -72,13 +71,9 @@ export default {
     return app.fetch(request, env, ctx);
   },
 
-  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
-    if (controller.cron === "0 6 * * *") {
-      await cleanupOrphanNoteImages(env);
-      await purgeStalePairings(env);
-      return;
-    }
-    await syncAllFeeds(env);
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    await cleanupOrphanNoteImages(env);
+    await purgeStalePairings(env);
   },
 
   async email(

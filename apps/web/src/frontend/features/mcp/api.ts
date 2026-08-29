@@ -68,3 +68,22 @@ export function mcpCursorConfig(url: string, key: string): string {
     2,
   );
 }
+
+export function mcpConnectPrompt(url: string, key: string): string {
+  const config = mcpCursorConfig(url, key);
+  return `Connect Pwor as a remote MCP server. Pwor is my personal memory — pages, files, and notes I’ve saved. Not a chat. Use it when I ask about something I might have saved, and save things back when I tell you to remember them.
+
+Add this MCP server:
+
+Name: pwor
+URL: ${url}
+Transport: streamable HTTP (remote)
+Authorization: Bearer ${key}
+
+${config}
+
+Once connected:
+- Start with search. Hits have kind item or note — open them with get_item or get_note.
+- capture saves a URL or text. create_note writes a note. list_spaces lists folders. Inbox is unfiled.
+- You can search, open, and save. You cannot delete anything.`;
+}

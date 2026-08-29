@@ -33,7 +33,7 @@ export function SpaceStep() {
         queryKey: spacesQueryOptions.queryKey,
         exact: true,
       });
-      await navigate({ to: "/" });
+      await navigate({ to: "/inbox" });
     } catch {
       setError("Something went wrong.");
       setIsSubmitting(false);

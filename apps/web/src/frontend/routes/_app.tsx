@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app")({
     }
 
     if (!incomplete && onOnboarding) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/inbox" });
     }
 
     return {

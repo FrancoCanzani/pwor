@@ -1,30 +1,29 @@
 import { and, eq, inArray } from "drizzle-orm";
 
+import { parseNoteDocument } from "@shared/note-frontmatter";
 import { toEpochMs } from "@shared/time";
 
 import { createDb } from "../../../db";
 import { item, note } from "../../../db/schema";
 import { EMBED_TOP_K, embedQuery, parseVectorId } from "../../../lib/embed";
-import type { SearchHit } from "./query";
+import { snippetAround, type SearchHit } from "./query";
 
-const SNIPPET_CHARS = 160;
+const SEMANTIC_ONLY_CAP = 3;
+// Cosine; below this Vectorize is returning neighbors, not matches.
+const MIN_SEMANTIC_SCORE = 0.55;
 
-function snippetOf(value: string | null | undefined): string | null {
-  const text = value?.replace(/\s+/g, " ").trim();
-  if (!text) return null;
-  return text.length <= SNIPPET_CHARS
-    ? text
-    : text.slice(0, SNIPPET_CHARS).trimEnd();
-}
-
-function itemSnippet(row: {
-  title: string | null;
-  summary: string | null;
-  content: string | null;
-  extractedMarkdown: string | null;
-}): string | null {
-  return snippetOf(
-    row.extractedMarkdown || row.content || row.summary || row.title,
+function itemSnippet(
+  row: {
+    title: string | null;
+    summary: string | null;
+    content: string | null;
+    extractedMarkdown: string | null;
+  },
+  q: string,
+): string | null {
+  return snippetAround(
+    row.extractedMarkdown || row.content || row.summary || row.title || "",
+    q,
   );
 }
 
@@ -53,6 +52,7 @@ export async function semanticSearchHits(
   const noteIds: string[] = [];
   const order = new Map<string, number>();
   for (const [index, match] of matches.entries()) {
+    if (match.score < MIN_SEMANTIC_SCORE) continue;
     const parsed = parseVectorId(match.id);
     if (!parsed) continue;
     const key = `${parsed.kind}:${parsed.id}`;
@@ -70,6 +70,8 @@ export async function semanticSearchHits(
       }
     }
   }
+
+  if (itemIds.length === 0 && noteIds.length === 0) return [];
 
   const db = createDb(env.DB);
   const hits: SearchHit[] = [];
@@ -94,7 +96,7 @@ export async function semanticSearchHits(
         kind: "item",
         id: row.id,
         title: row.title?.trim() || "Untitled",
-        snippet: itemSnippet(row),
+        snippet: itemSnippet(row, q),
         spaceId: row.spaceId,
         updatedAt: toEpochMs(row.updatedAt),
       });
@@ -119,7 +121,7 @@ export async function semanticSearchHits(
         kind: "note",
         id: row.id,
         title: row.title?.trim() || "Untitled",
-        snippet: snippetOf(row.body),
+        snippet: snippetAround(parseNoteDocument(row.body).body, q),
         spaceId: row.spaceId,
         updatedAt: toEpochMs(row.updatedAt),
       });
@@ -138,21 +140,29 @@ export function mergeSearchHits(
   semantic: SearchHit[],
   limit: number,
 ): SearchHit[] {
-  const scores = new Map<string, { hit: SearchHit; score: number }>();
+  const seen = new Set<string>();
+  const out: SearchHit[] = [];
 
-  function add(hit: SearchHit, rank: number) {
+  for (const hit of lexical) {
     const key = `${hit.kind}:${hit.id}`;
-    const extra = 1 / (60 + rank);
-    const current = scores.get(key);
-    if (current) current.score += extra;
-    else scores.set(key, { hit, score: extra });
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(hit);
+    if (out.length >= limit) return out;
   }
 
-  lexical.forEach((hit, rank) => add(hit, rank));
-  semantic.forEach((hit, rank) => add(hit, rank));
-
-  return [...scores.values()]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map((entry) => entry.hit);
+  const cap =
+    lexical.length === 0
+      ? limit - out.length
+      : Math.min(SEMANTIC_ONLY_CAP, limit - out.length);
+  let added = 0;
+  for (const hit of semantic) {
+    if (added >= cap) break;
+    const key = `${hit.kind}:${hit.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(hit);
+    added += 1;
+  }
+  return out;
 }

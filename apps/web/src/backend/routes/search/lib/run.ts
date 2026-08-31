@@ -1,4 +1,6 @@
-import { buildSearchQuery, type SearchHit } from "./query";
+import { parseNoteDocument } from "@shared/note-frontmatter";
+
+import { buildSearchQuery, snippetAround, type SearchHit } from "./query";
 import { mergeSearchHits, semanticSearchHits } from "./semantic";
 
 export async function searchMemory(
@@ -35,5 +37,12 @@ export async function searchMemory(
   });
 
   const [{ results }, semanticHits] = await Promise.all([lexical, semantic]);
-  return mergeSearchHits(results ?? [], semanticHits, limit);
+  const hits = (results ?? []).map((hit) => {
+    const text =
+      hit.kind === "note"
+        ? parseNoteDocument(hit.snippet ?? "").body
+        : (hit.snippet ?? "");
+    return { ...hit, snippet: snippetAround(text, q) };
+  });
+  return mergeSearchHits(hits, semanticHits, limit);
 }

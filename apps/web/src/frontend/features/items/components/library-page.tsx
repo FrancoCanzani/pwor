@@ -37,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll";
+import { cn } from "@/lib/utils";
 import { PageEmpty } from "@components/page-empty";
 import { SplitPreviewLayout } from "@components/split-preview-layout";
 import {
@@ -51,6 +52,7 @@ import {
 } from "@features/items/api";
 import { ItemPreview } from "@features/items/components/item-preview";
 import { LibraryHeader, ContentColumn } from "@features/items/components/library-header";
+import { LibraryInbox } from "@features/items/components/library-inbox";
 import { LibrarySelectionBar } from "@features/items/components/library-selection-bar";
 import { LibrarySortMenu } from "@features/items/components/library-sort";
 import { LibraryView } from "@features/items/components/library-view";
@@ -275,6 +277,91 @@ export function LibraryPage() {
   const previewOpen = openItem != null;
   const scope = inbox ? "Inbox" : "this space";
 
+  const listBody = !hasCaptured ? (
+    <div className="px-4 pb-24">
+      <PageEmpty
+        className={inbox ? "min-h-[32vh] py-10" : undefined}
+        title={inbox ? "Nothing yet" : "Nothing here yet"}
+        description={
+          <span className="flex items-center justify-center gap-1">
+            <Kbd>⌘U</Kbd>
+            {inbox ? "to capture. Paste a link anywhere." : "to capture."}
+          </span>
+        }
+      />
+    </div>
+  ) : entries.length === 0 && !hiding ? (
+    <div className="px-4 pb-24">
+      <PageEmpty
+        title="No matches"
+        description="Try a different search or filter."
+      />
+    </div>
+  ) : (
+    <LibraryView
+      view={view}
+      entries={entries}
+      edgeToEdge={previewOpen}
+      selected={selected}
+      draggingIds={draggingIds}
+      deleteDescription={`This permanently removes it from ${scope}. This can’t be undone.`}
+      fromSpaceId={spaceId ?? null}
+      hasNextPage={Boolean(listQuery.hasNextPage)}
+      sentinelRef={sentinelRef}
+      onOpen={(entry) => {
+        if (entry.kind === "item") setOpenItem(entry.item);
+      }}
+      onToggle={toggleSelected}
+      onPin={(entry) => {
+        if (entry.kind === "item") {
+          pinMutation.mutate({
+            id: entry.item.id,
+            pinned: !entry.item.pinned,
+          });
+        }
+      }}
+      onDelete={(ids) => deleteMutation.mutate(ids)}
+      onDraggingIds={(ids) => setDraggingIds(new Set(ids))}
+    />
+  );
+
+  const facetMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="max-w-[8rem] shrink-0 font-normal text-muted-foreground"
+          />
+        }
+      >
+        <span className="truncate">{filterLabel}</span>
+        <CaretDownIcon data-icon="inline-end" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-32">
+        {TYPE_FACET_ORDER.map((id) => (
+          <DropdownMenuCheckboxItem
+            key={id}
+            className="font-normal text-xs"
+            checked={filters.has(id)}
+            onCheckedChange={() => toggleFilter(id)}
+          >
+            {TYPE_FACET_LABEL[id]}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const viewSort = (
+    <div className="flex items-center gap-2">
+      <LibraryViewToggle value={view} onChange={setView} />
+      <LibrarySortMenu value={sort} onChange={setSort} />
+    </div>
+  );
+
   const listPane = (
     <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto">
       <LibraryHeader
@@ -330,7 +417,7 @@ export function LibraryPage() {
           )
         }
         toolbar={
-          hasCaptured ? (
+          inbox || !hasCaptured ? null : (
             <>
               <Input
                 value={query}
@@ -338,90 +425,41 @@ export function LibraryPage() {
                 placeholder="Search…"
                 className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
               />
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="max-w-[8rem] shrink-0 font-normal text-muted-foreground"
-                    />
-                  }
-                >
-                  <span className="truncate">{filterLabel}</span>
-                  <CaretDownIcon data-icon="inline-end" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-32">
-                  {TYPE_FACET_ORDER.map((id) => (
-                    <DropdownMenuCheckboxItem
-                      key={id}
-                      className="font-normal text-xs"
-                      checked={filters.has(id)}
-                      onCheckedChange={() => toggleFilter(id)}
-                    >
-                      {TYPE_FACET_LABEL[id]}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="flex items-center gap-2">
-                <LibraryViewToggle value={view} onChange={setView} />
-                <LibrarySortMenu value={sort} onChange={setSort} />
-              </div>
+              {facetMenu}
+              {viewSort}
             </>
-          ) : null
+          )
         }
       />
-
-      <ContentColumn constrain={!previewOpen}>
-        {!hasCaptured ? (
-            <div className="px-4 pb-24">
-            <PageEmpty
-              title={inbox ? "Nothing yet" : "Nothing here yet"}
-              description={
-                <span className="flex items-center justify-center gap-1">
-                  <Kbd>⌘U</Kbd>
-                  {inbox ? "to capture. Paste a link anywhere." : "to capture."}
-                </span>
-              }
-            />
-          </div>
-        ) : entries.length === 0 && !hiding ? (
-            <div className="px-4 pb-24">
-            <PageEmpty
-              title="No matches"
-              description="Try a different search or filter."
-            />
-          </div>
+      <ContentColumn
+        constrain={!previewOpen}
+        className={inbox ? "pt-6 md:pt-6" : undefined}
+      >
+        {inbox ? (
+          <LibraryInbox edgeToEdge={previewOpen}>
+            {hasCaptured ? (
+              <div
+                className={cn(
+                  "flex items-center gap-2 pb-3",
+                  previewOpen ? "px-3" : "px-4",
+                )}
+              >
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search…"
+                  className="h-7 min-w-0 max-w-[12rem] text-xs sm:max-w-xs"
+                />
+                {facetMenu}
+                <div className="ml-auto">{viewSort}</div>
+              </div>
+            ) : null}
+            {listBody}
+          </LibraryInbox>
         ) : (
-          <LibraryView
-            view={view}
-            entries={entries}
-            edgeToEdge={previewOpen}
-            selected={selected}
-            draggingIds={draggingIds}
-            deleteDescription={`This permanently removes it from ${scope}. This can’t be undone.`}
-            fromSpaceId={spaceId ?? null}
-            hasNextPage={Boolean(listQuery.hasNextPage)}
-            sentinelRef={sentinelRef}
-            onOpen={(entry) => {
-              if (entry.kind === "item") setOpenItem(entry.item);
-            }}
-            onToggle={toggleSelected}
-            onPin={(entry) => {
-              if (entry.kind === "item") {
-                pinMutation.mutate({
-                  id: entry.item.id,
-                  pinned: !entry.item.pinned,
-                });
-              }
-            }}
-            onDelete={(ids) => deleteMutation.mutate(ids)}
-            onDraggingIds={(ids) => setDraggingIds(new Set(ids))}
-          />
+          listBody
         )}
-        </ContentColumn>
+      </ContentColumn>
     </div>
   );
 

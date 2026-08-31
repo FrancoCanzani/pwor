@@ -28,7 +28,6 @@ export function searchQueryOptions(q: string) {
     queryKey: ["search", term] as const,
     queryFn: () => fetchSearch(term),
     enabled: term.length >= MIN_QUERY_LENGTH,
-    placeholderData: (previous) => previous,
     staleTime: 30_000,
   });
 }

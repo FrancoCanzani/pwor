@@ -73,7 +73,7 @@ export function ClaudeThinking({
       aria-live="polite"
       className={className}
       style={{
-        fontFamily: "var(--font-geist-mono, ui-monospace, monospace)",
+        fontFamily: "var(--font-mono, ui-monospace, monospace)",
         fontSize: 13,
         display: "flex",
         alignItems: "center",

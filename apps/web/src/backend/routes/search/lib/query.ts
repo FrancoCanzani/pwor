@@ -10,7 +10,8 @@ export type SearchHit = {
 };
 
 const PER_SOURCE_LIMIT = 6;
-const SNIPPET_CHARS = 160;
+export const SNIPPET_CHARS = 160;
+const SNIPPET_SOURCE_CHARS = 4_000;
 
 type Source = {
   kind: SearchKind;
@@ -34,7 +35,7 @@ const SOURCES: Source[] = [
     spaceColumn: "space_id",
     timestamp: "updated_at",
     match: ["body"],
-    snippet: `substr(trim(body), 1, ${SNIPPET_CHARS})`,
+    snippet: "body",
   },
   {
     kind: "item",
@@ -45,9 +46,29 @@ const SOURCES: Source[] = [
     spaceColumn: "space_id",
     timestamp: "updated_at",
     match: ["summary", "content", "extracted_markdown", "tags"],
-    snippet: `substr(trim(coalesce(extracted_markdown, content, summary, tags)), 1, ${SNIPPET_CHARS})`,
+    snippet: `substr(trim(coalesce(extracted_markdown, content, summary, tags)), 1, ${SNIPPET_SOURCE_CHARS})`,
   },
 ];
+
+export function snippetAround(text: string, q: string, chars = SNIPPET_CHARS): string | null {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  if (!collapsed) return null;
+  if (collapsed.length <= chars) return collapsed;
+
+  const needle = q.trim().replace(/\s+/g, " ").toLowerCase();
+  const at = needle ? collapsed.toLowerCase().indexOf(needle) : -1;
+  if (at === -1) return collapsed.slice(0, chars).trimEnd();
+
+  const window = Math.max(chars, needle.length);
+  let start = Math.max(0, at - Math.floor((window - needle.length) / 2));
+  if (start + window > collapsed.length) {
+    start = Math.max(0, collapsed.length - window);
+  }
+  const slice = collapsed.slice(start, start + window).trim();
+  const prefix = start > 0 ? "…" : "";
+  const suffix = start + window < collapsed.length ? "…" : "";
+  return `${prefix}${slice}${suffix}`;
+}
 
 // `%` / `_` are LIKE wildcards — a bare `_` would match every character.
 function escapeLike(term: string) {

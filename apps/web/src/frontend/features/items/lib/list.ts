@@ -14,12 +14,6 @@ export const ITEM_SORT_LABEL: Record<ItemSort, string> = {
 
 export const ITEM_SORT_ORDER: ItemSort[] = ["newest", "oldest", "name"];
 
-export function formatItemDate(value: string | Date): string {
-  const date = new Date(value);
-  if (!isValid(date)) return "";
-  return format(date, "MMM d, yyyy, h:mm a");
-}
-
 export function formatItemDateShort(value: string | Date): string {
   const date = new Date(value);
   if (!isValid(date)) return "";

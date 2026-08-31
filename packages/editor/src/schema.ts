@@ -1,21 +1,21 @@
 import { Extension, type AnyExtension, type Editor } from "@tiptap/core";
 import FileHandler from "@tiptap/extension-file-handler";
 import Highlight from "@tiptap/extension-highlight";
-import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import Underline from "@tiptap/extension-underline";
 import UniqueID from "@tiptap/extension-unique-id";
 import StarterKit from "@tiptap/starter-kit";
-import { EmbedPaste } from "./embed/paste";
 import { Tweet } from "./embed/tweet";
 import { Youtube } from "./embed/youtube";
+import { EditorLink } from "./link/mark";
 import { mentionClickPlugin } from "./mention/click";
 import { Mention } from "./mention/node";
 import { MentionSuggestion } from "./mention/suggestion";
 import { Callout } from "./nodes/callout";
 import { EditorImage } from "./nodes/image";
+import { PasteHandler } from "./paste/extension";
 import { SlashCommand } from "./slash/extension";
 import type { MentionSource, UploadImage } from "./types";
 
@@ -85,7 +85,7 @@ export function createDocumentSchema(): AnyExtension[] {
     }),
     Underline,
     Highlight.configure({ multicolor: false }),
-    Link.configure({
+    EditorLink.configure({
       openOnClick: false,
       autolink: true,
       defaultProtocol: "https",
@@ -115,7 +115,7 @@ export function createEditorExtensions(options: SchemaOptions = {}): AnyExtensio
       showOnlyCurrent: true,
     }),
     SlashCommand.configure({ canUpload: Boolean(uploadImage) }),
-    EmbedPaste,
+    PasteHandler,
   ];
 
   if (mentions) {

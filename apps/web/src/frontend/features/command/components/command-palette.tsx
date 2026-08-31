@@ -1,49 +1,14 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import {
-  MIN_QUERY_LENGTH,
-  searchQueryOptions,
-  type SearchHit,
-  type SearchKind,
-} from "@features/command/api";
-import { useCaptureComposer } from "@features/command/capture-composer-context";
-import { isCaptureUrl, captureHost } from "@features/command/lib/capture";
+import { MIN_QUERY_LENGTH } from "@features/command/api";
 import { MarkedText } from "@features/command/components/marked-text";
-import { fuzzyScore } from "@features/command/lib/score";
-import { spacesQueryOptions } from "@features/spaces/api";
-import { setStoredSpaceId } from "@features/spaces/lib/current-space";
-import { useCurrentSpace } from "@features/spaces/lib/use-current-space";
-
-const SPACE_NAV_ITEMS = [
-  { to: "/spaces/$spaceId", label: "Library" },
-] as const;
-
-const KIND_META = {
-  note: { label: "Notes" },
-  item: { label: "Library" },
-} as const satisfies Record<SearchKind, { label: string }>;
-
-const KIND_ORDER: SearchKind[] = ["note", "item"];
-type PaletteItem = {
-  id: string;
-  label: string;
-  detail?: string | null;
-  meta?: string;
-  index: number;
-  run: () => void;
-};
-
-const SEARCH_DEBOUNCE_MS = 120;
-
-// Stable fallbacks: a fresh `[]` per render would rebuild `items` every render.
-const NO_HITS: SearchHit[] = [];
-const NO_SPACES: { id: string; name: string }[] = [];
+import {
+  usePaletteItems,
+  type PaletteItem,
+} from "@features/command/lib/use-palette-items";
 
 export function CommandPalette({
   open,
@@ -55,176 +20,16 @@ export function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
-  const { id: currentSpaceId } = useCurrentSpace();
-  const { open: openCreate } = useCaptureComposer();
-  const { data: spaces = NO_SPACES } = useQuery(spacesQueryOptions);
-
-  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
-  const { data: hits = NO_HITS } = useQuery(searchQueryOptions(debouncedQuery));
-
-  useHotkey("Mod+K", () => onOpenChange(!open));
-
-  const { sections, items } = useMemo(() => {
-    const term = query.trim();
-    const groups: { label: string; items: Omit<PaletteItem, "index">[] }[] = [];
-
-    function select(spaceId: string, run: () => void) {
+  const { sections, items } = usePaletteItems(
+    query,
+    () => {
       onOpenChange(false);
       setQuery("");
-      setStoredSpaceId(spaceId);
-      run();
-    }
+    },
+    { idle: true },
+  );
 
-    const jumps: Omit<PaletteItem, "index">[] = [
-      {
-        id: "nav:/inbox",
-        label: "Inbox",
-        run: () => {
-          onOpenChange(false);
-          setQuery("");
-          void navigate({ to: "/inbox" });
-        },
-      },
-      {
-        id: "nav:/notes",
-        label: "Notes",
-        run: () => {
-          onOpenChange(false);
-          setQuery("");
-          void navigate({ to: "/notes" });
-        },
-      },
-      ...(currentSpaceId
-        ? SPACE_NAV_ITEMS.map((item) => ({
-            id: `nav:${item.to}`,
-            label: item.label,
-            run: () =>
-              select(currentSpaceId, () =>
-                navigate({
-                  to: item.to,
-                  params: { spaceId: currentSpaceId },
-                }),
-              ),
-          }))
-        : []),
-      ...spaces
-        .filter((space) => space.id !== currentSpaceId)
-        .map((space) => ({
-          id: `space:${space.id}`,
-          label: space.name,
-          meta: "Space",
-          run: () =>
-            select(space.id, () =>
-              navigate({
-                to: "/spaces/$spaceId",
-                params: { spaceId: space.id },
-              }),
-            ),
-        })),
-    ];
-
-    const matched = term ? rank(jumps, term) : jumps;
-    if (matched.length > 0) groups.push({ label: "Go to", items: matched });
-
-    const actions: Omit<PaletteItem, "index">[] = [
-      {
-        id: "action:capture",
-        label: "Capture",
-        meta: "⌘U",
-        run: () => {
-          onOpenChange(false);
-          setQuery("");
-          openCreate();
-        },
-      },
-    ];
-    const matchedActions = term ? rank(actions, term) : [...actions];
-    if (isCaptureUrl(term)) {
-      matchedActions.unshift({
-        id: "action:capture-url",
-        label: `Capture ${captureHost(term) ?? "link"}`,
-        run: () => {
-          onOpenChange(false);
-          setQuery("");
-          openCreate({ input: term });
-        },
-      });
-    }
-    if (matchedActions.length > 0) {
-      groups.push({ label: "Actions", items: matchedActions });
-    }
-
-    for (const kind of KIND_ORDER) {
-      const matches = hits.filter((hit) => hit.kind === kind);
-      if (matches.length === 0) continue;
-
-      groups.push({
-        label: KIND_META[kind].label,
-        items: matches.map((hit) => ({
-          id: `${hit.kind}:${hit.id}`,
-          label: hit.title,
-          detail: hit.snippet,
-          meta: hitSpaceLabel(hit, currentSpaceId, spaces),
-          run: () => {
-            switch (hit.kind) {
-              case "item": {
-                if (!hit.spaceId) {
-                  onOpenChange(false);
-                  setQuery("");
-                  void navigate({
-                    to: "/inbox",
-                    search: { item: hit.id },
-                  });
-                  return;
-                }
-                const spaceId = hit.spaceId;
-                select(spaceId, () =>
-                  navigate({
-                    to: "/spaces/$spaceId",
-                    params: { spaceId: spaceId },
-                    search: { item: hit.id },
-                  }),
-                );
-                return;
-              }
-              case "note": {
-                const spaceId = hit.spaceId ?? currentSpaceId;
-                if (!spaceId) return;
-                select(spaceId, () =>
-                  navigate({
-                    to: "/notes/$noteId",
-                    params: { noteId: hit.id },
-                  }),
-                );
-                return;
-              }
-              default: {
-                const _exhaustive: never = hit.kind;
-                return _exhaustive;
-              }
-            }
-          },
-        })),
-      });
-    }
-
-    let index = 0;
-    const sections = groups.map((group) => ({
-      label: group.label,
-      items: group.items.map((item) => ({ ...item, index: index++ })),
-    }));
-
-    return { sections, items: sections.flatMap((section) => section.items) };
-  }, [
-    query,
-    hits,
-    spaces,
-    currentSpaceId,
-    navigate,
-    openCreate,
-    onOpenChange,
-  ]);
+  useHotkey("Mod+K", () => onOpenChange(!open));
 
   // Keyed on the query and the result count, not on `items` identity — a
   // reset on every re-render would undo each arrow press.
@@ -275,6 +80,10 @@ export function CommandPalette({
           <div className="flex h-11 shrink-0 items-center border-b border-border px-3">
             <input
               autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={handleKeyDown}
@@ -375,24 +184,4 @@ function Hint({ keys, label }: { keys: string; label: string }) {
       {label}
     </span>
   );
-}
-
-function rank<T extends { label: string }>(items: T[], term: string): T[] {
-  return items
-    .map((item) => ({ item, score: fuzzyScore(item.label, term) }))
-    .filter(
-      (entry): entry is { item: T; score: number } => entry.score !== null,
-    )
-    .sort((a, b) => b.score - a.score)
-    .map((entry) => entry.item);
-}
-
-function hitSpaceLabel(
-  hit: SearchHit,
-  currentSpaceId: string | undefined,
-  spaces: { id: string; name: string }[],
-) {
-  if (!hit.spaceId) return hit.kind === "item" ? "Inbox" : undefined;
-  if (hit.spaceId === currentSpaceId) return undefined;
-  return spaces.find((space) => space.id === hit.spaceId)?.name;
 }

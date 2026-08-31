@@ -42,7 +42,7 @@ export function DocumentEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editable,
-    autofocus: autoFocus ? "end" : false,
+    autofocus: autoFocus ? "start" : false,
     content: initialDocument,
     extensions: createEditorExtensions({
       placeholder,

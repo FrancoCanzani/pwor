@@ -117,8 +117,10 @@
 }
 
 .pwor-editor .tiptap a {
+  color: var(--muted-foreground);
   text-decoration: underline;
   text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .pwor-editor .tiptap img {
@@ -128,8 +130,10 @@
 }
 
 .pwor-editor .tiptap mark {
-  background: color-mix(in oklch, var(--foreground) 12%, transparent);
+  background: #fef08a;
   color: inherit;
+  border-radius: 2px;
+  padding: 0 0.12em;
 }
 
 .pwor-editor .tiptap aside[data-callout] {

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { Item } from "@features/items/api";
 import { LibraryItemMenus } from "@features/items/components/library-item-menus";
 import { ItemHoverCard, ItemMention } from "@features/items/components/item-mention";
-import { formatItemDate, itemTitle } from "@features/items/lib/list";
+import { formatItemDateShort, itemTitle } from "@features/items/lib/list";
 import { itemFileUrl, itemOpenHref } from "@features/items/lib/media";
 
 export type LibraryItemHandlers = {
@@ -117,7 +117,7 @@ export function LibraryRow({
           <DrawingPinFilledIcon className="size-3 shrink-0 text-muted-foreground" />
         ) : null}
         <span className="shrink-0 text-xs font-nums text-muted-foreground">
-          {formatItemDate(item.createdAt)}
+          {formatItemDateShort(item.createdAt)}
         </span>
       </ContextMenuTrigger>
     </LibraryItemMenus>

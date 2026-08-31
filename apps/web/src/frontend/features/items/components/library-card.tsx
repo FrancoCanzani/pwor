@@ -1,9 +1,10 @@
 import { DrawingPinFilledIcon } from "@radix-ui/react-icons";
-import { useRef, type DragEvent, type ReactNode } from "react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import { FileTypeIcon } from "@/components/icons";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ContextMenuTrigger } from "@/components/ui/context-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { noteDisplayTitle } from "@shared/note-frontmatter";
 import type { Item } from "@features/items/api";
@@ -21,6 +22,7 @@ import {
 import {
   isPdfFile,
   isVideoFile,
+  itemAwaitingScreenshot,
   itemFileUrl,
   itemHost,
   itemOpenHref,
@@ -140,7 +142,6 @@ function ItemCard({
         variant={variant}
         selected={selected}
         dragging={dragging}
-        pending={item.parseStatus === "pending"}
         onOpen={onOpen}
         onToggle={onToggle}
         onDragStart={onDragStart}
@@ -222,7 +223,6 @@ function CardTrigger({
   variant,
   selected,
   dragging,
-  pending = false,
   onOpen,
   onToggle,
   onDragStart,
@@ -239,7 +239,6 @@ function CardTrigger({
   variant: "grid" | "masonry";
   selected: boolean;
   dragging: boolean;
-  pending?: boolean;
   onOpen: () => void;
   onToggle: (checked: boolean) => void;
   onDragStart: (event: DragEvent<HTMLLIElement>) => void;
@@ -283,7 +282,6 @@ function CardTrigger({
             "group flex min-w-0 cursor-grab flex-col overflow-hidden rounded-2xl border border-border bg-background select-none active:cursor-grabbing",
             variant === "grid" &&
               "[content-visibility:auto] [contain-intrinsic-size:auto_280px]",
-            pending && "[&_[data-slot=well]]:animate-pulse",
             dragging && "opacity-40",
             (active || selected) && "border-foreground/25",
           )}
@@ -361,8 +359,10 @@ function ItemWellBody({
       return <PdfThumb fileUrl={itemFileUrl(item.id)} />;
     case "still":
       return still ? (
-        <Still src={still} cover={cover} cropTop={item.kind === "link"} />
-      ) : null;
+        <Still key={still} src={still} cover={cover} cropTop={item.kind === "link"} />
+      ) : (
+        <CardSpinner />
+      );
     case "tweet": {
       const tweetId = itemTweetId(item);
       return tweetId ? (
@@ -420,10 +420,10 @@ function Well({
 
 function wellFill(kind: WellKind): string {
   switch (kind) {
-    case "still":
     case "tweet":
     case "clipping":
       return "bg-background";
+    case "still":
     case "video":
     case "pdf":
     case "glyph":
@@ -460,6 +460,16 @@ function wellShape(
   }
 }
 
+function CardSpinner() {
+  return (
+    <Spinner
+      label={null}
+      size="sm"
+      className="pointer-events-none absolute top-1.5 right-1.5 z-10 text-foreground/50 [&>span]:size-3.5"
+    />
+  );
+}
+
 function Still({
   src,
   cover,
@@ -469,16 +479,24 @@ function Still({
   cover: boolean;
   cropTop: boolean;
 }) {
+  const [loaded, setLoaded] = useState(false);
+
   return (
-    <img
-      src={src}
-      alt=""
-      draggable={false}
-      className={cn(
-        cover ? "size-full object-cover" : "h-auto w-full",
-        cropTop && "object-top",
-      )}
-    />
+    <>
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        className={cn(
+          cover ? "size-full object-cover" : "h-auto w-full",
+          cropTop && "object-top",
+          !loaded && "opacity-0",
+        )}
+      />
+      {loaded ? null : <CardSpinner />}
+    </>
   );
 }
 
@@ -504,7 +522,7 @@ function itemWellKind(item: Item): WellKind {
   if (itemTweetId(item)) return "tweet";
   if (isVideoFile(item)) return "video";
   if (isPdfFile(item)) return "pdf";
-  if (itemStillUrl(item)) return "still";
+  if (itemStillUrl(item) || itemAwaitingScreenshot(item)) return "still";
   if (item.kind === "text" && itemClippingText(item)) return "clipping";
   if (item.kind === "link" && item.summary?.trim()) return "clipping";
   return "glyph";

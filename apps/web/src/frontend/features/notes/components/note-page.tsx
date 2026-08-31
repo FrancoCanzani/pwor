@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 
 import { LayoutSidebarTrigger } from "@/components/layout/layout-sidebar-trigger";
@@ -8,10 +9,12 @@ import {
   NoteTitleInput,
   useNoteDocument,
 } from "@features/notes/components/note-document";
+import { NoteOutline } from "@features/notes/components/note-outline";
 
 export function NotePage() {
   const { noteId } = useParams({ from: "/_app/notes/$noteId" });
   const navigate = useNavigate();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const session = useNoteDocument(noteId);
   const {
     note,
@@ -22,6 +25,10 @@ export function NotePage() {
     saveLabel,
     reloadFromServer,
   } = session;
+
+  useLayoutEffect(() => {
+    scrollRef.current?.scrollTo(0, 0);
+  }, [noteId]);
 
   function openNote(id: string) {
     if (id === noteId) return;
@@ -47,27 +54,30 @@ export function NotePage() {
           />
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {!note && error ? (
-          <PageEmpty
-            title="Note not found"
-            description="It may have been deleted."
-          />
-        ) : note ? (
-          <div className="mx-auto w-full max-w-2xl px-8 pt-10 pb-28 sm:px-16">
-            <NoteTitleInput
-              value={title}
-              onChange={handleTitleChange}
-              className="mb-8 w-full text-2xl leading-tight"
+      <div className="relative min-h-0 flex-1">
+        <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto">
+          {!note && error ? (
+            <PageEmpty
+              title="Note not found"
+              description="It may have been deleted."
             />
-            <NoteDocumentBody
-              noteId={noteId}
-              session={session}
-              onOpenNote={openNote}
-              className="pwor-editor-page min-h-[50vh]"
-            />
-          </div>
-        ) : null}
+          ) : note ? (
+            <div className="mx-auto w-full max-w-2xl px-8 pt-10 pb-28 sm:px-16">
+              <NoteTitleInput
+                value={title}
+                onChange={handleTitleChange}
+                className="mb-8 w-full text-2xl leading-tight"
+              />
+              <NoteDocumentBody
+                noteId={noteId}
+                session={session}
+                onOpenNote={openNote}
+                className="pwor-editor-page min-h-[50vh]"
+              />
+            </div>
+          ) : null}
+        </div>
+        {note ? <NoteOutline scrollRef={scrollRef} /> : null}
       </div>
     </div>
   );

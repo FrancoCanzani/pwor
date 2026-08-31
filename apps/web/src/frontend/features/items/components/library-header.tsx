@@ -5,14 +5,22 @@ import { cn } from "@/lib/utils";
 
 export function ContentColumn({
   constrain = true,
+  className,
   children,
 }: {
   constrain?: boolean;
+  className?: string;
   children: ReactNode;
 }) {
   // First row lines up with the sidebar Inbox button (capture group + group padding).
   return (
-    <div className={cn("pt-13 md:pt-11", constrain && "mx-auto w-full max-w-4xl")}>
+    <div
+      className={cn(
+        "pt-13 md:pt-11",
+        constrain && "mx-auto w-full max-w-4xl",
+        className,
+      )}
+    >
       {children}
     </div>
   );

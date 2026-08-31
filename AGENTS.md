@@ -61,7 +61,7 @@ Shared types and `queryOptions` reused across files are fine. Do not add an API 
 
 ## UI
 
-- Font: Geist Sans everywhere. Geist Mono via `font-nums` for dates/numbers (mono + tabular-nums).
+- Font: Inter everywhere. IBM Plex Mono via `font-nums` for dates/numbers (mono + tabular-nums).
 - Minimally rounded: `--radius: 0.25rem` (~4px). Prefer token classes (`rounded-sm` / `rounded-md` / `rounded-lg`) — do not hardcode `rounded-none`.
 - Style with **Tailwind utilities** in components. Keep `index.css` to theme tokens + base only — no hand-rolled layout/component CSS classes.
 - Prefer shadcn primitives (`Button`, `Input`, `Empty`, `DropdownMenu`, …) over custom markup.
@@ -71,6 +71,6 @@ Shared types and `queryOptions` reused across files are fine. Do not add an API 
 - Never use all-caps text (`text-transform: uppercase` or hand-typed caps for labels).
 - Never use semibold / medium weights (no 500–600). Use regular (400) by default; bold (700) only when emphasis is needed. When using shadcn components that ship `font-medium`, override with `font-normal`.
 - Monochrome first. Hierarchy via size, color (muted), and weight (400/700 only) — not surfaces.
-- Numbers and dates use `font-nums` (Geist Mono + tabular-nums).
+- Numbers and dates use `font-nums` (IBM Plex Mono + tabular-nums).
 - Empty states use shadcn `Empty`.
 - App chrome uses shadcn `Sidebar` (brand, nav, user footer dropdown). Keep it minimal — no inset/floating chrome.

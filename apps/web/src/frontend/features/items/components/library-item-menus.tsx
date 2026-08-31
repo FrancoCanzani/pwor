@@ -62,7 +62,7 @@ export function LibraryItemMenus({
               disabled={!externalHref}
               onClick={openExternal}
             >
-              Open in new tab
+              Open original
             </ContextMenuItem>
             {downloadHref ? (
               <ContextMenuItem

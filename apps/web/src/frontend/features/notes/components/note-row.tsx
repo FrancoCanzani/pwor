@@ -24,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { noteDisplayTitle } from "@shared/note-frontmatter";
 import type { LibraryItemHandlers } from "@features/items/components/library-row";
-import { formatItemDate } from "@features/items/lib/list";
+import { formatItemDateShort } from "@features/items/lib/list";
 import type { NoteListItem } from "@features/notes/api";
 
 export function NoteMenus({
@@ -204,7 +204,7 @@ export function NoteRow({
           <DrawingPinFilledIcon className="size-3 shrink-0 text-muted-foreground" />
         ) : null}
         <span className="shrink-0 text-xs font-nums text-muted-foreground">
-          {formatItemDate(note.updatedAt)}
+          {formatItemDateShort(note.updatedAt)}
         </span>
       </ContextMenuTrigger>
     </NoteMenus>

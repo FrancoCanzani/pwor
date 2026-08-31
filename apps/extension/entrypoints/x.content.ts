@@ -46,7 +46,7 @@ function showToast(message: string) {
       "z-index:2147483647",
       "background:#111",
       "color:#fff",
-      "font:400 12px/1.4 Geist,ui-sans-serif,system-ui,sans-serif",
+      "font:400 12px/1.4 Inter,ui-sans-serif,system-ui,sans-serif",
       "padding:8px 12px",
       "border-radius:8px",
       "opacity:0",
@@ -124,7 +124,7 @@ function createSaveButton(article: Element) {
     "border-radius:999px",
     "background:transparent",
     "color:#111",
-    "font:700 12px/1 Geist,ui-sans-serif,system-ui,sans-serif",
+    "font:700 12px/1 Inter,ui-sans-serif,system-ui,sans-serif",
     "cursor:pointer",
   ].join(";");
 

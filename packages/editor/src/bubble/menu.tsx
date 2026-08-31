@@ -9,7 +9,6 @@ import {
   Heading3,
   Highlighter,
   Italic,
-  Link2,
   List,
   ListOrdered,
   ListTodo,
@@ -19,14 +18,9 @@ import {
   Strikethrough,
   Underline,
 } from "lucide-react";
-import {
-  useRef,
-  useState,
-  type ComponentType,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useState, type ComponentType } from "react";
 import { cn } from "../cn";
+import { ICON, IconButton, LinkControl, LinkHoverPreview, useResetOnSelection } from "./link";
 
 type BlockType = {
   name: string;
@@ -141,36 +135,17 @@ const marks = [
   },
 ] as const;
 
-function IconButton({
-  active,
-  label,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  label: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      className={cn(
-        "inline-flex size-6 items-center justify-center rounded-sm font-normal text-foreground hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground",
-        active ? "bg-muted" : "bg-transparent",
-      )}
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
+const menuChrome =
+  "z-50 flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5";
+
+function preserveSelection(event: { target: EventTarget; preventDefault: () => void }) {
+  if (event.target instanceof HTMLInputElement) return;
+  event.preventDefault();
 }
 
 function BlockTypeMenu({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
+  useResetOnSelection(editor, () => setOpen(false));
   const current =
     blockTypes.find((type) => type.isActive(editor)) ?? blockTypes[0]!;
   const CurrentIcon = current.icon;
@@ -183,7 +158,7 @@ function BlockTypeMenu({ editor }: { editor: Editor }) {
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpen((value) => !value)}
       >
-        <CurrentIcon className="size-3.5" />
+        <CurrentIcon className={ICON} />
         <span>{current.label}</span>
       </button>
       {open ? (
@@ -204,7 +179,7 @@ function BlockTypeMenu({ editor }: { editor: Editor }) {
                   setOpen(false);
                 }}
               >
-                <Icon className="size-3.5 text-muted-foreground" />
+                <Icon className={cn(ICON, "text-muted-foreground")} />
                 {type.label}
               </button>
             );
@@ -215,59 +190,7 @@ function BlockTypeMenu({ editor }: { editor: Editor }) {
   );
 }
 
-function LinkControl({ editor }: { editor: Editor }) {
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
-  const active = editor.isActive("link");
-
-  function apply(event: FormEvent) {
-    event.preventDefault();
-    const href = value.trim();
-    if (href.length === 0) {
-      editor.chain().focus().unsetLink().run();
-    } else {
-      editor.chain().focus().setLink({ href }).run();
-    }
-    setOpen(false);
-  }
-
-  return (
-    <div className="relative">
-      <IconButton
-        active={active || open}
-        label="Link"
-        onClick={() => {
-          setValue(editor.getAttributes("link").href ?? "");
-          setOpen((current) => !current);
-        }}
-      >
-        <Link2 className="size-3.5" />
-      </IconButton>
-      {open ? (
-        <form
-          className="absolute top-full left-0 z-10 mt-1 flex w-56 gap-1 rounded-md border border-border bg-background p-1"
-          onSubmit={apply}
-        >
-          <input
-            autoFocus
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder="https://"
-            className="h-6 min-w-0 flex-1 bg-transparent px-1 text-xs outline-none"
-          />
-          <button
-            type="submit"
-            className="h-6 px-1.5 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted active:text-foreground"
-          >
-            Apply
-          </button>
-        </form>
-      ) : null}
-    </div>
-  );
-}
-
-function shouldShow({ editor }: { editor: Editor }): boolean {
+function shouldShowSelection({ editor }: { editor: Editor }): boolean {
   if (editor.isDestroyed || !editor.isEditable) return false;
   const { selection } = editor.state;
   if (selection.empty) return false;
@@ -278,7 +201,6 @@ function shouldShow({ editor }: { editor: Editor }): boolean {
 }
 
 export function EditorBubble({ editor }: { editor: Editor }) {
-  const menuRef = useRef<HTMLDivElement>(null);
   const marksState = useEditorState({
     editor,
     selector: (ctx) =>
@@ -286,30 +208,33 @@ export function EditorBubble({ editor }: { editor: Editor }) {
   });
 
   return (
-    <BubbleMenu
-      ref={menuRef}
-      editor={editor}
-      shouldShow={shouldShow}
-      options={{ placement: "top", offset: 8 }}
-      className="z-50 flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5"
-    >
-      <BlockTypeMenu editor={editor} />
-      <span className="mx-0.5 h-4 w-px bg-border" />
-      {marks.map((mark) => {
-        const Icon = mark.icon;
-        return (
-          <IconButton
-            key={mark.name}
-            label={mark.name}
-            active={Boolean(marksState[mark.name])}
-            onClick={() => mark.run(editor)}
-          >
-            <Icon className="size-3.5" />
-          </IconButton>
-        );
-      })}
-      <span className="mx-0.5 h-4 w-px bg-border" />
-      <LinkControl editor={editor} />
-    </BubbleMenu>
+    <>
+      <BubbleMenu
+        editor={editor}
+        shouldShow={shouldShowSelection}
+        options={{ placement: "top", offset: 8 }}
+        className={menuChrome}
+        onMouseDown={preserveSelection}
+      >
+        <BlockTypeMenu editor={editor} />
+        <span className="mx-0.5 h-4 w-px bg-border" />
+        {marks.map((mark) => {
+          const Icon = mark.icon;
+          return (
+            <IconButton
+              key={mark.name}
+              label={mark.name}
+              active={Boolean(marksState[mark.name])}
+              onClick={() => mark.run(editor)}
+            >
+              <Icon className={ICON} />
+            </IconButton>
+          );
+        })}
+        <span className="mx-0.5 h-4 w-px bg-border" />
+        <LinkControl editor={editor} />
+      </BubbleMenu>
+      <LinkHoverPreview editor={editor} />
+    </>
   );
 }
